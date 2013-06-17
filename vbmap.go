@@ -12,14 +12,19 @@ type Node uint;
 type Tag uint;
 type TagMap map[Node]Tag;
 
-var (
-	numNodes uint
-	numSlaves uint
-	numVBuckets uint
-	numReplicas uint
+type VbmapParams struct {
+	Tags TagMap
 
-	nodes []Node = nil
-	tags TagMap = nil
+	NumNodes int
+	NumSlaves int
+	NumVBuckets int
+	NumReplicas int
+}
+
+var (
+	params VbmapParams = VbmapParams{
+		Tags : nil,
+	}
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -60,57 +65,56 @@ func errorMsg(format string, args ...interface{}) {
 }
 
 func checkInput() {
-	if numNodes == 0 || numSlaves ==0 || numVBuckets == 0 {
-		errorMsg("num_nodes, num_slaves and num_vbuckets must be greater than zero")
+	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
+		errorMsg("num-nodes, num-slaves and num-vbuckets must be greater than zero")
 	}
 
-	if numSlaves >= numNodes {
-		numSlaves = numNodes - 1
+	if params.NumReplicas < 0 {
+		errorMsg("num-replicas must be greater of equal than zero")
 	}
 
-	var n uint
-	for n = 0; n < numNodes; n++ {
-		nodes = append(nodes, Node(n))
+	if params.NumSlaves >= params.NumNodes {
+		params.NumSlaves = params.NumNodes - 1
 	}
 
-	if tags == nil {
+	if params.Tags == nil {
 		traceMsg("Tags are not specified. Assuming every not on a separate tag.")
 
-		tags = make(TagMap)
+		params.Tags = make(TagMap)
 
-		for i, n := range nodes {
-			tags[n] = Tag(i)
+		for i := 0; i < params.NumNodes; i++ {
+			params.Tags[Node(i)] = Tag(i)
 		}
 	}
 
 	// each node should have a tag assigned
-	for _, n := range nodes {
-		_, present := tags[n]
+	for i := 0; i < params.NumNodes; i++ {
+		_, present := params.Tags[Node(i)]
 		if !present {
-			errorMsg("Tag for node %v not specified", n)
+			errorMsg("Tag for node %v not specified", i)
 		}
 	}
 }
 
 func main() {
-	flag.UintVar(&numNodes, "num-nodes", 25, "Number of nodes")
-	flag.UintVar(&numSlaves, "num-slaves", 10, "Number of slaves")
-	flag.UintVar(&numVBuckets, "num-vbuckets", 1024, "Number of VBuckets")
-	flag.UintVar(&numReplicas, "num-replicas", 1, "Number of replicas")
-	flag.Var(&tags, "tags", "Tags")
+	flag.IntVar(&params.NumNodes, "num-nodes", 25, "Number of nodes")
+	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "Number of slaves")
+	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "Number of VBuckets")
+	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "Number of replicas")
+	flag.Var(&params.Tags, "tags", "Tags")
 
 	flag.Parse()
 
 	checkInput()
 
 	traceMsg("Finalized parameters")
-	traceMsg("  Number of nodes: %d", numNodes)
-	traceMsg("  Number of slaves: %d", numSlaves)
-	traceMsg("  Number of vbuckets: %d", numVBuckets)
-	traceMsg("  Number of replicas: %d", numReplicas)
+	traceMsg("  Number of nodes: %d", params.NumNodes)
+	traceMsg("  Number of slaves: %d", params.NumSlaves)
+	traceMsg("  Number of vbuckets: %d", params.NumVBuckets)
+	traceMsg("  Number of replicas: %d", params.NumReplicas)
 	traceMsg("  Tags assignments:")
 
-	for _, n := range nodes {
-		traceMsg("    %v -> %v", n, tags[n])
+	for i := 0; i < params.NumNodes; i++ {
+		traceMsg("    %d -> %v", i, params.Tags[Node(i)])
 	}
 }
