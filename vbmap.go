@@ -55,6 +55,16 @@ func (tags TagMap) String() string {
 	return fmt.Sprintf("%v", map[Node]Tag(tags))
 }
 
+func (tags TagMap) TagsCount() int {
+	seen := make(map[Tag]bool)
+
+	for _, t := range tags {
+		seen[t] = true
+	}
+
+	return len(seen)
+}
+
 func traceMsg(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format + "\n", args...)
 }
@@ -117,4 +127,11 @@ func main() {
 	for i := 0; i < params.NumNodes; i++ {
 		traceMsg("    %d -> %v", i, params.Tags[Node(i)])
 	}
+
+	traceMsg("=========================DATA=========================")
+	err := genDataFile(os.Stderr, params)
+	if err != nil {
+		panic(err)
+	}
+	traceMsg("=========================DATA=========================")
 }
