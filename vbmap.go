@@ -128,10 +128,13 @@ func main() {
 		traceMsg("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
-	traceMsg("=========================DATA=========================")
-	err := genDataFile(os.Stderr, params)
+	solution, err := invokeGlpk(params)
 	if err != nil {
-		panic(err)
+		errorMsg("Failed to find a solution (%s)", err.Error())
 	}
-	traceMsg("=========================DATA=========================")
+
+	traceMsg("Solution I got:\n")
+	for _, row := range solution {
+		traceMsg("%v", row)
+	}
 }
