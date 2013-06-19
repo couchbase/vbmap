@@ -6,6 +6,8 @@ import (
 	"flag"
 	"strings"
 	"strconv"
+	"math/rand"
+	"time"
 )
 
 type Node uint
@@ -23,6 +25,7 @@ type VbmapParams struct {
 }
 
 var (
+	seed int64
 	tagHistogram TagHist = nil
 	params VbmapParams = VbmapParams{
 		Tags : nil,
@@ -160,7 +163,11 @@ func main() {
 	flag.Var(&params.Tags, "tags", "Tags")
 	flag.Var(&tagHistogram, "tag-histogram", "Tag histogram")
 
+	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "Random seed")
+
 	flag.Parse()
+
+	rand.Seed(seed)
 
 	checkInput()
 
