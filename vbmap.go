@@ -128,13 +128,11 @@ func main() {
 		traceMsg("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
-	solution, err := invokeGlpk(params)
+	solution, err := VbmapGenerate(params)
 	if err != nil {
 		errorMsg("Failed to find a solution (%s)", err.Error())
 	}
 
 	traceMsg("Solution I got:\n")
-	for _, row := range solution {
-		traceMsg("%v", row)
-	}
+	dumpR(params, solution)
 }

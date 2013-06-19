@@ -108,3 +108,66 @@ func readSolution(params VbmapParams, outPath string) ([][]int, error) {
 
 	return result, nil
 }
+
+func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
+	vbsPerNode := params.NumVBuckets / params.NumNodes
+	vbsPerNodeRem := params.NumVBuckets % params.NumNodes
+
+	R = make([][]int, len(RI))
+	for i, row := range RI {
+		rowSum := vbsPerNode * params.NumReplicas
+		if vbsPerNodeRem != 0 {
+			vbsPerNodeRem -= 1
+			rowSum += params.NumReplicas
+		}
+
+		vbsPerSlave := rowSum / params.NumSlaves
+		vbsPerSlaveRem := rowSum % params.NumSlaves
+
+		R[i] = make([]int, len(row))
+		for j, elem := range row {
+			if elem != 0 {
+				R[i][j] = vbsPerSlave
+				if vbsPerSlaveRem != 0 {
+					vbsPerSlaveRem -= 1
+					R[i][j] += 1
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func dumpR(params VbmapParams, R [][]int) {
+	colSums := make([]int, params.NumNodes)
+	for _, row := range R {
+		rowSum := 0
+
+		for j, elem := range row {
+			rowSum += elem
+			colSums[j] += elem
+			fmt.Fprintf(os.Stderr, "%3d ", elem)
+		}
+		fmt.Fprintf(os.Stderr, "| %d\n", rowSum)
+	}
+
+	for i := 0; i < params.NumNodes; i++ {
+		fmt.Fprintf(os.Stderr, "____")
+	}
+	fmt.Fprintf(os.Stderr, "|\n")
+
+	for i := 0; i < params.NumNodes; i++ {
+		fmt.Fprintf(os.Stderr, "%3d ", colSums[i])
+	}
+	fmt.Fprintf(os.Stderr, "\n")
+}
+
+func VbmapGenerate(params VbmapParams) ([][]int, error) {
+	RI, err := invokeGlpk(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildInitialR(params, RI), nil
+}
