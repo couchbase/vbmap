@@ -67,6 +67,7 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 	// TODO: params
 	cmd := exec.Command("glpsol",
 		"--model", "vbmap.mod",
+		"--tmlim", "5",
 		"--data", file.Name(),
 		"--display", output.Name())
 	terminal, err := cmd.CombinedOutput()
@@ -140,10 +141,23 @@ func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
 }
 
 func dumpR(params VbmapParams, R [][]int) {
+	fmt.Fprintf(os.Stderr, "    |")
+	for i := 0; i < params.NumNodes; i++ {
+		fmt.Fprintf(os.Stderr, "%3d ", params.Tags[Node(i)])
+	}
+	fmt.Fprintf(os.Stderr, "|\n")
+
+	fmt.Fprintf(os.Stderr, "----|")
+	for i := 0; i < params.NumNodes; i++ {
+		fmt.Fprintf(os.Stderr, "----")
+	}
+	fmt.Fprintf(os.Stderr, "|\n")
+
 	colSums := make([]int, params.NumNodes)
-	for _, row := range R {
+	for i, row := range R {
 		rowSum := 0
 
+		fmt.Fprintf(os.Stderr, "%3d |", params.Tags[Node(i)])
 		for j, elem := range row {
 			rowSum += elem
 			colSums[j] += elem
@@ -152,15 +166,17 @@ func dumpR(params VbmapParams, R [][]int) {
 		fmt.Fprintf(os.Stderr, "| %d\n", rowSum)
 	}
 
+	fmt.Fprintf(os.Stderr, "____|")
 	for i := 0; i < params.NumNodes; i++ {
 		fmt.Fprintf(os.Stderr, "____")
 	}
 	fmt.Fprintf(os.Stderr, "|\n")
 
+	fmt.Fprintf(os.Stderr, "    |")
 	for i := 0; i < params.NumNodes; i++ {
 		fmt.Fprintf(os.Stderr, "%3d ", colSums[i])
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "|\n")
 }
 
 func VbmapGenerate(params VbmapParams) ([][]int, error) {

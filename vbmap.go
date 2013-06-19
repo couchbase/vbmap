@@ -8,9 +8,10 @@ import (
 	"strconv"
 )
 
-type Node uint;
-type Tag uint;
-type TagMap map[Node]Tag;
+type Node uint
+type Tag uint
+type TagMap map[Node]Tag
+type TagHist []uint
 
 type VbmapParams struct {
 	Tags TagMap
@@ -22,6 +23,7 @@ type VbmapParams struct {
 }
 
 var (
+	tagHistogram TagHist = nil
 	params VbmapParams = VbmapParams{
 		Tags : nil,
 	}
@@ -65,6 +67,26 @@ func (tags TagMap) TagsCount() int {
 	return len(seen)
 }
 
+func (hist *TagHist) Set(s string) error {
+	values := strings.Split(s, ",")
+	*hist = make(TagHist, len(values))
+
+	for i, v := range values {
+		count, err := strconv.ParseUint(v, 10, strconv.IntSize)
+		if err != nil {
+			return err
+		}
+
+		(*hist)[i] = uint(count)
+	}
+
+	return nil
+}
+
+func (hist TagHist) String() string {
+	return fmt.Sprintf("%v", []uint(hist))
+}
+
 func traceMsg(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format + "\n", args...)
 }
@@ -87,13 +109,37 @@ func checkInput() {
 		params.NumSlaves = params.NumNodes - 1
 	}
 
-	if params.Tags == nil {
-		traceMsg("Tags are not specified. Assuming every not on a separate tag.")
+	if params.Tags != nil && tagHistogram != nil {
+		errorMsg("Options --tags and --tag-histogram are exclusive")
+	}
 
+	if params.Tags == nil && tagHistogram == nil {
+		traceMsg("Tags are not specified. Assuming every not on a separate tag.")
+		tagHistogram = make(TagHist, params.NumNodes)
+
+		for i := 0; i < params.NumNodes; i++ {
+			tagHistogram[i] = 1
+		}
+	}
+
+	if tagHistogram != nil {
+		tag := 0
 		params.Tags = make(TagMap)
 
 		for i := 0; i < params.NumNodes; i++ {
-			params.Tags[Node(i)] = Tag(i)
+			for tag < len(tagHistogram) && tagHistogram[tag] == 0 {
+				tag += 1
+			}
+			if tag >= len(tagHistogram) {
+				errorMsg("Invalid tag histogram. Counts do not add up.")
+			}
+
+			tagHistogram[tag] -= 1
+			params.Tags[Node(i)] = Tag(tag)
+		}
+
+		if tag != len(tagHistogram) - 1 || tagHistogram[tag] != 0 {
+			errorMsg("Invalid tag histogram. Counts do not add up.")
 		}
 	}
 
@@ -112,6 +158,7 @@ func main() {
 	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "Number of VBuckets")
 	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "Number of replicas")
 	flag.Var(&params.Tags, "tags", "Tags")
+	flag.Var(&tagHistogram, "tag-histogram", "Tag histogram")
 
 	flag.Parse()
 
