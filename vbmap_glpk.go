@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"text/template"
+	"math/rand"
 )
 
 const dataTemplate = `
@@ -110,29 +111,47 @@ func readSolution(params VbmapParams, outPath string) ([][]int, error) {
 	return result, nil
 }
 
+func shuffle(a []int) {
+	for i := range a {
+		j := i + rand.Intn(len(a) - i)
+		a[i], a[j] = a[j], a[i]
+	}
+}
+
+func spreadSum(sum int, n int) (result []int) {
+	result = make([]int, n)
+
+	quot := sum / n
+	rem := sum % n
+
+	for i := range result {
+		result[i] = quot
+		if rem != 0 {
+			rem -= 1
+			result[i] += 1
+		}
+	}
+
+	shuffle(result)
+
+	return
+}
+
 func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
-	vbsPerNode := params.NumVBuckets / params.NumNodes
-	vbsPerNodeRem := params.NumVBuckets % params.NumNodes
+	activeVbsPerNode := spreadSum(params.NumVBuckets, params.NumNodes)
 
 	R = make([][]int, len(RI))
 	for i, row := range RI {
-		rowSum := vbsPerNode * params.NumReplicas
-		if vbsPerNodeRem != 0 {
-			vbsPerNodeRem -= 1
-			rowSum += params.NumReplicas
-		}
-
-		vbsPerSlave := rowSum / params.NumSlaves
-		vbsPerSlaveRem := rowSum % params.NumSlaves
+		rowSum := activeVbsPerNode[i] * params.NumReplicas
+		slaveVbs := spreadSum(rowSum, params.NumSlaves)
 
 		R[i] = make([]int, len(row))
+
+		slave := 0
 		for j, elem := range row {
 			if elem != 0 {
-				R[i][j] = vbsPerSlave
-				if vbsPerSlaveRem != 0 {
-					vbsPerSlaveRem -= 1
-					R[i][j] += 1
-				}
+				R[i][j] = slaveVbs[slave]
+				slave += 1
 			}
 		}
 	}
