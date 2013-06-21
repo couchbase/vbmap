@@ -160,6 +160,7 @@ func checkInput() {
 }
 
 func main() {
+	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "Number of nodes")
 	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "Number of slaves")
 	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "Number of VBuckets")
@@ -192,5 +193,5 @@ func main() {
 	}
 
 	traceMsg("Solution I got:\n")
-	dumpR(params, solution)
+	solution.dump()
 }
