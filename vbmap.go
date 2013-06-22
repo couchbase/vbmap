@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"flag"
-	"strings"
-	"strconv"
+	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,17 +18,17 @@ type TagHist []uint
 type VbmapParams struct {
 	Tags TagMap
 
-	NumNodes int
-	NumSlaves int
+	NumNodes    int
+	NumSlaves   int
 	NumVBuckets int
 	NumReplicas int
 }
 
 var (
-	seed int64
-	tagHistogram TagHist = nil
-	params VbmapParams = VbmapParams{
-		Tags : nil,
+	seed         int64
+	tagHistogram TagHist     = nil
+	params       VbmapParams = VbmapParams{
+		Tags: nil,
 	}
 )
 
@@ -91,11 +91,11 @@ func (hist TagHist) String() string {
 }
 
 func traceMsg(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format + "\n", args...)
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 }
 
 func errorMsg(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format + "\n", args...)
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }
 
@@ -108,7 +108,7 @@ func checkInput() {
 		errorMsg("num-replicas must be greater of equal than zero")
 	}
 
-	if params.NumReplicas + 1 > params.NumNodes {
+	if params.NumReplicas+1 > params.NumNodes {
 		params.NumReplicas = params.NumNodes - 1
 	}
 
@@ -145,7 +145,7 @@ func checkInput() {
 			params.Tags[Node(i)] = Tag(tag)
 		}
 
-		if tag != len(tagHistogram) - 1 || tagHistogram[tag] != 0 {
+		if tag != len(tagHistogram)-1 || tagHistogram[tag] != 0 {
 			errorMsg("Invalid tag histogram. Counts do not add up.")
 		}
 	}

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"text/template"
-	"math/rand"
 )
 
 const dataTemplate = `
@@ -21,7 +21,8 @@ param tags := {{ range $node, $tag := .Tags }}{{ $node }} {{ $tag }} {{ end }};
 end;
 `
 
-type GlpkResult uint;
+type GlpkResult uint
+
 const (
 	GLPK_NO_SOLUTION = GlpkResult(iota)
 )
@@ -29,7 +30,7 @@ const (
 func (e GlpkResult) Error() string {
 	switch e {
 	case GLPK_NO_SOLUTION:
-		return "The problem has no solution";
+		return "The problem has no solution"
 	default:
 		panic(fmt.Sprintf("Got unknown GLPK result code: %d", e))
 	}
@@ -45,7 +46,7 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func () {
+	defer func() {
 		file.Close()
 		os.Remove(file.Name())
 	}()
@@ -60,7 +61,7 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 		return nil, err
 	}
 	output.Close()
-	defer func () {
+	defer func() {
 		os.Remove(output.Name())
 	}()
 
@@ -109,7 +110,7 @@ func readSolution(params VbmapParams, outPath string) ([][]int, error) {
 
 	result := make([][]int, params.NumNodes)
 	for i := range result {
-		result[i] = values[i * params.NumNodes : (i + 1) * params.NumNodes]
+		result[i] = values[i*params.NumNodes : (i+1)*params.NumNodes]
 	}
 
 	return result, nil
@@ -129,12 +130,12 @@ type RCandidate struct {
 	params VbmapParams
 	matrix [][]int
 
-	rowSums []int
-	colSums []int
-	expectedColSum int
+	rowSums          []int
+	colSums          []int
+	expectedColSum   int
 	expectedOutliers int
 
-	outliers int
+	outliers      int
 	rawEvaluation int
 }
 
@@ -146,10 +147,9 @@ func abs(v int) int {
 	}
 }
 
-
 func shuffle(a []int) {
 	for i := range a {
-		j := i + rand.Intn(len(a) - i)
+		j := i + rand.Intn(len(a)-i)
 		a[i], a[j] = a[j], a[i]
 	}
 }
@@ -220,7 +220,7 @@ func makeRCandidate(params VbmapParams, RI [][]int) (result RCandidate) {
 
 	for _, sum := range result.colSums {
 		result.rawEvaluation += abs(sum - result.expectedColSum)
-		if sum == result.expectedColSum + 1 {
+		if sum == result.expectedColSum+1 {
 			result.outliers += 1
 		}
 	}
@@ -248,16 +248,16 @@ func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
 	ca := cand.colSums[j] - a + b
 	cb := cand.colSums[k] - b + a
 
-	if cand.colSums[j] == cand.expectedColSum + 1 {
+	if cand.colSums[j] == cand.expectedColSum+1 {
 		change -= 1
 	}
-	if cand.colSums[k] == cand.expectedColSum + 1 {
+	if cand.colSums[k] == cand.expectedColSum+1 {
 		change -= 1
 	}
-	if ca == cand.expectedColSum + 1 {
+	if ca == cand.expectedColSum+1 {
 		change += 1
 	}
-	if cb == cand.expectedColSum + 1 {
+	if cb == cand.expectedColSum+1 {
 		change += 1
 	}
 
@@ -372,8 +372,8 @@ type TabuElem struct {
 }
 
 type Tabu struct {
-	tabu map[TabuPair]int
-	elemIndex map[TabuElem]TabuPair
+	tabu        map[TabuPair]int
+	elemIndex   map[TabuElem]TabuPair
 	expireIndex map[int]TabuPair
 }
 
@@ -441,7 +441,6 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	candidateRows := make([]int, params.NumNodes)
 	tabu := makeTabu()
 
-
 	noCandidate := 0
 	swapTabued := 0
 	swapDecreased := 0
@@ -456,7 +455,7 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 			tabu.expire(t - expire)
 		}
 
-		if (noImprovementIters > noImprovementLimit) {
+		if noImprovementIters > noImprovementLimit {
 			break
 		}
 
