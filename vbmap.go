@@ -121,7 +121,7 @@ func checkInput() {
 	}
 
 	if params.Tags == nil && tagHistogram == nil {
-		traceMsg("Tags are not specified. Assuming every not on a separate tag.")
+		traceMsg("Tags are not specified. Assuming every node on a separate tag.")
 		tagHistogram = make(TagHist, params.NumNodes)
 
 		for i := 0; i < params.NumNodes; i++ {
