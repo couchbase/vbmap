@@ -108,6 +108,10 @@ func checkInput() {
 		errorMsg("num-replicas must be greater of equal than zero")
 	}
 
+	if params.NumReplicas + 1 > params.NumNodes {
+		params.NumReplicas = params.NumNodes - 1
+	}
+
 	if params.NumSlaves >= params.NumNodes {
 		params.NumSlaves = params.NumNodes - 1
 	}
