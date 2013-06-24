@@ -116,6 +116,10 @@ func checkInput() {
 		params.NumSlaves = params.NumNodes - 1
 	}
 
+	if params.NumSlaves < params.NumReplicas {
+		params.NumReplicas = params.NumSlaves
+	}
+
 	if params.Tags != nil && tagHistogram != nil {
 		errorMsg("Options --tags and --tag-histogram are exclusive")
 	}
