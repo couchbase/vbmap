@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"text/template"
+	"container/heap"
 )
 
 const dataTemplate = `
@@ -561,13 +562,160 @@ func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	return
 }
 
-func VbmapGenerate(params VbmapParams) (*RCandidate, error) {
+type Vbmap struct {
+	vbmap [][]Node
+}
+
+func makeVbmap (params VbmapParams) (vbmap Vbmap) {
+	vbmap.vbmap = make([][]Node, params.NumVBuckets)
+	for v := 0; v < params.NumVBuckets; v++ {
+		vbmap.vbmap[v] = make([]Node, params.NumReplicas + 1)
+	}
+
+	return
+}
+
+type Slave struct {
+	index int
+	count int
+	stats []int
+}
+
+type SlaveHeap []Slave
+func makeSlave(index int, count int, params VbmapParams) (slave Slave) {
+	slave.index = index
+	slave.count = count
+	slave.stats = make([]int, params.NumReplicas)
+
+	return
+}
+
+func (h SlaveHeap) Len() int {
+	return len(h)
+}
+
+func (h SlaveHeap) Less(i, j int) bool {
+	switch {
+	case h[i].count > h[j].count:
+		return true
+	case h[i].count == h[j].count:
+		return h[i].index < h[j].index
+	default:
+		return false
+	}
+}
+
+func (h SlaveHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *SlaveHeap) Push(x interface{}) {
+	*h = append(*h, x.(Slave))
+}
+
+func (h *SlaveHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n - 1]
+	*h = old[0 : n - 1]
+	return x
+}
+
+func reorderReplicas(replicas []Slave) {
+	for turn := range replicas {
+		for i := turn + 1; i < len(replicas); i++ {
+			if replicas[i].stats[turn] < replicas[turn].stats[turn] {
+				replicas[i], replicas[turn] =
+					replicas[turn], replicas[i]
+			}
+		}
+	}
+}
+
+func buildVbmap(R RCandidate) (vbmap Vbmap) {
+	params := R.params
+	vbmap = makeVbmap(params)
+
+	var nodeVbs []int
+	if params.NumReplicas == 0 || params.NumSlaves == 0 {
+		nodeVbs = spreadSum(params.NumVBuckets, params.NumNodes)
+	} else {
+		nodeVbs = make([]int, params.NumNodes)
+		for i, sum := range R.rowSums {
+			vbs := sum / params.NumReplicas
+			if sum % params.NumReplicas != 0 {
+				panic("row sum is not multiple of NumReplicas")
+			}
+
+			nodeVbs[i] = vbs
+		}
+	}
+
+	vbucket := 0
+	for i, row := range R.matrix {
+		slaves := &SlaveHeap{}
+		heap.Init(slaves)
+
+		vbs := nodeVbs[i]
+
+		for s, count := range row {
+			if count != 0 {
+				heap.Push(slaves, makeSlave(s, count, params))
+			}
+		}
+
+		if slaves.Len() == 0 {
+			for vbs > 0 {
+				vbmap.vbmap[vbucket][0] = Node(i)
+				vbs--
+				vbucket++
+			}
+
+			continue
+		}
+
+		for vbs > 0 {
+			replicas := make([]Slave, params.NumReplicas)
+			vbmap.vbmap[vbucket][0] = Node(i)
+
+			for r := 0; r < params.NumReplicas; r++ {
+				if slaves.Len() == 0 {
+					panic("Ran out of slaves")
+				}
+
+				slave := heap.Pop(slaves).(Slave)
+				replicas[r] = slave
+			}
+
+			reorderReplicas(replicas)
+
+			for turn, slave := range replicas {
+				slave.count--
+				slave.stats[turn]++
+
+				vbmap.vbmap[vbucket][turn + 1] = Node(slave.index)
+
+				if slave.count != 0 {
+					heap.Push(slaves, slave)
+				}
+			}
+
+			vbs--
+			vbucket++
+		}
+	}
+
+	return
+}
+
+func VbmapGenerate(params VbmapParams) (vbmap Vbmap, err error) {
 	RI, err := invokeGlpk(params)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	R := buildR(params, RI)
+	R.dump()
 
-	return &R, nil
+	return buildVbmap(R), nil
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type Node uint
+type Node int
 type Tag uint
 type TagMap map[Node]Tag
 type TagHist []uint
@@ -197,5 +197,7 @@ func main() {
 	}
 
 	traceMsg("Solution I got:\n")
-	solution.dump()
+	for v, chain := range solution.vbmap {
+		traceMsg("%4d : %v", v, chain)
+	}
 }
