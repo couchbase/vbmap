@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"text/template"
 	"container/heap"
+	"log"
+	"bytes"
 )
 
 const dataTemplate = `
@@ -53,7 +55,7 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 	}()
 
 	if err := genDataFile(file, params); err != nil {
-		errorMsg("Couldn't generate data file %s: %s",
+		log.Fatalf("Couldn't generate data file %s: %s",
 			file.Name(), err.Error())
 	}
 
@@ -78,9 +80,9 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 
 	terminal, err := cmd.CombinedOutput()
 
-	traceMsg("=======================GLPK output=======================")
-	traceMsg("%s", string(terminal))
-	traceMsg("=========================================================")
+	log.Printf("=======================GLPK output=======================")
+	log.Printf("%s", string(terminal))
+	log.Printf("=========================================================")
 
 	if err != nil {
 		return nil, err
@@ -308,38 +310,42 @@ func (cand *RCandidate) swapElems(row int, j int, k int) {
 }
 
 func (cand RCandidate) dump() {
-	fmt.Fprintf(os.Stderr, "    |")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(os.Stderr, "%3d ", cand.params.Tags[Node(i)])
-	}
-	fmt.Fprintf(os.Stderr, "|\n")
+	buffer := &bytes.Buffer{}
 
-	fmt.Fprintf(os.Stderr, "----|")
+	fmt.Fprintf(buffer, "    |")
 	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(os.Stderr, "----")
+		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[Node(i)])
 	}
-	fmt.Fprintf(os.Stderr, "|\n")
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "----|")
+	for i := 0; i < cand.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "----")
+	}
+	fmt.Fprintf(buffer, "|\n")
 
 	for i, row := range cand.matrix {
-		fmt.Fprintf(os.Stderr, "%3d |", cand.params.Tags[Node(i)])
+		fmt.Fprintf(buffer, "%3d |", cand.params.Tags[Node(i)])
 		for _, elem := range row {
-			fmt.Fprintf(os.Stderr, "%3d ", elem)
+			fmt.Fprintf(buffer, "%3d ", elem)
 		}
-		fmt.Fprintf(os.Stderr, "| %d\n", cand.rowSums[i])
+		fmt.Fprintf(buffer, "| %d\n", cand.rowSums[i])
 	}
 
-	fmt.Fprintf(os.Stderr, "____|")
+	fmt.Fprintf(buffer, "____|")
 	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(os.Stderr, "____")
+		fmt.Fprintf(buffer, "____")
 	}
-	fmt.Fprintf(os.Stderr, "|\n")
+	fmt.Fprintf(buffer, "|\n")
 
-	fmt.Fprintf(os.Stderr, "    |")
+	fmt.Fprintf(buffer, "    |")
 	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(os.Stderr, "%3d ", cand.colSums[i])
+		fmt.Fprintf(buffer, "%3d ", cand.colSums[i])
 	}
-	fmt.Fprintf(os.Stderr, "|\n")
-	fmt.Fprintf(os.Stderr, "Evaluation: %d\n", cand.evaluation())
+	fmt.Fprintf(buffer, "|\n")
+	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.evaluation())
+
+	log.Print(buffer)
 }
 
 func (cand RCandidate) copy() (result RCandidate) {
@@ -529,16 +535,16 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 		}
 	}
 
-	traceMsg("Search stats")
-	traceMsg("  iters -> %d", t)
-	traceMsg("  no improvement termination? -> %v",
+	log.Printf("Search stats")
+	log.Printf("  iters -> %d", t)
+	log.Printf("  no improvement termination? -> %v",
 		noImprovementIters == noImprovementLimit)
-	traceMsg("  noCandidate -> %d", noCandidate)
-	traceMsg("  swapTabued -> %d", swapTabued)
-	traceMsg("  swapDecreased -> %d", swapDecreased)
-	traceMsg("  swapIndifferent -> %d", swapIndifferent)
-	traceMsg("  swapIncreased -> %d", swapIncreased)
-	traceMsg("")
+	log.Printf("  noCandidate -> %d", noCandidate)
+	log.Printf("  swapTabued -> %d", swapTabued)
+	log.Printf("  swapDecreased -> %d", swapDecreased)
+	log.Printf("  swapIndifferent -> %d", swapIndifferent)
+	log.Printf("  swapIncreased -> %d", swapIncreased)
+	log.Printf("")
 
 	return
 }
@@ -554,7 +560,7 @@ func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 		}
 
 		if bestEvaluation == 0 {
-			traceMsg("Found balanced map R after %d attempts", i)
+			log.Printf("Found balanced map R after %d attempts", i)
 			break
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
 type Node int
@@ -90,22 +91,13 @@ func (hist TagHist) String() string {
 	return fmt.Sprintf("%v", []uint(hist))
 }
 
-func traceMsg(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format+"\n", args...)
-}
-
-func errorMsg(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
-}
-
 func checkInput() {
 	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
-		errorMsg("num-nodes, num-slaves and num-vbuckets must be greater than zero")
+		log.Fatalf("num-nodes, num-slaves and num-vbuckets must be greater than zero")
 	}
 
 	if params.NumReplicas < 0 {
-		errorMsg("num-replicas must be greater of equal than zero")
+		log.Fatalf("num-replicas must be greater of equal than zero")
 	}
 
 	if params.NumReplicas+1 > params.NumNodes {
@@ -121,11 +113,11 @@ func checkInput() {
 	}
 
 	if params.Tags != nil && tagHistogram != nil {
-		errorMsg("Options --tags and --tag-histogram are exclusive")
+		log.Fatalf("Options --tags and --tag-histogram are exclusive")
 	}
 
 	if params.Tags == nil && tagHistogram == nil {
-		traceMsg("Tags are not specified. Assuming every node on a separate tag.")
+		log.Printf("Tags are not specified. Assuming every node on a separate tag.")
 		tagHistogram = make(TagHist, params.NumNodes)
 
 		for i := 0; i < params.NumNodes; i++ {
@@ -142,7 +134,7 @@ func checkInput() {
 				tag += 1
 			}
 			if tag >= len(tagHistogram) {
-				errorMsg("Invalid tag histogram. Counts do not add up.")
+				log.Fatalf("Invalid tag histogram. Counts do not add up.")
 			}
 
 			tagHistogram[tag] -= 1
@@ -150,7 +142,7 @@ func checkInput() {
 		}
 
 		if tag != len(tagHistogram)-1 || tagHistogram[tag] != 0 {
-			errorMsg("Invalid tag histogram. Counts do not add up.")
+			log.Fatalf("Invalid tag histogram. Counts do not add up.")
 		}
 	}
 
@@ -158,12 +150,15 @@ func checkInput() {
 	for i := 0; i < params.NumNodes; i++ {
 		_, present := params.Tags[Node(i)]
 		if !present {
-			errorMsg("Tag for node %v not specified", i)
+			log.Fatalf("Tag for node %v not specified", i)
 		}
 	}
 }
 
 func main() {
+	log.SetOutput(os.Stderr)
+	log.SetFlags(0)
+
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "Number of nodes")
 	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "Number of slaves")
@@ -180,24 +175,24 @@ func main() {
 
 	checkInput()
 
-	traceMsg("Finalized parameters")
-	traceMsg("  Number of nodes: %d", params.NumNodes)
-	traceMsg("  Number of slaves: %d", params.NumSlaves)
-	traceMsg("  Number of vbuckets: %d", params.NumVBuckets)
-	traceMsg("  Number of replicas: %d", params.NumReplicas)
-	traceMsg("  Tags assignments:")
+	log.Printf("Finalized parameters")
+	log.Printf("  Number of nodes: %d", params.NumNodes)
+	log.Printf("  Number of slaves: %d", params.NumSlaves)
+	log.Printf("  Number of vbuckets: %d", params.NumVBuckets)
+	log.Printf("  Number of replicas: %d", params.NumReplicas)
+	log.Printf("  Tags assignments:")
 
 	for i := 0; i < params.NumNodes; i++ {
-		traceMsg("    %d -> %v", i, params.Tags[Node(i)])
+		log.Printf("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
 	solution, err := VbmapGenerate(params)
 	if err != nil {
-		errorMsg("Failed to find a solution (%s)", err.Error())
+		log.Fatalf("Failed to find a solution (%s)", err.Error())
 	}
 
-	traceMsg("Solution I got:\n")
+	log.Printf("Solution I got:\n")
 	for v, chain := range solution.vbmap {
-		traceMsg("%4d : %v", v, chain)
+		log.Printf("%4d : %v", v, chain)
 	}
 }
