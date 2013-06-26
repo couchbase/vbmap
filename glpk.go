@@ -83,7 +83,7 @@ func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 	}()
 
 	if err := genDataFile(file, params); err != nil {
-		log.Fatalf("Couldn't generate data file %s: %s",
+		return nil, fmt.Errorf("Couldn't generate data file %s: %s",
 			file.Name(), err.Error())
 	}
 

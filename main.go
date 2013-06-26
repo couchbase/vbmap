@@ -162,7 +162,7 @@ func main() {
 
 	solution, err := VbmapGenerate(params, GlpkRIGenerator{})
 	if err != nil {
-		log.Fatalf("Failed to find a solution (%s)", err.Error())
+		log.Fatalf("ERROR: %s", err.Error())
 	}
 
 	log.Printf("Solution I got:\n")
