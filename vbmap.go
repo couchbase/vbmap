@@ -340,7 +340,7 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 			tabu.expire(t - expire)
 		}
 
-		if noImprovementIters > noImprovementLimit {
+		if noImprovementIters >= noImprovementLimit {
 			break
 		}
 
@@ -416,7 +416,7 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	log.Printf("Search stats")
 	log.Printf("  iters -> %d", t)
 	log.Printf("  no improvement termination? -> %v",
-		noImprovementIters == noImprovementLimit)
+		noImprovementIters >= noImprovementLimit)
 	log.Printf("  noCandidate -> %d", noCandidate)
 	log.Printf("  swapTabued -> %d", swapTabued)
 	log.Printf("  swapDecreased -> %d", swapDecreased)
