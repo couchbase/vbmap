@@ -41,6 +41,19 @@ type RIGenerator interface {
 	Generate(params VbmapParams) (RI, error)
 }
 
+func (RI RI) String() string {
+	buffer := &bytes.Buffer{}
+
+	for _, row := range RI {
+		for _, elem := range row {
+			fmt.Fprintf(buffer, "%2d ", elem)
+		}
+		fmt.Fprintf(buffer, "\n")
+	}
+
+	return buffer.String()
+}
+
 type RCandidate struct {
 	params VbmapParams
 	matrix [][]int
@@ -52,6 +65,45 @@ type RCandidate struct {
 
 	outliers      int
 	rawEvaluation int
+}
+
+func (cand RCandidate) String() string {
+	buffer := &bytes.Buffer{}
+
+	fmt.Fprintf(buffer, "    |")
+	for i := 0; i < cand.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[Node(i)])
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "----|")
+	for i := 0; i < cand.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "----")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	for i, row := range cand.matrix {
+		fmt.Fprintf(buffer, "%3d |", cand.params.Tags[Node(i)])
+		for _, elem := range row {
+			fmt.Fprintf(buffer, "%3d ", elem)
+		}
+		fmt.Fprintf(buffer, "| %d\n", cand.rowSums[i])
+	}
+
+	fmt.Fprintf(buffer, "____|")
+	for i := 0; i < cand.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "____")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "    |")
+	for i := 0; i < cand.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "%3d ", cand.colSums[i])
+	}
+	fmt.Fprintf(buffer, "|\n")
+	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.evaluation())
+
+	return buffer.String()
 }
 
 func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
@@ -185,45 +237,6 @@ func (cand *RCandidate) swapElems(row int, j int, k int) {
 	cand.colSums[j] += b - a
 	cand.colSums[k] += a - b
 	cand.matrix[row][j], cand.matrix[row][k] = b, a
-}
-
-func (cand RCandidate) dump() {
-	buffer := &bytes.Buffer{}
-
-	fmt.Fprintf(buffer, "    |")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[Node(i)])
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	fmt.Fprintf(buffer, "----|")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "----")
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	for i, row := range cand.matrix {
-		fmt.Fprintf(buffer, "%3d |", cand.params.Tags[Node(i)])
-		for _, elem := range row {
-			fmt.Fprintf(buffer, "%3d ", elem)
-		}
-		fmt.Fprintf(buffer, "| %d\n", cand.rowSums[i])
-	}
-
-	fmt.Fprintf(buffer, "____|")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "____")
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	fmt.Fprintf(buffer, "    |")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "%3d ", cand.colSums[i])
-	}
-	fmt.Fprintf(buffer, "|\n")
-	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.evaluation())
-
-	log.Print(buffer)
 }
 
 func (cand RCandidate) copy() (result RCandidate) {
@@ -443,6 +456,11 @@ func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 		}
 	}
 
+	if bestEvaluation != 0 {
+		log.Printf("Failed to find balanced map R (best evaluation %d)",
+			bestEvaluation)
+	}
+
 	return
 }
 
@@ -597,8 +615,11 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error)
 		return
 	}
 
+	log.Printf("Generated topology:\n%s", RI.String())
+
 	R := buildR(params, RI)
-	R.dump()
+
+	log.Printf("Final map R:\n%s", R.String())
 
 	return buildVbmap(R), nil
 }
