@@ -11,6 +11,8 @@ import (
 	"log"
 )
 
+type GlpkRIGenerator struct {}
+
 const dataTemplate = `
 data;
 
@@ -42,7 +44,35 @@ func genDataFile(file io.Writer, params VbmapParams) error {
 	return tmpl.Execute(file, params)
 }
 
-func invokeGlpk(params VbmapParams) ([][]int, error) {
+func readSolution(params VbmapParams, outPath string) (RI, error) {
+	output, err := os.Open(outPath)
+	if err != nil {
+		return nil, err
+	}
+	defer output.Close()
+
+	var values []int = make([]int, params.NumNodes*params.NumNodes)
+
+	for i := range values {
+		_, err := fmt.Fscan(output, &values[i])
+		if err == io.EOF && i == 0 {
+			return nil, GLPK_NO_SOLUTION
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("Invalid GLPK output (%s)", err.Error())
+		}
+	}
+
+	result := make([][]int, params.NumNodes)
+	for i := range result {
+		result[i] = values[i*params.NumNodes : (i+1)*params.NumNodes]
+	}
+
+	return result, nil
+}
+
+func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 	file, err := ioutil.TempFile("", "vbmap_glpk_data")
 	if err != nil {
 		return nil, err
@@ -87,32 +117,4 @@ func invokeGlpk(params VbmapParams) ([][]int, error) {
 	}
 
 	return readSolution(params, output.Name())
-}
-
-func readSolution(params VbmapParams, outPath string) ([][]int, error) {
-	output, err := os.Open(outPath)
-	if err != nil {
-		return nil, err
-	}
-	defer output.Close()
-
-	var values []int = make([]int, params.NumNodes*params.NumNodes)
-
-	for i := range values {
-		_, err := fmt.Fscan(output, &values[i])
-		if err == io.EOF && i == 0 {
-			return nil, GLPK_NO_SOLUTION
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("Invalid GLPK output (%s)", err.Error())
-		}
-	}
-
-	result := make([][]int, params.NumNodes)
-	for i := range result {
-		result[i] = values[i*params.NumNodes : (i+1)*params.NumNodes]
-	}
-
-	return result, nil
 }

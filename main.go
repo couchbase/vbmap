@@ -160,7 +160,7 @@ func main() {
 		log.Printf("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
-	solution, err := VbmapGenerate(params)
+	solution, err := VbmapGenerate(params, GlpkRIGenerator{})
 	if err != nil {
 		log.Fatalf("Failed to find a solution (%s)", err.Error())
 	}

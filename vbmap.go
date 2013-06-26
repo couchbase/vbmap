@@ -35,6 +35,12 @@ func (tags TagMap) TagsCount() int {
 	return len(seen)
 }
 
+type RI [][]int
+
+type RIGenerator interface {
+	Generate(params VbmapParams) (RI, error)
+}
+
 type RCandidate struct {
 	params VbmapParams
 	matrix [][]int
@@ -585,8 +591,8 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 	return
 }
 
-func VbmapGenerate(params VbmapParams) (vbmap Vbmap, err error) {
-	RI, err := invokeGlpk(params)
+func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error) {
+	RI, err := gen.Generate(params)
 	if err != nil {
 		return
 	}
