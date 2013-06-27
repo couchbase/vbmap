@@ -16,7 +16,10 @@ type Engine struct {
 	generator RIGenerator
 }
 
-var availableGenerators []RIGenerator = []RIGenerator{GlpkRIGenerator{}}
+var availableGenerators []RIGenerator = []RIGenerator{
+	GlpkRIGenerator{},
+	DummyRIGenerator{},
+}
 
 var (
 	seed         int64
