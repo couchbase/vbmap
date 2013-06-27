@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"text/template"
-	"log"
 )
 
 type GlpkRIGenerator struct {}
@@ -112,9 +111,9 @@ func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 
 	terminal, err := cmd.CombinedOutput()
 
-	log.Printf("=======================GLPK output=======================")
-	log.Printf("%s", string(terminal))
-	log.Printf("=========================================================")
+	diag.Printf("=======================GLPK output=======================")
+	diag.Printf("%s", string(terminal))
+	diag.Printf("=========================================================")
 
 	if err != nil {
 		return nil, err

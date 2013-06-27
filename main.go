@@ -10,6 +10,8 @@ import (
 	"time"
 	"log"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 )
 
 type TagHist []uint
@@ -23,6 +25,8 @@ var availableGenerators []RIGenerator = []RIGenerator{
 	DummyRIGenerator{},
 }
 
+var diag *log.Logger
+
 var (
 	seed         int64
 	tagHistogram TagHist     = nil
@@ -31,6 +35,7 @@ var (
 	}
 	engine       Engine = Engine{availableGenerators[0]}
 	outputFormat OutputFormat = "text"
+	diagTo       string = "stderr"
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -109,11 +114,11 @@ func (format OutputFormat) String() string {
 
 func checkInput() {
 	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
-		log.Fatalf("num-nodes, num-slaves and num-vbuckets must be greater than zero")
+		fatal("num-nodes, num-slaves and num-vbuckets must be greater than zero")
 	}
 
 	if params.NumReplicas < 0 {
-		log.Fatalf("num-replicas must be greater of equal than zero")
+		fatal("num-replicas must be greater of equal than zero")
 	}
 
 	if params.NumReplicas+1 > params.NumNodes {
@@ -129,11 +134,11 @@ func checkInput() {
 	}
 
 	if params.Tags != nil && tagHistogram != nil {
-		log.Fatalf("Options --tags and --tag-histogram are exclusive")
+		fatal("Options --tags and --tag-histogram are exclusive")
 	}
 
 	if params.Tags == nil && tagHistogram == nil {
-		log.Printf("Tags are not specified. Assuming every node on a separate tag.")
+		diag.Printf("Tags are not specified. Assuming every node on a separate tag.")
 		tagHistogram = make(TagHist, params.NumNodes)
 
 		for i := 0; i < params.NumNodes; i++ {
@@ -150,7 +155,7 @@ func checkInput() {
 				tag += 1
 			}
 			if tag >= len(tagHistogram) {
-				log.Fatalf("Invalid tag histogram. Counts do not add up.")
+				fatal("Invalid tag histogram. Counts do not add up.")
 			}
 
 			tagHistogram[tag] -= 1
@@ -158,7 +163,7 @@ func checkInput() {
 		}
 
 		if tag != len(tagHistogram)-1 || tagHistogram[tag] != 0 {
-			log.Fatalf("Invalid tag histogram. Counts do not add up.")
+			fatal("Invalid tag histogram. Counts do not add up.")
 		}
 	}
 
@@ -166,16 +171,19 @@ func checkInput() {
 	for i := 0; i < params.NumNodes; i++ {
 		_, present := params.Tags[Node(i)]
 		if !present {
-			log.Fatalf("Tag for node %v not specified", i)
+			fatal("Tag for node %v not specified", i)
 		}
 	}
+}
+
+func fatal(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format + "\n", args...)
+	os.Exit(1)
 }
 
 func main() {
 	log.SetOutput(os.Stderr)
 	log.SetFlags(0)
-
-	log.Printf("Started as:\n  %s", strings.Join(os.Args, " "))
 
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
@@ -186,29 +194,50 @@ func main() {
 	flag.Var(&tagHistogram, "tag-histogram", "tag histogram")
 	flag.Var(&engine, "engine", "engine used to generate the topology")
 	flag.Var(&outputFormat, "output-format", "output format")
+	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
 	flag.Parse()
 
+	var diagSink io.Writer
+	switch diagTo {
+	case "stderr":
+		diagSink = os.Stderr
+	case "null":
+		diagSink = ioutil.Discard
+	default:
+		diagFile, err := os.Create(diagTo)
+		if err != nil {
+			fatal("Couldn't create diagnostics file: %s", err.Error())
+		}
+		defer func() {
+			diagFile.Close()
+		}()
+		diagSink = diagFile
+	}
+
+	diag = log.New(diagSink, "", 0)
+	diag.Printf("Started as:\n  %s", strings.Join(os.Args, " "))
+
 	rand.Seed(seed)
 
 	checkInput()
 
-	log.Printf("Finalized parameters")
-	log.Printf("  Number of nodes: %d", params.NumNodes)
-	log.Printf("  Number of slaves: %d", params.NumSlaves)
-	log.Printf("  Number of vbuckets: %d", params.NumVBuckets)
-	log.Printf("  Number of replicas: %d", params.NumReplicas)
-	log.Printf("  Tags assignments:")
+	diag.Printf("Finalized parameters")
+	diag.Printf("  Number of nodes: %d", params.NumNodes)
+	diag.Printf("  Number of slaves: %d", params.NumSlaves)
+	diag.Printf("  Number of vbuckets: %d", params.NumVBuckets)
+	diag.Printf("  Number of replicas: %d", params.NumReplicas)
+	diag.Printf("  Tags assignments:")
 
 	for i := 0; i < params.NumNodes; i++ {
-		log.Printf("    %d -> %v", i, params.Tags[Node(i)])
+		diag.Printf("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
 	solution, err := VbmapGenerate(params, engine.generator)
 	if err != nil {
-		log.Fatalf("ERROR: %s", err.Error())
+		fatal("ERROR: %s", err.Error())
 	}
 
 	switch outputFormat {
@@ -217,7 +246,7 @@ func main() {
 	case "json":
 		json, err := json.Marshal(solution)
 		if err != nil {
-			log.Fatalf("Couldn't encode the solution: %s", err.Error())
+			fatal("Couldn't encode the solution: %s", err.Error())
 		}
 		fmt.Print(string(json))
 	default:

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"bytes"
-	"log"
 	"math/rand"
 	"container/heap"
 )
@@ -427,16 +426,16 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 		}
 	}
 
-	log.Printf("Search stats")
-	log.Printf("  iters -> %d", t)
-	log.Printf("  no improvement termination? -> %v",
+	diag.Printf("Search stats")
+	diag.Printf("  iters -> %d", t)
+	diag.Printf("  no improvement termination? -> %v",
 		noImprovementIters >= noImprovementLimit)
-	log.Printf("  noCandidate -> %d", noCandidate)
-	log.Printf("  swapTabued -> %d", swapTabued)
-	log.Printf("  swapDecreased -> %d", swapDecreased)
-	log.Printf("  swapIndifferent -> %d", swapIndifferent)
-	log.Printf("  swapIncreased -> %d", swapIncreased)
-	log.Printf("")
+	diag.Printf("  noCandidate -> %d", noCandidate)
+	diag.Printf("  swapTabued -> %d", swapTabued)
+	diag.Printf("  swapDecreased -> %d", swapDecreased)
+	diag.Printf("  swapIndifferent -> %d", swapIndifferent)
+	diag.Printf("  swapIncreased -> %d", swapIncreased)
+	diag.Printf("")
 
 	return
 }
@@ -452,13 +451,13 @@ func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 		}
 
 		if bestEvaluation == 0 {
-			log.Printf("Found balanced map R after %d attempts", i)
+			diag.Printf("Found balanced map R after %d attempts", i)
 			break
 		}
 	}
 
 	if bestEvaluation != 0 {
-		log.Printf("Failed to find balanced map R (best evaluation %d)",
+		diag.Printf("Failed to find balanced map R (best evaluation %d)",
 			bestEvaluation)
 	}
 
@@ -630,11 +629,11 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error)
 		return
 	}
 
-	log.Printf("Generated topology:\n%s", RI.String())
+	diag.Printf("Generated topology:\n%s", RI.String())
 
 	R := buildR(params, RI)
 
-	log.Printf("Final map R:\n%s", R.String())
+	diag.Printf("Final map R:\n%s", R.String())
 
 	return buildVbmap(R), nil
 }
