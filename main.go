@@ -12,6 +12,11 @@ import (
 )
 
 type TagHist []uint
+type Engine struct {
+	generator RIGenerator
+}
+
+var availableGenerators []RIGenerator = []RIGenerator{GlpkRIGenerator{}}
 
 var (
 	seed         int64
@@ -19,6 +24,7 @@ var (
 	params       VbmapParams = VbmapParams{
 		Tags: nil,
 	}
+	engine       Engine = Engine{availableGenerators[0]}
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -63,6 +69,21 @@ func (hist *TagHist) Set(s string) error {
 
 func (hist TagHist) String() string {
 	return fmt.Sprintf("%v", []uint(hist))
+}
+
+func (engine *Engine) Set(s string) error {
+	for _, gen := range availableGenerators {
+		if s == gen.String() {
+			*engine = Engine{gen}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unknown engine")
+}
+
+func (engine Engine) String() string {
+	return engine.generator.String()
 }
 
 func checkInput() {
@@ -140,6 +161,7 @@ func main() {
 	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "Number of replicas")
 	flag.Var(&params.Tags, "tags", "Tags")
 	flag.Var(&tagHistogram, "tag-histogram", "Tag histogram")
+	flag.Var(&engine, "engine", "Engine used to generate the topology")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "Random seed")
 
@@ -160,7 +182,7 @@ func main() {
 		log.Printf("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
-	solution, err := VbmapGenerate(params, GlpkRIGenerator{})
+	solution, err := VbmapGenerate(params, engine.generator)
 	if err != nil {
 		log.Fatalf("ERROR: %s", err.Error())
 	}

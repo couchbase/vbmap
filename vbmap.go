@@ -39,6 +39,7 @@ type RI [][]int
 
 type RIGenerator interface {
 	Generate(params VbmapParams) (RI, error)
+	fmt.Stringer
 }
 
 func (RI RI) String() string {

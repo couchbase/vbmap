@@ -13,6 +13,10 @@ import (
 
 type GlpkRIGenerator struct {}
 
+func (_ GlpkRIGenerator) String() string {
+	return "glpk"
+}
+
 const dataTemplate = `
 data;
 
