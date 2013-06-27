@@ -36,7 +36,7 @@ func (tags *TagMap) Set(s string) error {
 	for _, pair := range strings.Split(s, ",") {
 		tagNode := strings.Split(pair, ":")
 		if len(tagNode) != 2 {
-			return fmt.Errorf("Invalid tag-node pair: %s", pair)
+			return fmt.Errorf("invalid tag-node pair (%s)", pair)
 		}
 
 		node, err := strconv.ParseUint(tagNode[0], 10, strconv.IntSize)
@@ -158,15 +158,15 @@ func main() {
 	log.SetFlags(0)
 
 	// TODO
-	flag.IntVar(&params.NumNodes, "num-nodes", 25, "Number of nodes")
-	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "Number of slaves")
-	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "Number of VBuckets")
-	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "Number of replicas")
-	flag.Var(&params.Tags, "tags", "Tags")
-	flag.Var(&tagHistogram, "tag-histogram", "Tag histogram")
-	flag.Var(&engine, "engine", "Engine used to generate the topology")
+	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
+	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "number of slaves")
+	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "number of VBuckets")
+	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "number of replicas")
+	flag.Var(&params.Tags, "tags", "tags")
+	flag.Var(&tagHistogram, "tag-histogram", "tag histogram")
+	flag.Var(&engine, "engine", "engine used to generate the topology")
 
-	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "Random seed")
+	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
 	flag.Parse()
 
