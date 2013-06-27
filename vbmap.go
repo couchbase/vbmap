@@ -467,7 +467,21 @@ func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 
 type Vbmap [][]Node
 
-func makeVbmap (params VbmapParams) (vbmap Vbmap) {
+func (vbmap Vbmap) String() string {
+	buffer := &bytes.Buffer{}
+
+	for i, nodes := range vbmap {
+		fmt.Fprintf(buffer, "%4d: ", i)
+		for _, n := range nodes {
+			fmt.Fprintf(buffer, "%3d ", n)
+		}
+		fmt.Fprintf(buffer, "\n")
+	}
+
+	return buffer.String()
+}
+
+func makeVbmap(params VbmapParams) (vbmap Vbmap) {
 	vbmap = make([][]Node, params.NumVBuckets)
 	for v := 0; v < params.NumVBuckets; v++ {
 		vbmap[v] = make([]Node, params.NumReplicas + 1)

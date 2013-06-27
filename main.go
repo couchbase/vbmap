@@ -190,8 +190,5 @@ func main() {
 		log.Fatalf("ERROR: %s", err.Error())
 	}
 
-	log.Printf("Solution I got:\n")
-	for v, chain := range solution {
-		log.Printf("%4d : %v", v, chain)
-	}
+	fmt.Print(solution.String())
 }
