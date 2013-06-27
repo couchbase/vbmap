@@ -9,12 +9,14 @@ import (
 	"strings"
 	"time"
 	"log"
+	"encoding/json"
 )
 
 type TagHist []uint
 type Engine struct {
 	generator RIGenerator
 }
+type OutputFormat string
 
 var availableGenerators []RIGenerator = []RIGenerator{
 	GlpkRIGenerator{},
@@ -28,6 +30,7 @@ var (
 		Tags: nil,
 	}
 	engine       Engine = Engine{availableGenerators[0]}
+	outputFormat OutputFormat = "text"
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -87,6 +90,21 @@ func (engine *Engine) Set(s string) error {
 
 func (engine Engine) String() string {
 	return engine.generator.String()
+}
+
+func (format *OutputFormat) Set(s string) error {
+	switch s {
+	case "text", "json":
+		*format = OutputFormat(s)
+	default:
+		return fmt.Errorf("unrecognized output format")
+	}
+
+	return nil
+}
+
+func (format OutputFormat) String() string {
+	return string(format)
 }
 
 func checkInput() {
@@ -165,6 +183,7 @@ func main() {
 	flag.Var(&params.Tags, "tags", "tags")
 	flag.Var(&tagHistogram, "tag-histogram", "tag histogram")
 	flag.Var(&engine, "engine", "engine used to generate the topology")
+	flag.Var(&outputFormat, "output-format", "output format")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
@@ -190,5 +209,16 @@ func main() {
 		log.Fatalf("ERROR: %s", err.Error())
 	}
 
-	fmt.Print(solution.String())
+	switch outputFormat {
+	case "text":
+		fmt.Print(solution.String())
+	case "json":
+		json, err := json.Marshal(solution)
+		if err != nil {
+			log.Fatalf("Couldn't encode the solution: %s", err.Error())
+		}
+		fmt.Print(string(json))
+	default:
+		panic("should not happen")
+	}
 }
