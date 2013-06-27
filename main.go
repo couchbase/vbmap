@@ -175,6 +175,8 @@ func main() {
 	log.SetOutput(os.Stderr)
 	log.SetFlags(0)
 
+	log.Printf("Started as:\n  %s", strings.Join(os.Args, " "))
+
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
 	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "number of slaves")
