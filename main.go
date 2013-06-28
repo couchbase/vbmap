@@ -220,6 +220,7 @@ func main() {
 	diag = log.New(diagSink, "", 0)
 	diag.Printf("Started as:\n  %s", strings.Join(os.Args, " "))
 
+	diag.Printf("Using %d as a seed", seed)
 	rand.Seed(seed)
 
 	checkInput()
