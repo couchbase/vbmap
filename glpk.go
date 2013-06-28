@@ -16,6 +16,38 @@ func (_ GlpkRIGenerator) String() string {
 	return "glpk"
 }
 
+const model = `
+param nodes, integer, >= 1;
+param slaves, integer, >= 0;
+
+param tags_count, integer, >= 1;
+param tags{0..nodes-1}, integer, >= 0, < tags_count;
+
+var RI{i in 0..nodes-1, j in 0..nodes-1}, binary;
+
+subject to zeros{i in 0..nodes-1, j in 0..nodes-1: tags[i] == tags[j]}: RI[i,j] = 0;
+subject to active_balance{i in 0..nodes-1}: sum{j in 0..nodes-1} RI[i,j] = slaves;
+subject to replica_balance{j in 0..nodes-1}: sum{i in 0..nodes-1} RI[i,j] = slaves;
+
+var tag_max;
+subject to tags_balance{i in 0..nodes-1, t in 0..tags_count-1}:
+sum{j in 0..nodes-1} RI[i,j] * (if tags[j] == t then 1 else 0) <= tag_max;
+
+minimize obj: tag_max;
+
+solve;
+
+for {i in 0..nodes-1}
+{
+  for {j in 0..nodes-1}
+  {
+    printf "%d\n", RI[i,j];
+  }
+}
+
+end;
+`
+
 const dataTemplate = `
 data;
 
@@ -76,36 +108,50 @@ func readSolution(params VbmapParams, outPath string) (RI, error) {
 }
 
 func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
-	file, err := ioutil.TempFile("", "vbmap_glpk_data")
+	dataFile, err := ioutil.TempFile("", "vbmap_glpk_data")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Couldn't create data file: %s", err.Error())
 	}
 	defer func() {
-		file.Close()
-		os.Remove(file.Name())
+		dataFile.Close()
+		os.Remove(dataFile.Name())
 	}()
 
-	if err := genDataFile(file, params); err != nil {
+	if err := genDataFile(dataFile, params); err != nil {
 		return nil, fmt.Errorf("Couldn't generate data file %s: %s",
-			file.Name(), err.Error())
+			dataFile.Name(), err.Error())
 	}
 
-	output, err := ioutil.TempFile("", "vbmap_glpk_output")
+	outputFile, err := ioutil.TempFile("", "vbmap_glpk_output")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Couldn't create output file: %s", err.Error())
 	}
-	output.Close()
+	outputFile.Close()
 	defer func() {
-		os.Remove(output.Name())
+		os.Remove(outputFile.Name())
 	}()
 
-	// TODO: model path
+	modelFile, err := ioutil.TempFile("", "vbmap_glpk_model")
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create model file: %s", err.Error())
+	}
+	modelFile.Close()
+	defer func() {
+		os.Remove(modelFile.Name())
+	}()
+
+	err = ioutil.WriteFile(modelFile.Name(), []byte(model), os.FileMode(0644))
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't populate model file %s: %s",
+			modelFile.Name(), err.Error())
+	}
+
 	// TODO: params
 	cmd := exec.Command("glpsol",
-		"--model", "vbmap.mod",
+		"--model", modelFile.Name(),
 		"--tmlim", "10",
-		"--data", file.Name(),
-		"--display", output.Name(),
+		"--data", dataFile.Name(),
+		"--display", outputFile.Name(),
 		"--seed", fmt.Sprint(rand.Int31()),
 		"--mipgap", "0.5")
 
@@ -119,5 +165,5 @@ func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 		return nil, err
 	}
 
-	return readSolution(params, output.Name())
+	return readSolution(params, outputFile.Name())
 }
