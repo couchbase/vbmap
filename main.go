@@ -99,7 +99,7 @@ func (engine Engine) String() string {
 
 func (format *OutputFormat) Set(s string) error {
 	switch s {
-	case "text", "json":
+	case "text", "json", "ext-json":
 		*format = OutputFormat(s)
 	default:
 		return fmt.Errorf("unrecognized output format")
@@ -246,6 +246,26 @@ func main() {
 		fmt.Print(solution.String())
 	case "json":
 		json, err := json.Marshal(solution)
+		if err != nil {
+			fatal("Couldn't encode the solution: %s", err.Error())
+		}
+		fmt.Print(string(json))
+	case "ext-json":
+		extJsonMap := make(map[string]interface{})
+		extJsonMap["numNodes"] = params.NumNodes
+		extJsonMap["numSlaves"] = params.NumSlaves
+		extJsonMap["numVBuckets"] = params.NumVBuckets
+		extJsonMap["numReplicas"] = params.NumReplicas
+		extJsonMap["map"] = solution
+
+		tags := make([]Tag, params.NumNodes)
+		extJsonMap["tags"] = tags
+
+		for i, t := range params.Tags {
+			tags[i] = t
+		}
+
+		json, err := json.Marshal(extJsonMap)
 		if err != nil {
 			fatal("Couldn't encode the solution: %s", err.Error())
 		}
