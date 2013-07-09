@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type DummyRIGenerator struct {}
+type DummyRIGenerator struct{}
 
 func (_ DummyRIGenerator) String() string {
 	return "dummy"

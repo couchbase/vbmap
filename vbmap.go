@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"bytes"
-	"math/rand"
 	"container/heap"
+	"fmt"
+	"math/rand"
 )
 
 type Node int
@@ -483,7 +483,7 @@ func (vbmap Vbmap) String() string {
 func makeVbmap(params VbmapParams) (vbmap Vbmap) {
 	vbmap = make([][]Node, params.NumVBuckets)
 	for v := 0; v < params.NumVBuckets; v++ {
-		vbmap[v] = make([]Node, params.NumReplicas + 1)
+		vbmap[v] = make([]Node, params.NumReplicas+1)
 	}
 
 	return
@@ -531,8 +531,8 @@ func (h *SlaveHeap) Push(x interface{}) {
 func (h *SlaveHeap) Pop() interface{} {
 	old := *h
 	n := len(old)
-	x := old[n - 1]
-	*h = old[0 : n - 1]
+	x := old[n-1]
+	*h = old[0 : n-1]
 	return x
 }
 
@@ -558,7 +558,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 		nodeVbs = make([]int, params.NumNodes)
 		for i, sum := range R.rowSums {
 			vbs := sum / params.NumReplicas
-			if sum % params.NumReplicas != 0 {
+			if sum%params.NumReplicas != 0 {
 				panic("row sum is not multiple of NumReplicas")
 			}
 
@@ -608,7 +608,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 				slave.count--
 				slave.stats[turn]++
 
-				vbmap[vbucket][turn + 1] = Node(slave.index)
+				vbmap[vbucket][turn+1] = Node(slave.index)
 
 				if slave.count != 0 {
 					heap.Push(slaves, slave)

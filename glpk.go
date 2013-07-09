@@ -10,7 +10,7 @@ import (
 	"text/template"
 )
 
-type GlpkRIGenerator struct {}
+type GlpkRIGenerator struct{}
 
 func (_ GlpkRIGenerator) String() string {
 	return "glpk"

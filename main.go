@@ -1,17 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	"log"
-	"encoding/json"
-	"io"
-	"io/ioutil"
 )
 
 type TagHist []uint
@@ -33,9 +33,9 @@ var (
 	params       VbmapParams = VbmapParams{
 		Tags: nil,
 	}
-	engine       Engine = Engine{availableGenerators[0]}
+	engine       Engine       = Engine{availableGenerators[0]}
 	outputFormat OutputFormat = "text"
-	diagTo       string = "stderr"
+	diagTo       string       = "stderr"
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -177,7 +177,7 @@ func checkInput() {
 }
 
 func fatal(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format + "\n", args...)
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }
 
