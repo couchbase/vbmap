@@ -509,15 +509,17 @@ func (h SlaveHeap) Len() int {
 	return len(h)
 }
 
-func (h SlaveHeap) Less(i, j int) bool {
+func (h SlaveHeap) Less(i, j int) (result bool) {
 	switch {
 	case h[i].count > h[j].count:
-		return true
+		result = true
 	case h[i].count == h[j].count:
-		return h[i].index < h[j].index
+		result = h[i].index < h[j].index
 	default:
-		return false
+		result = false
 	}
+
+	return
 }
 
 func (h SlaveHeap) Swap(i, j int) {
