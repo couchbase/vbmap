@@ -490,9 +490,9 @@ func makeVbmap(params VbmapParams) (vbmap Vbmap) {
 }
 
 type Slave struct {
-	index int
-	count int
-	stats []int
+	index   int
+	count   int
+	numUsed int
 }
 
 type SlaveHeap []Slave
@@ -500,8 +500,6 @@ type SlaveHeap []Slave
 func makeSlave(index int, count int, params VbmapParams) (slave Slave) {
 	slave.index = index
 	slave.count = count
-	slave.stats = make([]int, params.NumReplicas)
-
 	return
 }
 
@@ -514,7 +512,7 @@ func (h SlaveHeap) Less(i, j int) (result bool) {
 	case h[i].count > h[j].count:
 		result = true
 	case h[i].count == h[j].count:
-		result = h[i].index < h[j].index
+		result = h[i].numUsed < h[j].numUsed
 	default:
 		result = false
 	}
@@ -538,15 +536,96 @@ func (h *SlaveHeap) Pop() interface{} {
 	return x
 }
 
-func reorderReplicas(replicas []Slave) {
-	for turn := range replicas {
-		for i := turn + 1; i < len(replicas); i++ {
-			if replicas[i].stats[turn] < replicas[turn].stats[turn] {
-				replicas[i], replicas[turn] =
-					replicas[turn], replicas[i]
+type IndexPair struct {
+	x, y int
+}
+
+func getCount(counts map[IndexPair]int, x int, y int) (count int) {
+	count, present := counts[IndexPair{x, y}]
+	if !present {
+		count = 0
+	}
+
+	return
+}
+
+func incCount(counts map[IndexPair]int, x int, y int) {
+	count := getCount(counts, x, y)
+	counts[IndexPair{x, y}] = count + 1
+}
+
+// Choose numReplicas replicas out of candidates array based on counts.
+//
+// It does so by prefering a replica r with the lowest count for pair {prev,
+// r} in counts. prev is either -1 (which means master node) or replica from
+// previous turn.
+func chooseReplicas(candidates []Slave,
+	numReplicas int, counts map[IndexPair]int) (result []Slave, intact []Slave) {
+
+	result = make([]Slave, numReplicas)
+	resultIxs := make([]int, numReplicas)
+	intact = make([]Slave, len(candidates)-numReplicas)[:0]
+
+	candidatesMap := make(map[int]Slave)
+	available := make(map[int]bool)
+
+	for _, r := range candidates {
+		candidatesMap[r.index] = r
+		available[r.index] = true
+	}
+
+	for i := 0; i < numReplicas; i++ {
+		var pair *IndexPair = nil
+		var cost int
+
+		processPair := func(x, y int) {
+			if x == y {
+				return
+			}
+
+			cand := IndexPair{x, y}
+			candCost := getCount(counts, x, y)
+
+			if pair == nil {
+				pair = &cand
+				cost = candCost
+			}
+
+			if candCost < cost {
+				pair = &cand
+				cost = candCost
 			}
 		}
+
+		var prev int
+		if i == 0 {
+			// master
+			prev = -1
+		} else {
+			prev = resultIxs[i-1]
+		}
+
+		for x, _ := range available {
+			processPair(prev, x)
+		}
+
+		if pair == nil {
+			panic("couldn't find a pair")
+		}
+
+		resultIxs[i] = pair.y
+		delete(available, pair.y)
 	}
+
+	for i, r := range resultIxs {
+		result[i] = candidatesMap[r]
+	}
+
+	for s, _ := range available {
+		intact = append(intact, candidatesMap[s])
+	}
+
+	return
 }
 
 func buildVbmap(R RCandidate) (vbmap Vbmap) {
@@ -571,6 +650,8 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 	vbucket := 0
 	for i, row := range R.matrix {
 		slaves := &SlaveHeap{}
+		counts := make(map[IndexPair]int)
+
 		heap.Init(slaves)
 
 		vbs := nodeVbs[i]
@@ -591,9 +672,23 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 			continue
 		}
 
+		// We're selecting possible candidates for this particular
+		// replica chain. To ensure that we don't end up in a
+		// situation when there's only one slave left in the heap and
+		// it's count is greater than one, we always pop slaves with
+		// maximum count of vbuckets left first (see SlaveHeap.Less()
+		// method for details). When counts are the same, node that
+		// has been used less is preferred. We try to select more
+		// candidates than the number of replicas we need. This is to
+		// have more freedom when selecting actual replicas. For
+		// details on this look at chooseReplicas() function.
+		candidates := make([]Slave, params.NumSlaves)
 		for vbs > 0 {
-			replicas := make([]Slave, params.NumReplicas)
+			candidates = nil
 			vbmap[vbucket][0] = Node(i)
+
+			var lastCount int
+			var different bool = false
 
 			for r := 0; r < params.NumReplicas; r++ {
 				if slaves.Len() == 0 {
@@ -601,20 +696,67 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 				}
 
 				slave := heap.Pop(slaves).(Slave)
-				replicas[r] = slave
+				candidates = append(candidates, slave)
+
+				if r > 0 {
+					different = different || (slave.count == lastCount)
+				}
+
+				lastCount = slave.count
 			}
 
-			reorderReplicas(replicas)
+			// If candidates that we selected so far have
+			// different counts, to simplify chooseReplicas()
+			// logic we don't try select other candidates. This is
+			// needed because all the candidates with higher
+			// counts has to be selected by
+			// chooseReplicas(). Otherwise it would be possible to
+			// end up with a single slave with count greater than
+			// one in the heap.
+			if !different {
+				for {
+					if slaves.Len() == 0 {
+						break
+					}
+
+					// We add more slaves to the candidate
+					// list while all of them has the same
+					// count of vbuckets left.
+					slave := heap.Pop(slaves).(Slave)
+					if slave.count == lastCount {
+						candidates = append(candidates, slave)
+					} else {
+						heap.Push(slaves, slave)
+						break
+					}
+				}
+			}
+
+			replicas, intact := chooseReplicas(candidates, params.NumReplicas, counts)
 
 			for turn, slave := range replicas {
 				slave.count--
-				slave.stats[turn]++
+				slave.numUsed++
 
 				vbmap[vbucket][turn+1] = Node(slave.index)
 
 				if slave.count != 0 {
 					heap.Push(slaves, slave)
 				}
+
+				var prev int
+				if turn == 0 {
+					// this means master
+					prev = -1
+				} else {
+					prev = replicas[turn-1].index
+				}
+
+				incCount(counts, prev, slave.index)
+			}
+
+			for _, slave := range intact {
+				heap.Push(slaves, slave)
 			}
 
 			vbs--
