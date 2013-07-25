@@ -236,10 +236,15 @@ func main() {
 		diag.Printf("    %d -> %v", i, params.Tags[Node(i)])
 	}
 
+	start := time.Now()
+
 	solution, err := VbmapGenerate(params, engine.generator)
 	if err != nil {
 		fatal("ERROR: %s", err.Error())
 	}
+
+	duration := time.Since(start)
+	diag.Printf("Generated vbucket map in %s (wall clock)", duration.String())
 
 	switch outputFormat {
 	case "text":
