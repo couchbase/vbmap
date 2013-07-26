@@ -5,6 +5,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math/rand"
+	"sort"
 )
 
 type Node int
@@ -558,7 +559,8 @@ func incCount(counts map[IndexPair]int, x int, y int) {
 //
 // It does so by prefering a replica r with the lowest count for pair {prev,
 // r} in counts. prev is either -1 (which means master node) or replica from
-// previous turn.
+// previous turn. If for several possible replicas counts are the same then
+// one of them is selected uniformly.
 func chooseReplicas(candidates []Slave,
 	numReplicas int, counts map[IndexPair]int) (result []Slave, intact []Slave) {
 
@@ -575,7 +577,7 @@ func chooseReplicas(candidates []Slave,
 	}
 
 	for i := 0; i < numReplicas; i++ {
-		var replica int = -1
+		var possibleReplicas []int = nil
 		var cost int
 
 		processPair := func(x, y int) {
@@ -586,14 +588,15 @@ func chooseReplicas(candidates []Slave,
 			cand := y
 			candCost := getCount(counts, x, y)
 
-			if replica == -1 {
-				replica = cand
+			if possibleReplicas == nil {
 				cost = candCost
 			}
 
-			if candCost < cost || candCost == cost && cand < replica {
-				replica = cand
+			if candCost < cost {
+				possibleReplicas = append([]int(nil), cand)
 				cost = candCost
+			} else if candCost == cost {
+				possibleReplicas = append(possibleReplicas, cand)
 			}
 		}
 
@@ -609,9 +612,12 @@ func chooseReplicas(candidates []Slave,
 			processPair(prev, x)
 		}
 
-		if replica == -1 {
+		if possibleReplicas == nil {
 			panic("couldn't find a replica")
 		}
+
+		sort.Ints(possibleReplicas)
+		replica := possibleReplicas[rand.Intn(len(possibleReplicas))]
 
 		resultIxs[i] = replica
 		delete(available, replica)
