@@ -575,7 +575,7 @@ func chooseReplicas(candidates []Slave,
 	}
 
 	for i := 0; i < numReplicas; i++ {
-		var pair *IndexPair = nil
+		var replica int = -1
 		var cost int
 
 		processPair := func(x, y int) {
@@ -583,16 +583,16 @@ func chooseReplicas(candidates []Slave,
 				return
 			}
 
-			cand := IndexPair{x, y}
+			cand := y
 			candCost := getCount(counts, x, y)
 
-			if pair == nil {
-				pair = &cand
+			if replica == -1 {
+				replica = cand
 				cost = candCost
 			}
 
-			if candCost < cost {
-				pair = &cand
+			if candCost < cost || candCost == cost && cand < replica {
+				replica = cand
 				cost = candCost
 			}
 		}
@@ -609,12 +609,12 @@ func chooseReplicas(candidates []Slave,
 			processPair(prev, x)
 		}
 
-		if pair == nil {
-			panic("couldn't find a pair")
+		if replica == -1 {
+			panic("couldn't find a replica")
 		}
 
-		resultIxs[i] = pair.y
-		delete(available, pair.y)
+		resultIxs[i] = replica
+		delete(available, replica)
 	}
 
 	for i, r := range resultIxs {
