@@ -55,16 +55,22 @@ func (RI RI) String() string {
 	return buffer.String()
 }
 
+// Matrix R with some meta-information.
 type RCandidate struct {
-	params VbmapParams
-	matrix [][]int
+	params VbmapParams // corresponding vbucket map params
+	matrix [][]int     // actual matrix
 
-	rowSums          []int
-	colSums          []int
-	expectedColSum   int
-	expectedOutliers int
+	rowSums          []int // row sums for the matrix
+	colSums          []int // column sums for the matrix
+	expectedColSum   int   // expected column sum
+	expectedOutliers int   // number of columns that can be off-by-one
 
-	outliers      int
+	outliers int // actual number of columns that are off-by-one
+
+	// sum of absolute differences between column sum and expected column
+	// sum; it's called 'raw' because it doesn't take into consideration
+	// that expectedOutliers number of columns can be off-by-one; the
+	// smaller the better
 	rawEvaluation int
 }
 
@@ -107,6 +113,10 @@ func (cand RCandidate) String() string {
 	return buffer.String()
 }
 
+// Build initial matrix R from RI.
+//
+// It just spreads active vbuckets uniformly between the nodes. And then for
+// each node spreads replica vbuckets among the slaves of this node.
 func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
 	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
@@ -133,6 +143,9 @@ func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
 	return
 }
 
+// Construct initial matrix R from RI.
+//
+// Uses buildInitialR to construct RCandidate.
 func makeRCandidate(params VbmapParams, RI [][]int) (result RCandidate) {
 	result.params = params
 	result.matrix = buildInitialR(params, RI)
@@ -162,6 +175,11 @@ func makeRCandidate(params VbmapParams, RI [][]int) (result RCandidate) {
 	return
 }
 
+// Compute adjusted evaluation of matrix R from raw evaluation and number of
+// outliers.
+//
+// It differs from raw evaluation in that it allows fixed number of column
+// sums to be off-by-one.
 func (cand RCandidate) computeEvaluation(rawEval int, outliers int) (eval int) {
 	eval = rawEval
 	if outliers > cand.expectedOutliers {
@@ -173,10 +191,13 @@ func (cand RCandidate) computeEvaluation(rawEval int, outliers int) (eval int) {
 	return
 }
 
+// Compute adjusted evaluation of matrix R.
 func (cand RCandidate) evaluation() int {
 	return cand.computeEvaluation(cand.rawEvaluation, cand.outliers)
 }
 
+// Compute a change in number of outlying elements after swapping elements j
+// and k in certain row.
 func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
 	a, b := cand.matrix[row][j], cand.matrix[row][k]
 	ca := cand.colSums[j] - a + b
@@ -198,6 +219,8 @@ func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
 	return
 }
 
+// Compute a change in rawEvaluation after swapping elements j and k in
+// certain row.
 func (cand RCandidate) swapRawEvaluationChange(row int, j int, k int) (change int) {
 	a, b := cand.matrix[row][j], cand.matrix[row][k]
 	ca := cand.colSums[j] - a + b
@@ -214,6 +237,8 @@ func (cand RCandidate) swapRawEvaluationChange(row int, j int, k int) (change in
 	return
 }
 
+// Compute a potential change in evaluation after swapping element j and k in
+// certain row.
 func (cand RCandidate) swapBenefit(row int, j int, k int) int {
 	eval := cand.evaluation()
 
@@ -224,6 +249,7 @@ func (cand RCandidate) swapBenefit(row int, j int, k int) int {
 	return swapEval - eval
 }
 
+// Swap element j and k in a certain row.
 func (cand *RCandidate) swapElems(row int, j int, k int) {
 	if cand.matrix[row][j] == 0 || cand.matrix[row][k] == 0 {
 		panic(fmt.Sprintf("swapping one or more zeros (%d: %d <-> %d)",
@@ -240,6 +266,7 @@ func (cand *RCandidate) swapElems(row int, j int, k int) {
 	cand.matrix[row][j], cand.matrix[row][k] = b, a
 }
 
+// Make a copy of RCandidate.
 func (cand RCandidate) copy() (result RCandidate) {
 	result.params = cand.params
 	result.expectedColSum = cand.expectedColSum
@@ -262,17 +289,28 @@ func (cand RCandidate) copy() (result RCandidate) {
 	return
 }
 
+// A pair of elements (j and k) in a row that were swapped recently and so
+// should not be swapped again.
 type TabuPair struct {
 	row, j, k int
 }
 
+// A single element from a TabuPair.
 type TabuElem struct {
 	row, col int
 }
 
+// A store of element pairs that were swapped recently.
 type Tabu struct {
-	tabu        map[TabuPair]int
-	elemIndex   map[TabuElem]TabuPair
+	tabu map[TabuPair]int // pairs that were swapped recently
+
+	// index from elements to pair they're part of; this is needed to be
+	// able to remove a pair from tabu if one of its elements gets swapped
+	// with some other element;
+	elemIndex map[TabuElem]TabuPair
+
+	// index from iteration number to a pair that was tabu-ed on that
+	// iteration; used to expire pairs that spent too much time in a tabu;
 	expireIndex map[int]TabuPair
 }
 
@@ -289,6 +327,8 @@ func makeTabu() Tabu {
 		make(map[int]TabuPair)}
 }
 
+// Add a pair to a tabu. And remove any pairs that have elements in common
+// with this pair.
 func (tabu Tabu) add(time int, row int, j int, k int) {
 	oldItem, present := tabu.elemIndex[TabuElem{row, j}]
 	if present {
@@ -308,11 +348,13 @@ func (tabu Tabu) add(time int, row int, j int, k int) {
 	tabu.elemIndex[TabuElem{row, k}] = item
 }
 
+// Check if a pair of elements is tabu-ed.
 func (tabu Tabu) member(row int, j int, k int) bool {
 	_, present := tabu.tabu[makeTabuPair(row, j, k)]
 	return present
 }
 
+// Expire tabu pair that was added at certain iteration.
 func (tabu Tabu) expire(time int) {
 	item := tabu.expireIndex[time]
 	delete(tabu.expireIndex, time)
@@ -321,6 +363,21 @@ func (tabu Tabu) expire(time int) {
 	delete(tabu.elemIndex, TabuElem{item.row, item.k})
 }
 
+// Try to build balanced matrix R base on matrix RI.
+//
+// General approach is as follows. Fixed number of attempts is made to improve
+// matrix evaluation by swapping two elements in some row. Candidates for
+// swapping are selected to improve or at least not make worse the
+// evaluation. But occasionally swaps that make evaluation worse are also
+// allowed. After swapping the elements, corresponding pair is put into a tabu
+// store to ensure that this improvement is not undone too soon. But after
+// sufficient number of iterations, items in a tabu store are expired. If some
+// item stays in the tabu for a long time, it might mean that the search is
+// stuck at some local minimum. So allowing for some improvements to be undone
+// might help to get out of it. Finally, if there's been no improvement in
+// evaluation for quite a long time, then the search is stopped. It might be
+// retried by buildR(). This will start everything over with new initial
+// matrix R.
 func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	cand := makeRCandidate(params, RI)
 	best = cand.copy()
@@ -364,10 +421,10 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 			break
 		}
 
+		// indexes of columns that have sums higher than expected
 		highElems = []int{}
+		// indexes of columns that have sums lower or equal to expected
 		lowElems = []int{}
-
-		candidateRows = []int{}
 
 		for i, elem := range cand.colSums {
 			switch {
@@ -378,8 +435,13 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 			}
 		}
 
+		// indexes of columns that we're planning to adjust
 		lowIx := lowElems[rand.Intn(len(lowElems))]
 		highIx := highElems[rand.Intn(len(highElems))]
+
+		// indexes of rows where the elements in lowIx and highIx
+		// columns can be swapped with some benefit
+		candidateRows = []int{}
 
 		for row := 0; row < params.NumNodes; row++ {
 			lowElem := cand.matrix[row][lowIx]
@@ -441,6 +503,13 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	return
 }
 
+// Build balanced matrix R from RI.
+//
+// Main job is done in doBuildR(). It can be called several times if resulting
+// matrix evaluation is not zero. Each time doBuildR() starts from new
+// randomized initial R. If this doesn't lead to a matrix with zero evaluation
+// after fixed number of iterations, then the matrix which had the best
+// evaluation is returned.
 func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
 	bestEvaluation := (1 << 31) - 1
 
@@ -490,12 +559,17 @@ func makeVbmap(params VbmapParams) (vbmap Vbmap) {
 	return
 }
 
+// Represents a slave node.
 type Slave struct {
-	index   int
-	count   int
-	numUsed int
+	index   int // column index of this slave in corresponding row of R
+	count   int // number of vbuckets that can be put on this slave
+	numUsed int // number of times this slave was used so far
 }
 
+// A heap of slaves of some node. Slaves in the heap are ordered in the
+// descending order of number of vbuckets slots left on these slaves. If for
+// some pair of nodes number of vbuckets left is identical, then the node that
+// has been used less is preferred.
 type SlaveHeap []Slave
 
 func makeSlave(index int, count int, params VbmapParams) (slave Slave) {
@@ -537,10 +611,14 @@ func (h *SlaveHeap) Pop() interface{} {
 	return x
 }
 
+// A pair of column indexes of two elements in the same row of matrix R. Used
+// to track how many times certain pair of nodes is used adjacently to
+// replicate some active vbucket from a certain node.
 type IndexPair struct {
 	x, y int
 }
 
+// Get current usage count for slaves x and y.
 func getCount(counts map[IndexPair]int, x int, y int) (count int) {
 	count, present := counts[IndexPair{x, y}]
 	if !present {
@@ -550,6 +628,7 @@ func getCount(counts map[IndexPair]int, x int, y int) (count int) {
 	return
 }
 
+// Increment usage count for slave x and y.
 func incCount(counts map[IndexPair]int, x int, y int) {
 	count := getCount(counts, x, y)
 	counts[IndexPair{x, y}] = count + 1
@@ -634,14 +713,21 @@ func chooseReplicas(candidates []Slave,
 	return
 }
 
+// Construct vbucket map from a matrix R.
 func buildVbmap(R RCandidate) (vbmap Vbmap) {
 	params := R.params
 	vbmap = makeVbmap(params)
 
+	// determines how many active vbuckets each node has
 	var nodeVbs []int
 	if params.NumReplicas == 0 || params.NumSlaves == 0 {
+		// If there's only one copy of every vbucket, then matrix R is
+		// just a null matrix. So we just spread the vbuckets evenly
+		// among the nodes and we're almost done.
 		nodeVbs = SpreadSum(params.NumVBuckets, params.NumNodes)
 	} else {
+		// Otherwise matrix R defines the amount of active vbuckets
+		// each node has.
 		nodeVbs = make([]int, params.NumNodes)
 		for i, sum := range R.rowSums {
 			vbs := sum / params.NumReplicas
@@ -669,6 +755,13 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 		}
 
 		if slaves.Len() == 0 {
+			// Row matrix contained only zeros. This usually means
+			// that replica count is zero. Other possibility is
+			// that the number of vbucket is less than number of
+			// nodes and some of the nodes end up with no vbuckets
+			// at all. In any case, we just mark the node as a
+			// master for its vbuckets (if any).
+
 			for vbs > 0 {
 				vbmap[vbucket][0] = Node(i)
 				vbs--
@@ -738,6 +831,10 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 				}
 			}
 
+			// Here we just choose actual replicas for this
+			// vbucket out of candidates. We adjust usage stats
+			// for chosen slaves. And push them back to the heap
+			// if their vbuckets left count is non-zero.
 			replicas, intact := chooseReplicas(candidates, params.NumReplicas, counts)
 
 			for turn, slave := range replicas {
@@ -761,6 +858,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 				incCount(counts, prev, slave.index)
 			}
 
+			// just push all the unused slaves back to the heap
 			for _, slave := range intact {
 				heap.Push(slaves, slave)
 			}
@@ -773,6 +871,8 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 	return
 }
 
+// Generate vbucket map given a generator for matrix RI and vbucket map
+// parameters.
 func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error) {
 	RI, err := gen.Generate(params)
 	if err != nil {

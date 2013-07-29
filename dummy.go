@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// RI generator that ignores tags. It just spreads 1s in the matrix so that
+// row and column sums equal to number of slaves.
 type DummyRIGenerator struct{}
 
 func (_ DummyRIGenerator) String() string {

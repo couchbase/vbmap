@@ -10,6 +10,7 @@ import (
 	"text/template"
 )
 
+// RI generator that uses GLPK to find satisfying matrix RI.
 type GlpkRIGenerator struct{}
 
 func (_ GlpkRIGenerator) String() string {
