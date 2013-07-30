@@ -798,7 +798,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 				candidates = append(candidates, slave)
 
 				if r > 0 {
-					different = different || (slave.count == lastCount)
+					different = different || (slave.count != lastCount)
 				}
 
 				lastCount = slave.count
