@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"math/rand"
+	"reflect"
 	"testing"
+	"testing/quick"
 	"time"
 )
 
@@ -66,5 +68,68 @@ func TestRBalance(t *testing.T) {
 				t.Error("Generated map R has non-zero evaluation")
 			}
 		}
+	}
+}
+
+func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
+	nodes := rand.Int()%size + 1
+	replicas := rand.Int()%3 + 1
+
+	params = VbmapParams{
+		Tags:        trivialTags(nodes),
+		NumNodes:    nodes,
+		NumSlaves:   10,
+		NumVBuckets: 1024,
+		NumReplicas: replicas,
+	}
+	normalizeParams(&params)
+
+	return reflect.ValueOf(params)
+}
+
+func TestRIProperties(t *testing.T) {
+	setup(t)
+
+	gen := DummyRIGenerator{}
+
+	check := func(params VbmapParams) bool {
+		RI, err := gen.Generate(params)
+		if err != nil {
+			return false
+		}
+
+		if len(RI) != params.NumNodes {
+			return false
+		}
+
+		if len(RI[0]) != params.NumNodes {
+			return false
+		}
+
+		colSums := make([]int, params.NumNodes)
+		rowSums := make([]int, params.NumNodes)
+
+		for i, row := range RI {
+			for j, elem := range row {
+				colSums[j] += elem
+				rowSums[i] += elem
+			}
+		}
+
+		for i := range colSums {
+			if colSums[i] != params.NumSlaves {
+				return false
+			}
+
+			if rowSums[i] != params.NumSlaves && rowSums[i] != 0 {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	if err := quick.Check(check, &quick.Config{MaxCount: 10000}); err != nil {
+		t.Error(err)
 	}
 }
