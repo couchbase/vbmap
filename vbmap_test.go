@@ -73,7 +73,7 @@ func TestRBalance(t *testing.T) {
 
 func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 	nodes := rand.Int()%size + 1
-	replicas := rand.Int()%3 + 1
+	replicas := rand.Int() % 4
 
 	params = VbmapParams{
 		Tags:        trivialTags(nodes),
@@ -121,7 +121,7 @@ func TestRIProperties(t *testing.T) {
 				return false
 			}
 
-			if rowSums[i] != params.NumSlaves && rowSums[i] != 0 {
+			if rowSums[i] != params.NumSlaves {
 				return false
 			}
 		}
