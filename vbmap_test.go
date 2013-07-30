@@ -24,7 +24,7 @@ func TestExhaustive(t *testing.T) {
 
 	diag = log.New(TestingWriter{t}, "", 0)
 
-	for nodes := 1; nodes <= 100; nodes++ {
+	for nodes := 1; nodes <= 50; nodes++ {
 		tags := make(map[Node]Tag)
 		for n := 0; n < nodes; n++ {
 			tags[Node(n)] = Tag(n)
