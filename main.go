@@ -112,15 +112,7 @@ func (format OutputFormat) String() string {
 	return string(format)
 }
 
-func checkInput() {
-	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
-		fatal("num-nodes, num-slaves and num-vbuckets must be greater than zero")
-	}
-
-	if params.NumReplicas < 0 {
-		fatal("num-replicas must be greater of equal than zero")
-	}
-
+func normalizeParams(params *VbmapParams) {
 	if params.NumReplicas+1 > params.NumNodes {
 		params.NumReplicas = params.NumNodes - 1
 	}
@@ -132,10 +124,22 @@ func checkInput() {
 	if params.NumSlaves < params.NumReplicas {
 		params.NumReplicas = params.NumSlaves
 	}
+}
+
+func checkInput() {
+	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
+		fatal("num-nodes, num-slaves and num-vbuckets must be greater than zero")
+	}
+
+	if params.NumReplicas < 0 {
+		fatal("num-replicas must be greater of equal than zero")
+	}
 
 	if params.Tags != nil && tagHistogram != nil {
 		fatal("Options --tags and --tag-histogram are exclusive")
 	}
+
+	normalizeParams(&params)
 
 	if params.Tags == nil && tagHistogram == nil {
 		diag.Printf("Tags are not specified. Assuming every node on a separate tag.")
