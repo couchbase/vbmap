@@ -19,10 +19,6 @@ func (w TestingWriter) Write(p []byte) (n int, err error) {
 }
 
 func setup(t *testing.T) {
-	seed = time.Now().UTC().UnixNano()
-	t.Logf("Using seed %d", seed)
-	rand.Seed(seed)
-
 	diag = log.New(TestingWriter{t}, "", 0)
 }
 
@@ -35,7 +31,11 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 	return
 }
 
-func TestRBalance(t *testing.T) {
+func TestRReplicaBalance(t *testing.T) {
+	seed = time.Now().UTC().UnixNano()
+	t.Logf("Using seed %d", seed)
+	rand.Seed(seed)
+
 	setup(t)
 
 	for nodes := 1; nodes <= 50; nodes++ {
@@ -72,7 +72,7 @@ func TestRBalance(t *testing.T) {
 }
 
 func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
-	nodes := rand.Int()%size + 1
+	nodes := rand.Int()%100 + 1
 	replicas := rand.Int() % 4
 
 	params = VbmapParams{
@@ -130,6 +130,70 @@ func TestRIProperties(t *testing.T) {
 	}
 
 	if err := quick.Check(check, &quick.Config{MaxCount: 10000}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRProperties(t *testing.T) {
+	setup(t)
+
+	gen := DummyRIGenerator{}
+	check := func(params VbmapParams, seed int64) bool {
+		rand.Seed(seed)
+
+		RI, err := gen.Generate(params)
+		if err != nil {
+			return false
+		}
+
+		R := buildR(params, RI)
+		if params.NumReplicas == 0 {
+			// no replicas? R should obviously be empty
+			for _, row := range R.matrix {
+				for _, elem := range row {
+					if elem != 0 {
+						return false
+					}
+				}
+			}
+		} else {
+			// check that we follow RI topology
+			for i, row := range RI {
+				for j, elem := range row {
+					if elem == 0 && R.matrix[i][j] != 0 ||
+						elem != 0 && R.matrix[i][j] == 0 {
+						return false
+					}
+				}
+			}
+
+			totalVBuckets := 0
+
+			// check active vbuckets balance
+			for _, sum := range R.rowSums {
+				if sum%params.NumReplicas != 0 {
+					return false
+				}
+
+				vbuckets := sum / params.NumReplicas
+				expected := params.NumVBuckets / params.NumNodes
+
+				if vbuckets != expected && vbuckets != expected+1 {
+					return false
+				}
+
+				totalVBuckets += vbuckets
+			}
+
+			if totalVBuckets != params.NumVBuckets {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	if err := quick.Check(check, &quick.Config{MaxCount: 1000}); err != nil {
 		t.Error(err)
 	}
 }
