@@ -16,13 +16,16 @@ func (w TestingWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func TestExhaustive(t *testing.T) {
+func setup(t *testing.T) {
 	seed = time.Now().UTC().UnixNano()
 	t.Logf("Using seed %d", seed)
-
 	rand.Seed(seed)
 
 	diag = log.New(TestingWriter{t}, "", 0)
+}
+
+func TestExhaustive(t *testing.T) {
+	setup(t)
 
 	for nodes := 1; nodes <= 50; nodes++ {
 		tags := make(map[Node]Tag)
