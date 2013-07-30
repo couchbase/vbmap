@@ -24,14 +24,20 @@ func setup(t *testing.T) {
 	diag = log.New(TestingWriter{t}, "", 0)
 }
 
+func trivialTags(nodes int) (tags map[Node]Tag) {
+	tags = make(map[Node]Tag)
+	for n := 0; n < nodes; n++ {
+		tags[Node(n)] = Tag(n)
+	}
+
+	return
+}
+
 func TestRBalance(t *testing.T) {
 	setup(t)
 
 	for nodes := 1; nodes <= 50; nodes++ {
-		tags := make(map[Node]Tag)
-		for n := 0; n < nodes; n++ {
-			tags[Node(n)] = Tag(n)
-		}
+		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
 			t.Log("=======================================")
