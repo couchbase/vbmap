@@ -24,7 +24,7 @@ func setup(t *testing.T) {
 	diag = log.New(TestingWriter{t}, "", 0)
 }
 
-func TestExhaustive(t *testing.T) {
+func TestRBalance(t *testing.T) {
 	setup(t)
 
 	for nodes := 1; nodes <= 50; nodes++ {
