@@ -197,3 +197,108 @@ func TestRProperties(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+type NodePair struct {
+	x, y Node
+}
+
+func TestVbmapProperties(t *testing.T) {
+	setup(t)
+
+	gen := DummyRIGenerator{}
+	check := func(params VbmapParams, seed int64) bool {
+		rand.Seed(seed)
+
+		RI, err := gen.Generate(params)
+		if err != nil {
+			return false
+		}
+
+		R := buildR(params, RI)
+		vbmap := buildVbmap(R)
+
+		if len(vbmap) != params.NumVBuckets {
+			return false
+		}
+
+		activeVBuckets := make([]int, params.NumNodes)
+		replicaVBuckets := make([]int, params.NumNodes)
+
+		replications := make(map[NodePair]int)
+
+		for _, chain := range vbmap {
+			if len(chain) != params.NumReplicas+1 {
+				return false
+			}
+
+			master := chain[0]
+			activeVBuckets[int(master)] += 1
+
+			for _, replica := range chain[1:] {
+				// all the replications correspond to ones
+				// defined by R
+				if RI[int(master)][int(replica)] != 1 {
+					return false
+				}
+
+				replicaVBuckets[int(replica)] += 1
+
+				pair := NodePair{master, replica}
+				if _, present := replications[pair]; !present {
+					replications[pair] = 0
+				}
+
+				replications[pair] += 1
+			}
+		}
+
+		// number of replications should correspond to one defined by R
+		for i, row := range R.matrix {
+			for j, elem := range row {
+				if elem != 0 {
+					pair := NodePair{Node(i), Node(j)}
+
+					count, present := replications[pair]
+					if !present || count != elem {
+						return false
+					}
+				}
+			}
+		}
+
+		// number of active vbuckets should correspond to one defined
+		// by matrix R
+		for n, sum := range R.rowSums {
+			if params.NumReplicas != 0 {
+				// if we have at least one replica then number
+				// of active vbuckets is defined by matrix R
+				if sum/params.NumReplicas != activeVBuckets[n] {
+					return false
+				}
+			} else {
+				// otherwise matrix R is empty and we just
+				// need to check that active vbuckets are
+				// distributed evenly
+				expected := params.NumVBuckets / params.NumNodes
+				if activeVBuckets[n] != expected &&
+					activeVBuckets[n] != expected+1 {
+					return false
+				}
+			}
+		}
+
+		// number of replica vbuckets should correspond to one defined
+		// by R
+		for n, sum := range R.colSums {
+			if sum != replicaVBuckets[n] {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	if err := quick.Check(check, &quick.Config{MaxCount: 1000}); err != nil {
+		t.Error(err)
+	}
+}
