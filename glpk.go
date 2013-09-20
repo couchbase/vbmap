@@ -100,9 +100,12 @@ func readSolution(params VbmapParams, outPath string) (RI, error) {
 		}
 	}
 
-	result := make([][]int, params.NumNodes)
+	result := make([][]bool, params.NumNodes)
 	for i := range result {
-		result[i] = values[i*params.NumNodes : (i+1)*params.NumNodes]
+		for _, v := range values[i*params.NumNodes : (i+1)*params.NumNodes] {
+			value := (v != 0)
+			result[i] = append(result[i], value)
+		}
 	}
 
 	return result, nil

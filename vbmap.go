@@ -35,7 +35,7 @@ func (tags TagMap) TagsCount() int {
 	return len(seen)
 }
 
-type RI [][]int
+type RI [][]bool
 
 type RIGenerator interface {
 	Generate(params VbmapParams) (RI, error)
@@ -44,10 +44,11 @@ type RIGenerator interface {
 
 func (RI RI) String() string {
 	buffer := &bytes.Buffer{}
+	b2i := map[bool]int{false: 0, true: 1}
 
 	for _, row := range RI {
 		for _, elem := range row {
-			fmt.Fprintf(buffer, "%2d ", elem)
+			fmt.Fprintf(buffer, "%2d ", b2i[elem])
 		}
 		fmt.Fprintf(buffer, "\n")
 	}
@@ -117,7 +118,7 @@ func (cand RCandidate) String() string {
 //
 // It just spreads active vbuckets uniformly between the nodes. And then for
 // each node spreads replica vbuckets among the slaves of this node.
-func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
+func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
 	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 	R = make([][]int, len(RI))
@@ -133,7 +134,7 @@ func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
 
 		slave := 0
 		for j, elem := range row {
-			if elem != 0 {
+			if elem {
 				R[i][j] = slaveVbs[slave]
 				slave += 1
 			}
@@ -146,7 +147,7 @@ func buildInitialR(params VbmapParams, RI [][]int) (R [][]int) {
 // Construct initial matrix R from RI.
 //
 // Uses buildInitialR to construct RCandidate.
-func makeRCandidate(params VbmapParams, RI [][]int) (result RCandidate) {
+func makeRCandidate(params VbmapParams, RI RI) (result RCandidate) {
 	result.params = params
 	result.matrix = buildInitialR(params, RI)
 	result.colSums = make([]int, params.NumNodes)
@@ -378,7 +379,7 @@ func (tabu Tabu) expire(time int) {
 // evaluation for quite a long time, then the search is stopped. It might be
 // retried by buildR(). This will start everything over with new initial
 // matrix R.
-func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
+func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
 	cand := makeRCandidate(params, RI)
 	best = cand.copy()
 
@@ -510,7 +511,7 @@ func doBuildR(params VbmapParams, RI [][]int) (best RCandidate) {
 // randomized initial R. If this doesn't lead to a matrix with zero evaluation
 // after fixed number of iterations, then the matrix which had the best
 // evaluation is returned.
-func buildR(params VbmapParams, RI [][]int) (best RCandidate) {
+func buildR(params VbmapParams, RI RI) (best RCandidate) {
 	bestEvaluation := (1 << 31) - 1
 
 	for i := 0; i < 10; i++ {
