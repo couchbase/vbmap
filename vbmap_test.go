@@ -109,10 +109,11 @@ func TestRIProperties(t *testing.T) {
 		colSums := make([]int, params.NumNodes)
 		rowSums := make([]int, params.NumNodes)
 
+		b2i := map[bool]int{false: 0, true: 1}
 		for i, row := range RI {
 			for j, elem := range row {
-				colSums[j] += elem
-				rowSums[i] += elem
+				colSums[j] += b2i[elem]
+				rowSums[i] += b2i[elem]
 			}
 		}
 
@@ -160,8 +161,8 @@ func TestRProperties(t *testing.T) {
 			// check that we follow RI topology
 			for i, row := range RI {
 				for j, elem := range row {
-					if elem == 0 && R.matrix[i][j] != 0 ||
-						elem != 0 && R.matrix[i][j] == 0 {
+					if !elem && R.matrix[i][j] != 0 ||
+						elem && R.matrix[i][j] == 0 {
 						return false
 					}
 				}
@@ -237,7 +238,7 @@ func TestVbmapProperties(t *testing.T) {
 			for _, replica := range chain[1:] {
 				// all the replications correspond to ones
 				// defined by R
-				if RI[int(master)][int(replica)] != 1 {
+				if !RI[int(master)][int(replica)] {
 					return false
 				}
 
