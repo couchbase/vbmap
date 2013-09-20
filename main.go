@@ -23,6 +23,7 @@ type OutputFormat string
 var availableGenerators []RIGenerator = []RIGenerator{
 	GlpkRIGenerator{},
 	DummyRIGenerator{},
+	BtRIGenerator{},
 }
 
 var diag *log.Logger
