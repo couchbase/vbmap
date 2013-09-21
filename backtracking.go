@@ -56,7 +56,7 @@ func mark(ctx context, i, j int, value bool) {
 	if value {
 		change = 1
 	} else {
-		change = 1
+		change = -1
 	}
 
 	ctx.ri[i][j] = value
