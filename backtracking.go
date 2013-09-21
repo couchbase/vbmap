@@ -47,6 +47,27 @@ func backtrack(ctx context, i, j int) bool {
 	return false
 }
 
+func afterLast(ctx context, i, j int) bool {
+	return i == ctx.params.NumNodes-1 &&
+		j == ctx.params.NumNodes-1
+}
+
+func next(ctx context, i, j int) (ri, rj int) {
+	if afterLast(ctx, i, j) {
+		return i, j
+	}
+
+	ri = i + 1
+	rj = j
+
+	if ri == ctx.params.NumNodes {
+		ri = 0
+		rj += 1
+	}
+
+	return
+}
+
 func mark(ctx context, i, j int, value bool) {
 	if ctx.ri[i][j] == value {
 		return
