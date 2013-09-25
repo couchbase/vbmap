@@ -23,10 +23,13 @@ func (_ BtRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 }
 
 type context struct {
-	ri      RI
-	params  VbmapParams
-	colSums []int
-	rowSums []int
+	ri     RI
+	params VbmapParams
+
+	rowNodesLeft []int
+	colNodesLeft []int
+
+	slotsMap [][]int
 }
 
 func makeContext(params VbmapParams) (ctx context) {
@@ -35,8 +38,28 @@ func makeContext(params VbmapParams) (ctx context) {
 		ctx.ri[i] = make([]bool, params.NumNodes)
 	}
 
-	ctx.colSums = make([]int, params.NumNodes)
-	ctx.rowSums = make([]int, params.NumNodes)
+	ctx.rowNodesLeft = duplicate(params.NumNodes, params.NumSlaves)
+	ctx.colNodesLeft = duplicate(params.NumNodes, params.NumSlaves)
+
+	ctx.slotsMap = make([][]int, params.NumNodes)
+	for i := 0; i < params.NumNodes; i++ {
+		ctx.slotsMap[i] = make([]int, params.NumNodes)
+
+		for j := params.NumNodes - 1; j >= 0; j-- {
+			var prev int
+			if j == params.NumNodes-1 {
+				prev = 0
+			} else {
+				prev = ctx.slotsMap[i][j+1]
+			}
+
+			if params.Tags[Node(i)] != params.Tags[Node(j)] {
+				ctx.slotsMap[i][j] = prev + 1
+			} else {
+				ctx.slotsMap[i][j] = prev
+			}
+		}
+	}
 
 	ctx.params = params
 
@@ -44,7 +67,40 @@ func makeContext(params VbmapParams) (ctx context) {
 }
 
 func backtrack(ctx context, i, j int) bool {
+	if afterLast(ctx, i, j) {
+		return true
+	}
+
+	ni, nj := next(ctx, i, j)
+
+	if ctx.params.Tags[Node(i)] == ctx.params.Tags[Node(j)] {
+		return backtrack(ctx, ni, nj)
+	}
+
+	values := possibleValues(ctx, i, j)
+	for _, v := range values {
+		mark(ctx, i, j, v)
+		if backtrack(ctx, ni, nj) {
+			return true
+		}
+	}
+
+	rollback(ctx, i, j)
 	return false
+}
+
+func possibleValues(ctx context, i, j int) (values []bool) {
+	if ctx.slotsMap[i][j] > 0 && ctx.slotsMap[j][i] > 0 &&
+		ctx.rowNodesLeft[i] > 0 && ctx.colNodesLeft[j] > 0 {
+		values = append(values, true)
+	}
+
+	if ctx.slotsMap[i][j] > ctx.rowNodesLeft[i] &&
+		ctx.slotsMap[j][i] > ctx.colNodesLeft[j] {
+		values = append(values, false)
+	}
+
+	return
 }
 
 func afterLast(ctx context, i, j int) bool {
@@ -68,6 +124,10 @@ func next(ctx context, i, j int) (ri, rj int) {
 	return
 }
 
+func rollback(ctx context, i, j int) {
+	mark(ctx, i, j, false)
+}
+
 func mark(ctx context, i, j int, value bool) {
 	if ctx.ri[i][j] == value {
 		return
@@ -75,12 +135,22 @@ func mark(ctx context, i, j int, value bool) {
 
 	var change int
 	if value {
-		change = 1
-	} else {
 		change = -1
+	} else {
+		change = 1
 	}
 
 	ctx.ri[i][j] = value
-	ctx.rowSums[i] += change
-	ctx.colSums[j] += change
+	ctx.rowNodesLeft[i] += change
+	ctx.colNodesLeft[j] += change
+}
+
+func duplicate(n int, x int) (result []int) {
+	result = make([]int, 0, n)
+
+	for ; n > 0; n-- {
+		result = append(result, x)
+	}
+
+	return
 }
