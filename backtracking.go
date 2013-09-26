@@ -29,7 +29,8 @@ type context struct {
 	rowNodesLeft []int
 	colNodesLeft []int
 
-	rowNodesPerTag []map[Tag]int
+	rowSlavesPerTag []map[Tag]int
+	expSlavesPerTag int
 
 	slotsMap [][]int
 }
@@ -43,18 +44,23 @@ func makeContext(params VbmapParams) (ctx context) {
 	ctx.rowNodesLeft = duplicate(params.NumNodes, params.NumSlaves)
 	ctx.colNodesLeft = duplicate(params.NumNodes, params.NumSlaves)
 
-	ctx.rowNodesPerTag = make([]map[Tag]int, params.NumNodes)
+	ctx.rowSlavesPerTag = make([]map[Tag]int, params.NumNodes)
 	ctx.slotsMap = make([][]int, params.NumNodes)
 
 	tags := params.Tags.TagsList()
 
+	ctx.expSlavesPerTag = params.NumSlaves / len(tags)
+	if params.NumSlaves%len(tags) != 0 {
+		ctx.expSlavesPerTag += 1
+	}
+
 	for i := 0; i < params.NumNodes; i++ {
 		ctx.slotsMap[i] = make([]int, params.NumNodes)
 
-		ctx.rowNodesPerTag[i] = make(map[Tag]int)
+		ctx.rowSlavesPerTag[i] = make(map[Tag]int)
 		for _, tag := range tags {
 			if params.Tags[Node(i)] != tag {
-				ctx.rowNodesPerTag[i][tag] = 0
+				ctx.rowSlavesPerTag[i][tag] = 0
 			}
 		}
 
@@ -158,7 +164,7 @@ func mark(ctx context, i, j int, value bool) {
 	ctx.colNodesLeft[j] -= change
 
 	jTag := params.Tags[Node(j)]
-	ctx.rowNodesPerTag[i][jTag] += change
+	ctx.rowSlavesPerTag[i][jTag] += change
 }
 
 func duplicate(n int, x int) (result []int) {
