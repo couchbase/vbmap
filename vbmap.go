@@ -25,14 +25,21 @@ func (tags TagMap) String() string {
 	return fmt.Sprintf("%v", map[Node]Tag(tags))
 }
 
-func (tags TagMap) TagsCount() int {
+func (tags TagMap) TagsList() (result []Tag) {
 	seen := make(map[Tag]bool)
 
 	for _, t := range tags {
-		seen[t] = true
+		if _, present := seen[t]; !present {
+			result = append(result, t)
+			seen[t] = true
+		}
 	}
 
-	return len(seen)
+	return
+}
+
+func (tags TagMap) TagsCount() int {
+	return len(tags.TagsList())
 }
 
 type RI [][]bool
