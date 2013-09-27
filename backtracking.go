@@ -119,6 +119,15 @@ func possibleValues(ctx context, i, j int) (values []bool) {
 		values = append(values, false)
 	}
 
+	jTag := ctx.params.Tags[Node(j)]
+	if ctx.rowSlavesPerTag[i][jTag] >= ctx.expSlavesPerTag {
+		// Setting one in this position would go beyond preferred
+		// number of slaves on tag. So we swap values to prefer zero.
+		if len(values) == 2 {
+			values[0], values[1] = values[1], values[0]
+		}
+	}
+
 	return
 }
 
