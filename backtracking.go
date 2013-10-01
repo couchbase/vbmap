@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -183,6 +184,49 @@ func mark(ctx context, i, j int, value bool) {
 
 	jTag := params.Tags[Node(j)]
 	ctx.rowSlavesPerTag[i][jTag] += change
+}
+
+func debugDump(ctx context, ci, cj int) {
+	b2i := map[bool]int{false: 0, true: 1}
+	buffer := &bytes.Buffer{}
+
+	fmt.Fprintf(buffer, "   |")
+	for i := 0; i < ctx.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "%2d ", ctx.params.Tags[Node(i)])
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "---|")
+	for i := 0; i < ctx.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "---")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	for i, row := range ctx.ri {
+		fmt.Fprintf(buffer, "%2d |", ctx.params.Tags[Node(i)])
+		for j, elem := range row {
+			if cj == j && ci == i {
+				fmt.Fprintf(buffer, "_%d_", b2i[elem])
+			} else {
+				fmt.Fprintf(buffer, " %d ", b2i[elem])
+			}
+		}
+		fmt.Fprintf(buffer, "| %d\n", ctx.rowNodesLeft[i])
+	}
+
+	fmt.Fprintf(buffer, "___|")
+	for i := 0; i < ctx.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "___")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "   |")
+	for i := 0; i < ctx.params.NumNodes; i++ {
+		fmt.Fprintf(buffer, "%2d ", ctx.colNodesLeft[i])
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	diag.Printf("%s\n\n", buffer.String())
 }
 
 func duplicate(n int, x int) (result []int) {
