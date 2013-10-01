@@ -49,7 +49,7 @@ func makeContext(params VbmapParams) (ctx context) {
 
 	tags := params.Tags.TagsList()
 
-	ctx.expSlavesPerTag = params.NumSlaves / len(tags)
+	ctx.expSlavesPerTag = params.NumSlaves / (len(tags) - 1)
 	if params.NumSlaves%len(tags) != 0 {
 		ctx.expSlavesPerTag += 1
 	}
