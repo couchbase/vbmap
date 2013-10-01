@@ -141,12 +141,12 @@ func next(ctx context, i, j int) (ri, rj int) {
 		return i, j
 	}
 
-	ri = i + 1
-	rj = j
+	ri = i
+	rj = j + 1
 
-	if ri == ctx.params.NumNodes {
-		ri = 0
-		rj += 1
+	if rj == ctx.params.NumNodes {
+		rj = 0
+		ri += 1
 	}
 
 	return
