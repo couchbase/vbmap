@@ -26,12 +26,20 @@ type context struct {
 	ri     RI
 	params VbmapParams
 
+	// how many nodes still need to be picked for each row
 	rowNodesLeft []int
+	// same as above but for columns
 	colNodesLeft []int
 
+	// current number of slaves selected on each tag for each row
 	rowSlavesPerTag []map[Tag]int
+	// expected number of slaves on each tag if slaves are evenly spreaded
+	// among tags
 	expSlavesPerTag int
 
+	// For each (i, j) indicates how many nodes after (and including) j
+	// node i can replicate to. That is, how many nodes after (and
+	// including) j are on a different tag as node i.
 	slotsMap [][]int
 }
 
