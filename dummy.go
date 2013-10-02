@@ -10,6 +10,10 @@ type DummyRIGenerator struct {
 	DontAcceptRIGeneratorParams
 }
 
+func makeDummyRIGenerator() *DummyRIGenerator {
+	return &DummyRIGenerator{}
+}
+
 func (_ DummyRIGenerator) String() string {
 	return "dummy"
 }

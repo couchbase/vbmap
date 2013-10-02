@@ -21,9 +21,9 @@ type Engine struct {
 type OutputFormat string
 
 var availableGenerators []RIGenerator = []RIGenerator{
-	&GlpkRIGenerator{},
-	&DummyRIGenerator{},
-	&BtRIGenerator{},
+	makeGlpkRIGenerator(),
+	makeDummyRIGenerator(),
+	makeBtRIGenerator(),
 }
 
 var diag *log.Logger

@@ -9,6 +9,10 @@ type BtRIGenerator struct {
 	debug bool
 }
 
+func makeBtRIGenerator() *BtRIGenerator {
+	return &BtRIGenerator{debug: false}
+}
+
 func (_ BtRIGenerator) String() string {
 	return "backtracking"
 }

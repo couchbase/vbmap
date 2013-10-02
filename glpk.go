@@ -15,6 +15,10 @@ type GlpkRIGenerator struct {
 	DontAcceptRIGeneratorParams
 }
 
+func makeGlpkRIGenerator() *GlpkRIGenerator {
+	return &GlpkRIGenerator{}
+}
+
 func (_ GlpkRIGenerator) String() string {
 	return "glpk"
 }
