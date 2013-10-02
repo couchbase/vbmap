@@ -21,9 +21,9 @@ type Engine struct {
 type OutputFormat string
 
 var availableGenerators []RIGenerator = []RIGenerator{
-	GlpkRIGenerator{},
-	DummyRIGenerator{},
-	BtRIGenerator{},
+	&GlpkRIGenerator{},
+	&DummyRIGenerator{},
+	&BtRIGenerator{},
 }
 
 var diag *log.Logger
@@ -34,7 +34,9 @@ var (
 	params       VbmapParams = VbmapParams{
 		Tags: nil,
 	}
-	engine       Engine       = Engine{availableGenerators[0]}
+	engine       Engine = Engine{availableGenerators[0]}
+	engineParams string = ""
+
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
 )
@@ -195,6 +197,7 @@ func main() {
 	flag.Var(&params.Tags, "tags", "tags")
 	flag.Var(&tagHistogram, "tag-histogram", "tag histogram")
 	flag.Var(&engine, "engine", "engine used to generate the topology")
+	flag.StringVar(&engineParams, "engine-params", "", "engine specific params")
 	flag.Var(&outputFormat, "output-format", "output format")
 	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
 
@@ -226,6 +229,10 @@ func main() {
 	rand.Seed(seed)
 
 	checkInput()
+
+	if err := engine.generator.SetParams(engineParams); err != nil {
+		fatal("Couldn't set engine params: %s", err.Error())
+	}
 
 	diag.Printf("Finalized parameters")
 	diag.Printf("  Number of nodes: %d", params.NumNodes)

@@ -45,6 +45,7 @@ func (tags TagMap) TagsCount() int {
 type RI [][]bool
 
 type RIGenerator interface {
+	SetParams(params string) error
 	Generate(params VbmapParams) (RI, error)
 	fmt.Stringer
 }

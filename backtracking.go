@@ -3,16 +3,30 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
-type BtRIGenerator struct{}
+type BtRIGenerator struct {
+	debug bool
+}
 
 func (_ BtRIGenerator) String() string {
 	return "backtracking"
 }
 
-func (_ BtRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
-	ctx := makeContext(params)
+func (gen *BtRIGenerator) SetParams(params string) error {
+	for _, param := range strings.Split(params, ";") {
+		switch param {
+		case "debug":
+			gen.debug = true
+		}
+	}
+
+	return nil
+}
+
+func (gen BtRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
+	ctx := makeContext(params, gen.debug)
 
 	if backtrack(ctx, 0, 0) {
 		RI = ctx.ri
@@ -24,6 +38,8 @@ func (_ BtRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 }
 
 type context struct {
+	debug bool
+
 	ri     RI
 	params VbmapParams
 
@@ -44,7 +60,7 @@ type context struct {
 	slotsMap [][]int
 }
 
-func makeContext(params VbmapParams) (ctx context) {
+func makeContext(params VbmapParams, debug bool) (ctx context) {
 	ctx.ri = make([][]bool, params.NumNodes)
 	for i, _ := range ctx.ri {
 		ctx.ri[i] = make([]bool, params.NumNodes)
@@ -91,6 +107,7 @@ func makeContext(params VbmapParams) (ctx context) {
 	}
 
 	ctx.params = params
+	ctx.debug = debug
 
 	return
 }
@@ -107,11 +124,21 @@ func backtrack(ctx context, i, j int) bool {
 	}
 
 	values := possibleValues(ctx, i, j)
+
+	if ctx.debug {
+		diag.Printf("possible values: %v\n\n", values)
+		debugDump(ctx, i, j)
+	}
+
 	for _, v := range values {
 		mark(ctx, i, j, v)
 		if backtrack(ctx, ni, nj) {
 			return true
 		}
+	}
+
+	if ctx.debug {
+		diag.Printf("rollback!\n\n")
 	}
 
 	rollback(ctx, i, j)

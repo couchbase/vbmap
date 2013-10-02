@@ -12,6 +12,10 @@ func (_ DummyRIGenerator) String() string {
 	return "dummy"
 }
 
+func (_ *DummyRIGenerator) SetParams(params string) error {
+	return nil
+}
+
 func (_ DummyRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	if params.Tags.TagsCount() != params.NumNodes {
 		err = fmt.Errorf("Dummy RI generator is rack unaware and " +

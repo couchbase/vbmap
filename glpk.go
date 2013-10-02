@@ -17,6 +17,10 @@ func (_ GlpkRIGenerator) String() string {
 	return "glpk"
 }
 
+func (_ *GlpkRIGenerator) SetParams(params string) error {
+	return nil
+}
+
 const model = `
 param nodes, integer, >= 1;
 param slaves, integer, >= 0;
