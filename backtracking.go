@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strings"
 )
 
 type BtRIGenerator struct {
@@ -14,11 +13,13 @@ func (_ BtRIGenerator) String() string {
 	return "backtracking"
 }
 
-func (gen *BtRIGenerator) SetParams(params string) error {
-	for _, param := range strings.Split(params, ";") {
-		switch param {
+func (gen *BtRIGenerator) SetParams(params map[string]string) error {
+	for k, _ := range params {
+		switch k {
 		case "debug":
 			gen.debug = true
+		default:
+			return fmt.Errorf("unsupported parameter '%s'", k)
 		}
 	}
 

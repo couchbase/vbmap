@@ -45,9 +45,19 @@ func (tags TagMap) TagsCount() int {
 type RI [][]bool
 
 type RIGenerator interface {
-	SetParams(params string) error
+	SetParams(params map[string]string) error
 	Generate(params VbmapParams) (RI, error)
 	fmt.Stringer
+}
+
+type DontAcceptRIGeneratorParams struct{}
+
+func (_ DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
+	for k, _ := range params {
+		return fmt.Errorf("unsupported parameter '%s'", k)
+	}
+
+	return nil
 }
 
 func (RI RI) String() string {

@@ -188,6 +188,30 @@ func fatal(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+func parseEngineParams(str string) (params map[string]string) {
+	params = make(map[string]string)
+
+	for _, kv := range strings.Split(str, ";") {
+		var k, v string
+
+		switch split := strings.SplitN(kv, "=", 2); len(split) {
+		case 1:
+			k = split[0]
+		case 2:
+			k = split[0]
+			v = split[1]
+		default:
+			fatal("should not happen")
+		}
+
+		if k != "" {
+			params[k] = v
+		}
+	}
+
+	return
+}
+
 func main() {
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
@@ -230,7 +254,8 @@ func main() {
 
 	checkInput()
 
-	if err := engine.generator.SetParams(engineParams); err != nil {
+	engineParamsMap := parseEngineParams(engineParams)
+	if err := engine.generator.SetParams(engineParamsMap); err != nil {
 		fatal("Couldn't set engine params: %s", err.Error())
 	}
 

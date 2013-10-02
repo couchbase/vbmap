@@ -11,14 +11,12 @@ import (
 )
 
 // RI generator that uses GLPK to find satisfying matrix RI.
-type GlpkRIGenerator struct{}
+type GlpkRIGenerator struct {
+	DontAcceptRIGeneratorParams
+}
 
 func (_ GlpkRIGenerator) String() string {
 	return "glpk"
-}
-
-func (_ *GlpkRIGenerator) SetParams(params string) error {
-	return nil
 }
 
 const model = `
