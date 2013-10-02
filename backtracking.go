@@ -214,7 +214,6 @@ func mark(ctx context, i, j int, value bool) {
 }
 
 func debugDump(ctx context, ci, cj int) {
-	b2i := map[bool]int{false: 0, true: 1}
 	buffer := &bytes.Buffer{}
 
 	fmt.Fprintf(buffer, "   |")
@@ -233,9 +232,9 @@ func debugDump(ctx context, ci, cj int) {
 		fmt.Fprintf(buffer, "%2d |", ctx.params.Tags[Node(i)])
 		for j, elem := range row {
 			if cj == j && ci == i {
-				fmt.Fprintf(buffer, "_%d_", b2i[elem])
+				fmt.Fprintf(buffer, "_%d_", b2i(elem))
 			} else {
-				fmt.Fprintf(buffer, " %d ", b2i[elem])
+				fmt.Fprintf(buffer, " %d ", b2i(elem))
 			}
 		}
 		fmt.Fprintf(buffer, "| %d\n", ctx.rowNodesLeft[i])

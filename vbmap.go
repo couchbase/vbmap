@@ -52,11 +52,10 @@ type RIGenerator interface {
 
 func (RI RI) String() string {
 	buffer := &bytes.Buffer{}
-	b2i := map[bool]int{false: 0, true: 1}
 
 	for _, row := range RI {
 		for _, elem := range row {
-			fmt.Fprintf(buffer, "%2d ", b2i[elem])
+			fmt.Fprintf(buffer, "%2d ", b2i(elem))
 		}
 		fmt.Fprintf(buffer, "\n")
 	}

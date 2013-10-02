@@ -37,3 +37,11 @@ func SpreadSum(sum int, n int) (result []int) {
 
 	return
 }
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	} else {
+		return 0
+	}
+}
