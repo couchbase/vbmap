@@ -236,7 +236,9 @@ func debugDump(ctx context, ci, cj int) {
 	for i, row := range ctx.ri {
 		fmt.Fprintf(buffer, "%2d |", ctx.params.Tags[Node(i)])
 		for j, elem := range row {
-			if cj == j && ci == i {
+			if ctx.params.Tags[Node(i)] == ctx.params.Tags[Node(j)] {
+				fmt.Fprintf(buffer, " - ")
+			} else if cj == j && ci == i {
 				fmt.Fprintf(buffer, "_%d_", b2i(elem))
 			} else {
 				fmt.Fprintf(buffer, " %d ", b2i(elem))
