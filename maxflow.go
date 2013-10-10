@@ -16,19 +16,12 @@ func (_ MaxFlowRIGenerator) Generate() (RI RI, err error) {
 	return nil, nil
 }
 
-const (
-	source = iota
-	sink
-	tagsStart
-)
-
-type graph struct {
-	nodes [][]graphEdge
-}
+type graphNode string
 
 type graphEdge struct {
-	src         int
-	dst         int
+	src graphNode
+	dst graphNode
+
 	capacity    int
 	flow        int
 	reverseEdge *graphEdge
@@ -36,6 +29,10 @@ type graphEdge struct {
 
 func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
+}
+
+type graph struct {
+	nodes map[graphNode][]graphEdge
 }
 
 type augPath struct {
@@ -56,12 +53,12 @@ func (path *augPath) addEdge(edge *graphEdge) {
 	path.edges = append(path.edges, edge)
 }
 
-func (g graph) bfsPath() (path *augPath) {
-	queue := []int{sink}
-	parentEdge := make(map[int]*graphEdge)
-	seen := make(map[int]bool)
+func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
+	queue := []graphNode{from}
+	parentEdge := make(map[graphNode]*graphEdge)
+	seen := make(map[graphNode]bool)
 
-	seen[sink] = true
+	seen[from] = true
 	done := false
 
 	for queue != nil && !done {
@@ -75,7 +72,7 @@ func (g graph) bfsPath() (path *augPath) {
 				seen[edge.dst] = true
 				parentEdge[edge.dst] = &edge
 
-				if edge.dst == sink {
+				if edge.dst == to {
 					done = true
 					break
 				}
@@ -87,8 +84,8 @@ func (g graph) bfsPath() (path *augPath) {
 		edges := make([]*graphEdge, 0)
 		path = makePath()
 
-		v := sink
-		for v != source {
+		v := to
+		for v != from {
 			edge := parentEdge[v]
 			edges = append(edges, edge)
 			v = edge.src
