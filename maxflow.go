@@ -98,3 +98,13 @@ func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 
 	return
 }
+
+func (g graph) edges() (result []*graphEdge) {
+	for _, nodeEdges := range g.nodes {
+		for _, edge := range nodeEdges {
+			result = append(result, edge)
+		}
+	}
+
+	return
+}
