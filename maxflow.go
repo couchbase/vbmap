@@ -32,7 +32,7 @@ func (edge graphEdge) residual() int {
 }
 
 type graph struct {
-	nodes map[graphNode][]graphEdge
+	nodes map[graphNode][]*graphEdge
 }
 
 type augPath struct {
@@ -70,7 +70,7 @@ func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 			if !present && edge.residual() > 0 {
 				queue = append(queue, edge.dst)
 				seen[edge.dst] = true
-				parentEdge[edge.dst] = &edge
+				parentEdge[edge.dst] = edge
 
 				if edge.dst == to {
 					done = true
