@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 )
 
@@ -209,6 +210,26 @@ func (g graph) dot(path string) (err error) {
 	fmt.Fprintf(buffer, "digraph G {\n")
 	fmt.Fprintf(buffer, "rankdir=LR;\n")
 
+	groupVertices(buffer, []graphVertex{source}, "source")
+	groupVertices(buffer, []graphVertex{sink}, "sink")
+
+	nodeSrcVertices := make([]graphVertex, 0)
+	nodeSinkVertices := make([]graphVertex, 0)
+	tagVertices := make([]graphVertex, 0)
+
+	for _, node := range g.params.Nodes() {
+		nodeSrcVertices = append(nodeSrcVertices, nodeSourceVertex(node))
+		nodeSinkVertices = append(nodeSinkVertices, nodeSinkVertex(node))
+	}
+
+	for _, tag := range g.params.Tags.TagsList() {
+		tagVertices = append(tagVertices, tagVertex(tag))
+	}
+
+	groupVertices(buffer, nodeSrcVertices, "same")
+	groupVertices(buffer, tagVertices, "same")
+	groupVertices(buffer, nodeSinkVertices, "same")
+
 	for _, edge := range g.edges() {
 		fmt.Fprintf(buffer,
 			"%s -> %s [label=\"capacity=%d, flow=%d\"];\n",
@@ -218,4 +239,15 @@ func (g graph) dot(path string) (err error) {
 	fmt.Fprintf(buffer, "}\n")
 
 	return ioutil.WriteFile(path, buffer.Bytes(), 0644)
+}
+
+func groupVertices(w io.Writer, vertices []graphVertex, rank string) {
+	fmt.Fprintf(w, "{\n")
+	fmt.Fprintf(w, "rank=%s;\n", rank)
+
+	for _, v := range vertices {
+		fmt.Fprintf(w, "%v;\n", v)
+	}
+
+	fmt.Fprintf(w, "}\n")
 }
