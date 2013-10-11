@@ -110,6 +110,27 @@ func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 	return
 }
 
+func (g *graph) addNode(node graphNode) {
+	_, present := g.nodes[node]
+	if !present {
+		g.nodes[node] = nil
+	}
+}
+
+func (g *graph) addEdge(src graphNode, dst graphNode, capacity int) {
+	g.addNode(src)
+	g.addNode(dst)
+
+	edge := &graphEdge{src: src, dst: dst, capacity: capacity, flow: 0}
+	redge := &graphEdge{src: dst, dst: src, capacity: 0, flow: 0}
+
+	edge.reverseEdge = redge
+	redge.reverseEdge = edge
+
+	g.vertices[src] = append(g.vertices[src], edge)
+	g.vertices[dst] = append(g.vertices[dst], redge)
+}
+
 func (g graph) edges() (result []*graphEdge) {
 	for _, nodeEdges := range g.nodes {
 		for _, edge := range nodeEdges {
