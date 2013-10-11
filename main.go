@@ -154,11 +154,13 @@ func checkInput() {
 		}
 	}
 
+	nodes := params.Nodes()
+
 	if tagHistogram != nil {
 		tag := 0
 		params.Tags = make(TagMap)
 
-		for i := 0; i < params.NumNodes; i++ {
+		for _, node := range nodes {
 			for tag < len(tagHistogram) && tagHistogram[tag] == 0 {
 				tag += 1
 			}
@@ -167,7 +169,7 @@ func checkInput() {
 			}
 
 			tagHistogram[tag] -= 1
-			params.Tags[Node(i)] = Tag(tag)
+			params.Tags[node] = Tag(tag)
 		}
 
 		if tag != len(tagHistogram)-1 || tagHistogram[tag] != 0 {
@@ -176,10 +178,10 @@ func checkInput() {
 	}
 
 	// each node should have a tag assigned
-	for i := 0; i < params.NumNodes; i++ {
-		_, present := params.Tags[Node(i)]
+	for _, node := range nodes {
+		_, present := params.Tags[node]
 		if !present {
-			fatal("Tag for node %v not specified", i)
+			fatal("Tag for node %v not specified", node)
 		}
 	}
 }
@@ -267,8 +269,8 @@ func main() {
 	diag.Printf("  Number of replicas: %d", params.NumReplicas)
 	diag.Printf("  Tags assignments:")
 
-	for i := 0; i < params.NumNodes; i++ {
-		diag.Printf("    %d -> %v", i, params.Tags[Node(i)])
+	for _, node := range params.Nodes() {
+		diag.Printf("    %v -> %v", node, params.Tags[node])
 	}
 
 	start := time.Now()

@@ -33,8 +33,7 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 	tags := params.Tags.TagsList()
 	tagsNodes := params.Tags.TagsNodesMap()
 
-	for n := 0; n < params.NumNodes; n++ {
-		node := Node(n)
+	for _, node := range params.Nodes() {
 		nodeTag := params.Tags[node]
 		nodeSrcV := nodeSourceVertex(node)
 		nodeSinkV := nodeSinkVertex(node)

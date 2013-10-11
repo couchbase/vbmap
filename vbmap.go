@@ -116,14 +116,16 @@ type RCandidate struct {
 func (cand RCandidate) String() string {
 	buffer := &bytes.Buffer{}
 
+	nodes := cand.params.Nodes()
+
 	fmt.Fprintf(buffer, "    |")
-	for i := 0; i < cand.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[Node(i)])
+	for _, node := range nodes {
+		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[node])
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "----|")
-	for i := 0; i < cand.params.NumNodes; i++ {
+	for _ = range nodes {
 		fmt.Fprintf(buffer, "----")
 	}
 	fmt.Fprintf(buffer, "|\n")
@@ -137,13 +139,13 @@ func (cand RCandidate) String() string {
 	}
 
 	fmt.Fprintf(buffer, "____|")
-	for i := 0; i < cand.params.NumNodes; i++ {
+	for _ = range nodes {
 		fmt.Fprintf(buffer, "____")
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "    |")
-	for i := 0; i < cand.params.NumNodes; i++ {
+	for i := range nodes {
 		fmt.Fprintf(buffer, "%3d ", cand.colSums[i])
 	}
 	fmt.Fprintf(buffer, "|\n")

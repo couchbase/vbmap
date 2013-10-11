@@ -221,14 +221,16 @@ func mark(ctx context, i, j int, value bool) {
 func debugDump(ctx context, ci, cj int) {
 	buffer := &bytes.Buffer{}
 
+	nodes := ctx.params.Nodes()
+
 	fmt.Fprintf(buffer, "   |")
-	for i := 0; i < ctx.params.NumNodes; i++ {
-		fmt.Fprintf(buffer, "%2d ", ctx.params.Tags[Node(i)])
+	for _, node := range nodes {
+		fmt.Fprintf(buffer, "%2d ", ctx.params.Tags[node])
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "---|")
-	for i := 0; i < ctx.params.NumNodes; i++ {
+	for _ = range nodes {
 		fmt.Fprintf(buffer, "---")
 	}
 	fmt.Fprintf(buffer, "|\n")
@@ -248,13 +250,13 @@ func debugDump(ctx context, ci, cj int) {
 	}
 
 	fmt.Fprintf(buffer, "___|")
-	for i := 0; i < ctx.params.NumNodes; i++ {
+	for _ = range nodes {
 		fmt.Fprintf(buffer, "___")
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "   |")
-	for i := 0; i < ctx.params.NumNodes; i++ {
+	for i := range nodes {
 		fmt.Fprintf(buffer, "%2d ", ctx.colNodesLeft[i])
 	}
 	fmt.Fprintf(buffer, "|\n")
