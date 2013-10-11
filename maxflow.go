@@ -19,7 +19,13 @@ func (_ MaxFlowRIGenerator) String() string {
 }
 
 func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
-	return nil, nil
+	g := buildFlowGraph(params)
+	err = g.dot("flow_graph.dot")
+	if err != nil {
+		panic(err)
+	}
+
+	return nil, fmt.Errorf("unimplemented")
 }
 
 func buildFlowGraph(params VbmapParams) (g *graph) {
