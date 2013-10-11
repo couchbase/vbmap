@@ -1,5 +1,10 @@
 package main
 
+import (
+	"bytes"
+	"io/ioutil"
+)
+
 type MaxFlowRIGenerator struct {
 	DontAcceptRIGeneratorParams
 }
@@ -107,4 +112,20 @@ func (g graph) edges() (result []*graphEdge) {
 	}
 
 	return
+}
+
+func (g graph) dot(path string) (err error) {
+	buffer := &bytes.Buffer{}
+
+	fmt.Fprintf(buffer, "digraph G {\n")
+
+	for _, edge := range g.edges() {
+		fmt.Fprintf(buffer,
+			"%s -> %s [label=\"capacity=%d, flow=%d\"];\n",
+			edge.src, edge.dst, edge.capacity, edge.flow)
+	}
+
+	fmt.Fprintf(buffer, "}\n")
+
+	return ioutil.WriteFile(path, buffer.Bytes(), 0644)
 }
