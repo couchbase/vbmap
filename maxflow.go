@@ -58,6 +58,12 @@ type graph struct {
 	nodes map[graphNode][]*graphEdge
 }
 
+func makeGraph() (g *graph) {
+	g = &graph{}
+	g.nodes = make(map[graphNode][]*graphEdge)
+	return
+}
+
 func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 	queue := []graphNode{from}
 	parentEdge := make(map[graphNode]*graphEdge)
