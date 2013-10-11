@@ -124,8 +124,10 @@ func makePath() (path *augPath) {
 }
 
 func (path *augPath) addEdge(edge *graphEdge) {
-	if path.edges == nil || path.flow > edge.capacity {
-		path.flow = edge.capacity
+	residual := edge.residual()
+
+	if path.edges == nil || path.flow > residual {
+		path.flow = residual
 	}
 
 	path.edges = append(path.edges, edge)
