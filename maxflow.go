@@ -236,9 +236,16 @@ func (g graph) dot(path string) (err error) {
 			style = "dashed"
 		}
 
+		color := "red"
+		if edge.residual() > 0 {
+			color = "darkgreen"
+		}
+
 		fmt.Fprintf(buffer,
-			"%s -> %s [label=\"capacity=%d, flow=%d\", style=%s];\n",
-			edge.src, edge.dst, edge.capacity, edge.flow, style)
+			"%s -> %s [label=\"capacity=%d, "+
+				"flow=%d\", style=%s, color=%s];\n",
+			edge.src, edge.dst, edge.capacity,
+			edge.flow, style, color)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
