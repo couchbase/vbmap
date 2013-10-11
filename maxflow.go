@@ -242,10 +242,10 @@ func (g graph) dot(path string) (err error) {
 		}
 
 		fmt.Fprintf(buffer,
-			"%s -> %s [label=\"capacity=%d, "+
-				"flow=%d\", style=%s, color=%s];\n",
-			edge.src, edge.dst, edge.capacity,
-			edge.flow, style, color)
+			"%s -> %s [label=\"%d (cap %d)\", decorate,"+
+				" style=%s, color=%s];\n",
+			edge.src, edge.dst, edge.flow, edge.capacity,
+			style, color)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
