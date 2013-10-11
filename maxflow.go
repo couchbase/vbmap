@@ -206,6 +206,7 @@ func (g graph) dot(path string) (err error) {
 	buffer := &bytes.Buffer{}
 
 	fmt.Fprintf(buffer, "digraph G {\n")
+	fmt.Fprintf(buffer, "rankdir=LR;\n")
 
 	for _, edge := range g.edges() {
 		fmt.Fprintf(buffer,
