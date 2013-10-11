@@ -21,11 +21,11 @@ func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	return nil, nil
 }
 
-type graphNode string
+type graphVertex string
 
 type graphEdge struct {
-	src graphNode
-	dst graphNode
+	src graphVertex
+	dst graphVertex
 
 	capacity    int
 	flow        int
@@ -55,19 +55,19 @@ func (path *augPath) addEdge(edge *graphEdge) {
 }
 
 type graph struct {
-	nodes map[graphNode][]*graphEdge
+	vertices map[graphVertex][]*graphEdge
 }
 
 func makeGraph() (g *graph) {
 	g = &graph{}
-	g.nodes = make(map[graphNode][]*graphEdge)
+	g.vertices = make(map[graphVertex][]*graphEdge)
 	return
 }
 
-func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
-	queue := []graphNode{from}
-	parentEdge := make(map[graphNode]*graphEdge)
-	seen := make(map[graphNode]bool)
+func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
+	queue := []graphVertex{from}
+	parentEdge := make(map[graphVertex]*graphEdge)
+	seen := make(map[graphVertex]bool)
 
 	seen[from] = true
 	done := false
@@ -76,7 +76,7 @@ func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 		v := queue[0]
 		queue = queue[1:]
 
-		for _, edge := range g.nodes[v] {
+		for _, edge := range g.vertices[v] {
 			_, present := seen[edge.dst]
 			if !present && edge.residual() > 0 {
 				queue = append(queue, edge.dst)
@@ -110,16 +110,16 @@ func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
 	return
 }
 
-func (g *graph) addNode(node graphNode) {
-	_, present := g.nodes[node]
+func (g *graph) addVertex(vertex graphVertex) {
+	_, present := g.vertices[vertex]
 	if !present {
-		g.nodes[node] = nil
+		g.vertices[vertex] = nil
 	}
 }
 
-func (g *graph) addEdge(src graphNode, dst graphNode, capacity int) {
-	g.addNode(src)
-	g.addNode(dst)
+func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
+	g.addVertex(src)
+	g.addVertex(dst)
 
 	edge := &graphEdge{src: src, dst: dst, capacity: capacity, flow: 0}
 	redge := &graphEdge{src: dst, dst: src, capacity: 0, flow: 0}
@@ -132,8 +132,8 @@ func (g *graph) addEdge(src graphNode, dst graphNode, capacity int) {
 }
 
 func (g graph) edges() (result []*graphEdge) {
-	for _, nodeEdges := range g.nodes {
-		for _, edge := range nodeEdges {
+	for _, vertexEdges := range g.vertices {
+		for _, edge := range vertexEdges {
 			result = append(result, edge)
 		}
 	}
