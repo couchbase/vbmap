@@ -29,7 +29,7 @@ func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 }
 
 func buildFlowGraph(params VbmapParams) (g *graph) {
-	g = makeGraph()
+	g = makeGraph(params)
 	tags := params.Tags.TagsList()
 	tagsNodes := params.Tags.TagsNodesMap()
 
@@ -116,12 +116,14 @@ func (path *augPath) addEdge(edge *graphEdge) {
 }
 
 type graph struct {
+	params   VbmapParams
 	vertices map[graphVertex][]*graphEdge
 }
 
-func makeGraph() (g *graph) {
+func makeGraph(params VbmapParams) (g *graph) {
 	g = &graph{}
 	g.vertices = make(map[graphVertex][]*graphEdge)
+	g.params = params
 	return
 }
 
