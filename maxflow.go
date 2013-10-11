@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -21,7 +22,61 @@ func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	return nil, nil
 }
 
+func buildFlowGraph(params VbmapParams) (g *graph) {
+	g = makeGraph()
+	tags := params.Tags.TagsList()
+	tagsNodes := params.Tags.TagsNodesMap()
+
+	for n := 0; n < params.NumNodes; n++ {
+		node := Node(n)
+		nodeTag := params.Tags[node]
+		nodeSrcV := nodeSourceVertex(node)
+		nodeSinkV := nodeSinkVertex(node)
+
+		g.addEdge(source, nodeSrcV, params.NumSlaves)
+		g.addEdge(nodeSinkV, sink, params.NumSlaves)
+
+		for _, tag := range tags {
+			if tag == nodeTag {
+				continue
+			}
+
+			tagV := tagVertex(tag)
+			g.addEdge(nodeSrcV, tagV, params.NumSlaves)
+		}
+	}
+
+	for tag, tagNodes := range tagsNodes {
+		tagV := tagVertex(tag)
+
+		for _, tagNode := range tagNodes {
+			tagNodeV := nodeSinkVertex(tagNode)
+
+			g.addEdge(tagV, tagNodeV, 1)
+		}
+	}
+
+	return
+}
+
 type graphVertex string
+
+const (
+	source graphVertex = "source"
+	sink   graphVertex = "sink"
+)
+
+func nodeSourceVertex(node Node) graphVertex {
+	return graphVertex(fmt.Sprintf("node_%v_source", node))
+}
+
+func nodeSinkVertex(node Node) graphVertex {
+	return graphVertex(fmt.Sprintf("node_%v_sink", node))
+}
+
+func tagVertex(tag Tag) graphVertex {
+	return graphVertex(fmt.Sprintf("tag_%v", tag))
+}
 
 type graphEdge struct {
 	src graphVertex
