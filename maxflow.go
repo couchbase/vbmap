@@ -150,7 +150,7 @@ func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
 	seen[from] = true
 	done := false
 
-	for queue != nil && !done {
+	for len(queue) != 0 && !done {
 		v := queue[0]
 		queue = queue[1:]
 
