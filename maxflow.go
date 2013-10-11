@@ -36,10 +36,6 @@ func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
 }
 
-type graph struct {
-	nodes map[graphNode][]*graphEdge
-}
-
 type augPath struct {
 	edges []*graphEdge
 	flow  int
@@ -56,6 +52,10 @@ func (path *augPath) addEdge(edge *graphEdge) {
 	}
 
 	path.edges = append(path.edges, edge)
+}
+
+type graph struct {
+	nodes map[graphNode][]*graphEdge
 }
 
 func (g graph) bfsPath(from graphNode, to graphNode) (path *augPath) {
