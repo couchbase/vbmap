@@ -21,6 +21,14 @@ type VbmapParams struct {
 	NumReplicas int
 }
 
+func (params VbmapParams) Nodes() (nodes []Node) {
+	for n := 0; n < params.NumNodes; n++ {
+		nodes = append(nodes, Node(n))
+	}
+
+	return
+}
+
 func (tags TagMap) String() string {
 	return fmt.Sprintf("%v", map[Node]Tag(tags))
 }
