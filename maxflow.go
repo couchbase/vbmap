@@ -17,7 +17,7 @@ func (_ MaxFlowRIGenerator) String() string {
 	return "maxflow"
 }
 
-func (_ MaxFlowRIGenerator) Generate() (RI RI, err error) {
+func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	return nil, nil
 }
 

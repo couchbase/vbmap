@@ -24,6 +24,7 @@ var availableGenerators []RIGenerator = []RIGenerator{
 	makeGlpkRIGenerator(),
 	makeDummyRIGenerator(),
 	makeBtRIGenerator(),
+	makeMaxFlowRIGenerator(),
 }
 
 var diag *log.Logger
