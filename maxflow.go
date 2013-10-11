@@ -21,6 +21,8 @@ func (_ MaxFlowRIGenerator) String() string {
 
 func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	g := buildFlowGraph(params)
+	g.maximizeFlow()
+
 	err = g.dot("flow_graph.dot")
 	if err != nil {
 		panic(err)
@@ -234,6 +236,17 @@ func (g *graph) pushFlow(path augPath) {
 
 	for _, edge := range path.edges {
 		edge.pushFlow(path.flow)
+	}
+}
+
+func (g *graph) maximizeFlow() {
+	for {
+		path := g.bfsPath(source, sink)
+		if path == nil {
+			break
+		}
+
+		g.pushFlow(*path)
 	}
 }
 
