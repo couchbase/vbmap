@@ -42,6 +42,19 @@ func (tags TagMap) TagsCount() int {
 	return len(tags.TagsList())
 }
 
+func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
+	m = make(map[Tag][]Node)
+	for _, tag := range tags.TagsList() {
+		m[tag] = nil
+	}
+
+	for node, tag := range tags {
+		m[tag] = append(m[tag], node)
+	}
+
+	return
+}
+
 type RI [][]bool
 
 type RIGenerator interface {
