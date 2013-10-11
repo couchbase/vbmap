@@ -242,6 +242,8 @@ func (g graph) dot(path string) (err error) {
 
 	fmt.Fprintf(buffer, "digraph G {\n")
 	fmt.Fprintf(buffer, "rankdir=LR;\n")
+	fmt.Fprintf(buffer, "labelloc=t; labeljust=l; ")
+	fmt.Fprintf(buffer, "label=\"flow = %d;\"\n", g.flow)
 
 	groupVertices(buffer, []graphVertex{source}, "source")
 	groupVertices(buffer, []graphVertex{sink}, "sink")
