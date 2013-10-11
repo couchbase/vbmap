@@ -39,8 +39,8 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 		nodeSrcV := nodeSourceVertex(node)
 		nodeSinkV := nodeSinkVertex(node)
 
-		g.addEdge(source, nodeSrcV, params.NumSlaves)
-		g.addEdge(nodeSinkV, sink, params.NumSlaves)
+		g.addSimpleEdge(source, nodeSrcV, params.NumSlaves)
+		g.addSimpleEdge(nodeSinkV, sink, params.NumSlaves)
 
 		for _, tag := range tags {
 			if tag == nodeTag {
@@ -178,6 +178,16 @@ func (g *graph) addVertex(vertex graphVertex) {
 	if !present {
 		g.vertices[vertex] = nil
 	}
+}
+
+func (g *graph) addSimpleEdge(src graphVertex, dst graphVertex, capacity int) {
+	g.addVertex(src)
+	g.addVertex(dst)
+
+	edge := &graphEdge{src: src, dst: dst,
+		capacity: capacity, flow: 0, reverseEdge: nil}
+
+	g.vertices[src] = append(g.vertices[src], edge)
 }
 
 func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
