@@ -231,9 +231,14 @@ func (g graph) dot(path string) (err error) {
 	groupVertices(buffer, nodeSinkVertices, "same")
 
 	for _, edge := range g.edges() {
+		style := "solid"
+		if edge.capacity == 0 {
+			style = "dashed"
+		}
+
 		fmt.Fprintf(buffer,
-			"%s -> %s [label=\"capacity=%d, flow=%d\"];\n",
-			edge.src, edge.dst, edge.capacity, edge.flow)
+			"%s -> %s [label=\"capacity=%d, flow=%d\", style=%s];\n",
+			edge.src, edge.dst, edge.capacity, edge.flow, style)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
