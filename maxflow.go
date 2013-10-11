@@ -56,11 +56,13 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 
 	for tag, tagNodes := range tagsNodes {
 		tagV := tagVertex(tag)
+		tagNodesCount := len(tagNodes)
+		tagEdgeCapacity := params.NumNodes - tagNodesCount
 
 		for _, tagNode := range tagNodes {
 			tagNodeV := nodeSinkVertex(tagNode)
 
-			g.addEdge(tagV, tagNodeV, 1)
+			g.addEdge(tagV, tagNodeV, tagEdgeCapacity)
 		}
 	}
 
