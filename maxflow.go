@@ -97,6 +97,20 @@ func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
 }
 
+func (edge *graphEdge) pushFlow(flow int) {
+	residual := edge.residual()
+	if flow > residual {
+		panic(fmt.Sprintf("Trying to push flow %d "+
+			"via edge %s->%s with residual capacity %d",
+			flow, edge.src, edge.dst, residual))
+	}
+
+	edge.flow += flow
+	if edge.reverseEdge != nil {
+		edge.reverseEdge.flow -= flow
+	}
+}
+
 type augPath struct {
 	edges []*graphEdge
 	flow  int
@@ -118,6 +132,7 @@ func (path *augPath) addEdge(edge *graphEdge) {
 type graph struct {
 	params   VbmapParams
 	vertices map[graphVertex][]*graphEdge
+	flow     int
 }
 
 func makeGraph(params VbmapParams) (g *graph) {
@@ -212,6 +227,14 @@ func (g graph) edges() (result []*graphEdge) {
 	}
 
 	return
+}
+
+func (g *graph) pushFlow(path augPath) {
+	g.flow += path.flow
+
+	for _, edge := range path.edges {
+		edge.pushFlow(path.flow)
+	}
 }
 
 func (g graph) dot(path string) (err error) {
