@@ -45,3 +45,11 @@ func b2i(b bool) int {
 		return 0
 	}
 }
+
+func min(a, b int) int {
+	if a <= b {
+		return a
+	} else {
+		return b
+	}
+}

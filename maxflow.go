@@ -50,8 +50,11 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 				continue
 			}
 
+			tagNodesCount := len(tagsNodes[tag])
+			tagCapacity := min(tagNodesCount, maxReplicationsPerTag)
+
 			tagV := tagVertex(tag)
-			g.addEdge(nodeSrcV, tagV, maxReplicationsPerTag)
+			g.addEdge(nodeSrcV, tagV, tagCapacity)
 		}
 	}
 
