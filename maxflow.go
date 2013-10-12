@@ -35,6 +35,7 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 	g = makeGraph(params)
 	tags := params.Tags.TagsList()
 	tagsNodes := params.Tags.TagsNodesMap()
+	maxReplicationsPerTag := params.NumSlaves / params.NumReplicas
 
 	for _, node := range params.Nodes() {
 		nodeTag := params.Tags[node]
@@ -50,7 +51,7 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 			}
 
 			tagV := tagVertex(tag)
-			g.addEdge(nodeSrcV, tagV, params.NumSlaves)
+			g.addEdge(nodeSrcV, tagV, maxReplicationsPerTag)
 		}
 	}
 
