@@ -74,12 +74,12 @@ func buildFlowGraph(params VbmapParams) (g *graph) {
 }
 
 type graphVertex interface {
-	vertexName() string
+	fmt.Stringer
 }
 
 type simpleVertex string
 
-func (v simpleVertex) vertexName() string {
+func (v simpleVertex) String() string {
 	return string(v)
 }
 
@@ -90,20 +90,20 @@ const (
 
 type tagVertex Tag
 
-func (v tagVertex) vertexName() string {
-	return fmt.Sprintf("tag_%v", v)
+func (v tagVertex) String() string {
+	return fmt.Sprintf("tag_%d", int(v))
 }
 
 type nodeSourceVertex Node
 
-func (v nodeSourceVertex) vertexName() string {
-	return fmt.Sprintf("node_%v_source", v)
+func (v nodeSourceVertex) String() string {
+	return fmt.Sprintf("node_%d_source", int(v))
 }
 
 type nodeSinkVertex Node
 
-func (v nodeSinkVertex) vertexName() string {
-	return fmt.Sprintf("node_%v_sink", v)
+func (v nodeSinkVertex) String() string {
+	return fmt.Sprintf("node_%d_sink", int(v))
 }
 
 type graphEdge struct {
@@ -318,8 +318,8 @@ func (g graph) dot(path string) (err error) {
 		fmt.Fprintf(buffer,
 			"%s -> %s [label=\"%d (cap %d)\", decorate,"+
 				" style=%s, color=%s];\n",
-			edge.src.vertexName(), edge.dst.vertexName(),
-			edge.flow, edge.capacity, style, color)
+			edge.src, edge.dst, edge.flow,
+			edge.capacity, style, color)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
@@ -332,7 +332,7 @@ func groupVertices(w io.Writer, vertices []graphVertex, rank string) {
 	fmt.Fprintf(w, "rank=%s;\n", rank)
 
 	for _, v := range vertices {
-		fmt.Fprintf(w, "%v;\n", v.vertexName())
+		fmt.Fprintf(w, "%s;\n", v)
 	}
 
 	fmt.Fprintf(w, "}\n")
