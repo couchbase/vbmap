@@ -105,6 +105,10 @@ func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
 }
 
+func (edge graphEdge) isForwardEdge() bool {
+	return edge.capacity != 0
+}
+
 func (edge *graphEdge) pushFlow(flow int) {
 	residual := edge.residual()
 	if flow > residual {
@@ -288,7 +292,7 @@ func (g graph) dot(path string) (err error) {
 
 	for _, edge := range g.edges() {
 		style := "solid"
-		if edge.capacity == 0 {
+		if !edge.isForwardEdge() {
 			style = "dashed"
 		}
 
