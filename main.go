@@ -23,7 +23,6 @@ type OutputFormat string
 var availableGenerators []RIGenerator = []RIGenerator{
 	makeGlpkRIGenerator(),
 	makeDummyRIGenerator(),
-	makeBtRIGenerator(),
 	makeMaxFlowRIGenerator(),
 }
 

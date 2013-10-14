@@ -15,7 +15,6 @@ type TestingWriter struct {
 
 var generators []RIGenerator = []RIGenerator{
 	DummyRIGenerator{},
-	BtRIGenerator{},
 }
 
 func (w TestingWriter) Write(p []byte) (n int, err error) {
@@ -43,10 +42,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 	setup(t)
 
-	// TODO: increase the upper limit; I lowered it because as of now
-	// backtracking RI engine is not smart enough to generate good
-	// matrices
-	for nodes := 1; nodes <= 20; nodes++ {
+	for nodes := 1; nodes <= 50; nodes++ {
 		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
