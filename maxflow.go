@@ -115,6 +115,10 @@ type graphEdge struct {
 	reverseEdge *graphEdge
 }
 
+func (edge graphEdge) String() string {
+	return fmt.Sprintf("%s->%s", edge.src, edge.dst)
+}
+
 func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
 }
@@ -127,8 +131,8 @@ func (edge *graphEdge) pushFlow(flow int) {
 	residual := edge.residual()
 	if flow > residual {
 		panic(fmt.Sprintf("Trying to push flow %d "+
-			"via edge %s->%s with residual capacity %d",
-			flow, edge.src, edge.dst, residual))
+			"via edge %s with residual capacity %d",
+			flow, edge, residual))
 	}
 
 	edge.flow += flow
