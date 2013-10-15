@@ -14,7 +14,8 @@ type TestingWriter struct {
 }
 
 var generators []RIGenerator = []RIGenerator{
-	DummyRIGenerator{},
+	makeDummyRIGenerator(),
+	makeMaxFlowRIGenerator(),
 }
 
 func (w TestingWriter) Write(p []byte) (n int, err error) {
@@ -137,7 +138,7 @@ func TestRIProperties(t *testing.T) {
 			return checkRIProperties(gen, params)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 10000})
+		err := quick.Check(check, &quick.Config{MaxCount: 100})
 		if err != nil {
 			t.Error(err)
 		}
@@ -208,7 +209,7 @@ func TestRProperties(t *testing.T) {
 			return checkRProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 1000})
+		err := quick.Check(check, &quick.Config{MaxCount: 100})
 		if err != nil {
 			t.Error(err)
 		}
@@ -320,7 +321,7 @@ func TestVbmapProperties(t *testing.T) {
 			return checkVbmapProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 1000})
+		err := quick.Check(check, &quick.Config{MaxCount: 100})
 		if err != nil {
 			t.Error(err)
 		}
