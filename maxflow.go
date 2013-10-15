@@ -28,6 +28,10 @@ func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 		panic(err)
 	}
 
+	if !g.isSaturated() {
+		return nil, fmt.Errorf("Couldn't find a solution")
+	}
+
 	return nil, fmt.Errorf("unimplemented")
 }
 
@@ -280,6 +284,10 @@ func (g *graph) maximizeFlow() {
 	}
 }
 
+func (g graph) isSaturated() bool {
+	expectedFlow := g.params.NumNodes * g.params.NumSlaves
+	return g.flow == expectedFlow
+}
 func (g graph) dot(path string) (err error) {
 	buffer := &bytes.Buffer{}
 
