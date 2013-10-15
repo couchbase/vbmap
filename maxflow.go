@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 )
 
 type MaxFlowRIGenerator struct {
@@ -23,16 +24,11 @@ func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	g := buildFlowGraph(params)
 	g.maximizeFlow()
 
-	err = g.dot("flow_graph.dot")
-	if err != nil {
-		panic(err)
-	}
-
 	if !g.isSaturated() {
 		return nil, fmt.Errorf("Couldn't find a solution")
 	}
 
-	return nil, fmt.Errorf("unimplemented")
+	return g.toRI(), nil
 }
 
 func buildFlowGraph(params VbmapParams) (g *graph) {
@@ -129,6 +125,14 @@ func (edge graphEdge) residual() int {
 
 func (edge graphEdge) isForwardEdge() bool {
 	return edge.capacity != 0
+}
+
+func (edge graphEdge) mustREdge() *graphEdge {
+	if edge.reverseEdge == nil {
+		panic(fmt.Sprintf("Edge %s does not have a reverse edge", edge))
+	}
+
+	return edge.reverseEdge
 }
 
 func (edge *graphEdge) pushFlow(flow int) {
@@ -288,6 +292,91 @@ func (g graph) isSaturated() bool {
 	expectedFlow := g.params.NumNodes * g.params.NumSlaves
 	return g.flow == expectedFlow
 }
+
+type nodeCount struct {
+	node  Node
+	count int
+}
+
+type nodeCountSlice []nodeCount
+
+func (a nodeCountSlice) Len() int           { return len(a) }
+func (a nodeCountSlice) Less(i, j int) bool { return a[i].count > a[j].count }
+func (a nodeCountSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func (g graph) toRI() (RI RI) {
+	RI = make([][]bool, g.params.NumNodes)
+
+	for i := range g.params.Nodes() {
+		RI[i] = make([]bool, g.params.NumNodes)
+	}
+
+	for _, tag := range g.params.Tags.TagsList() {
+		tagV := tagVertex(tag)
+
+		inRepsCounts := make(nodeCountSlice, 0)
+		outRepsCounts := make(nodeCountSlice, 0)
+
+		for _, edge := range g.vertices[tagV] {
+			if edge.isForwardEdge() {
+				// edge to node sink vertex
+				dstNode := Node(edge.dst.(nodeSinkVertex))
+
+				count := nodeCount{dstNode, edge.flow}
+				inRepsCounts = append(inRepsCounts, count)
+			} else {
+				// reverse edge to node source vertex
+				redge := edge.mustREdge()
+				srcNode := Node(redge.src.(nodeSourceVertex))
+
+				count := nodeCount{srcNode, redge.flow}
+				outRepsCounts = append(outRepsCounts, count)
+			}
+		}
+
+		sort.Sort(outRepsCounts)
+
+		slavesLeft := len(inRepsCounts)
+		slaveIx := 0
+
+		for _, pair := range outRepsCounts {
+			count := pair.count
+			srcNode := int(pair.node)
+
+			for count > 0 {
+				if slavesLeft == 0 {
+					panic(fmt.Sprintf("Ran out of slaves "+
+						"on tag %v", tag))
+				}
+
+				for inRepsCounts[slaveIx].count == 0 {
+					slaveIx = (slaveIx + 1) % len(inRepsCounts)
+				}
+
+				dstNode := int(inRepsCounts[slaveIx].node)
+
+				if RI[srcNode][dstNode] {
+					panic(fmt.Sprintf("Forced to use the "+
+						"same slave %d twice (tag %v)",
+						dstNode, tag))
+				}
+
+				RI[srcNode][dstNode] = true
+				count -= 1
+
+				inRepsCounts[slaveIx].count -= 1
+				if inRepsCounts[slaveIx].count == 0 {
+					slavesLeft -= 1
+				}
+
+				slaveIx = (slaveIx + 1) % len(inRepsCounts)
+			}
+		}
+	}
+
+	return
+}
+
 func (g graph) dot(path string) (err error) {
 	buffer := &bytes.Buffer{}
 
