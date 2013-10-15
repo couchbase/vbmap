@@ -127,6 +127,10 @@ func normalizeParams(params *VbmapParams) {
 	if params.NumSlaves < params.NumReplicas {
 		params.NumReplicas = params.NumSlaves
 	}
+
+	if params.NumReplicas == 0 {
+		params.NumSlaves = 0
+	}
 }
 
 func checkInput() {
