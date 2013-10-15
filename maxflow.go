@@ -9,20 +9,41 @@ import (
 )
 
 type MaxFlowRIGenerator struct {
-	DontAcceptRIGeneratorParams
+	dotPath string
 }
 
 func makeMaxFlowRIGenerator() *MaxFlowRIGenerator {
-	return &MaxFlowRIGenerator{}
+	return &MaxFlowRIGenerator{dotPath: ""}
 }
 
 func (_ MaxFlowRIGenerator) String() string {
 	return "maxflow"
 }
 
-func (_ MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
+func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
+	for k, v := range params {
+		switch k {
+		case "dot":
+			gen.dotPath = v
+		default:
+			return fmt.Errorf("unsupported parameter '%s'", k)
+		}
+	}
+
+	return nil
+}
+
+func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	g := buildFlowGraph(params)
 	g.maximizeFlow()
+
+	if gen.dotPath != "" {
+		err := g.dot(gen.dotPath)
+		if err != nil {
+			diag.Printf("Couldn't create dot file %s: %s",
+				gen.dotPath, err.Error())
+		}
+	}
 
 	if !g.isSaturated() {
 		return nil, fmt.Errorf("Couldn't find a solution")
