@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -39,6 +40,7 @@ var (
 
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
+	profTo       string       = ""
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -230,6 +232,7 @@ func main() {
 	flag.StringVar(&engineParams, "engine-params", "", "engine specific params")
 	flag.Var(&outputFormat, "output-format", "output format")
 	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
+	flag.StringVar(&profTo, "cpuprofile", "", "write cpuprofile to path")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
@@ -250,6 +253,18 @@ func main() {
 		defer diagFile.Close()
 
 		diagSink = diagFile
+	}
+
+	if profTo != "" {
+		profFile, err := os.Create(profTo)
+		if err != nil {
+			fatal("Couldn't create profile file %s: %s",
+				profTo, err.Error())
+		}
+		defer profFile.Close()
+
+		pprof.StartCPUProfile(profFile)
+		defer pprof.StopCPUProfile()
 	}
 
 	diag = log.New(diagSink, "", 0)
