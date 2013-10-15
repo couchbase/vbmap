@@ -117,6 +117,9 @@ type graphEdge struct {
 	capacity    int
 	flow        int
 	reverseEdge *graphEdge
+
+	// is this an auxiliary edge?
+	aux bool
 }
 
 func (edge graphEdge) String() string {
@@ -125,10 +128,6 @@ func (edge graphEdge) String() string {
 
 func (edge graphEdge) residual() int {
 	return edge.capacity - edge.flow
-}
-
-func (edge graphEdge) isForwardEdge() bool {
-	return edge.capacity != 0
 }
 
 func (edge graphEdge) mustREdge() *graphEdge {
@@ -254,7 +253,7 @@ func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
 	g.addVertex(dst)
 
 	edge := &graphEdge{src: src, dst: dst, capacity: capacity, flow: 0}
-	redge := &graphEdge{src: dst, dst: src, capacity: 0, flow: 0}
+	redge := &graphEdge{src: dst, dst: src, capacity: 0, flow: 0, aux: true}
 
 	edge.reverseEdge = redge
 	redge.reverseEdge = edge
@@ -322,7 +321,7 @@ func (g graph) toRI() (RI RI) {
 		outRepsCounts := make(nodeCountSlice, 0)
 
 		for _, edge := range g.vertices[tagV] {
-			if edge.isForwardEdge() {
+			if !edge.aux {
 				// edge to node sink vertex
 				dstNode := Node(edge.dst.(nodeSinkVertex))
 
@@ -411,7 +410,7 @@ func (g graph) dot(path string) (err error) {
 
 	for _, edge := range g.edges() {
 		style := "solid"
-		if !edge.isForwardEdge() {
+		if edge.aux {
 			style = "dashed"
 		}
 
