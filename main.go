@@ -246,9 +246,8 @@ func main() {
 		if err != nil {
 			fatal("Couldn't create diagnostics file: %s", err.Error())
 		}
-		defer func() {
-			diagFile.Close()
-		}()
+		defer diagFile.Close()
+
 		diagSink = diagFile
 	}
 
