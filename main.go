@@ -244,7 +244,8 @@ func main() {
 	default:
 		diagFile, err := os.Create(diagTo)
 		if err != nil {
-			fatal("Couldn't create diagnostics file: %s", err.Error())
+			fatal("Couldn't create diagnostics file %s: %s",
+				diagTo, err.Error())
 		}
 		defer diagFile.Close()
 
