@@ -29,6 +29,13 @@ func (params VbmapParams) Nodes() (nodes []Node) {
 	return
 }
 
+func (params VbmapParams) String() string {
+	return fmt.Sprintf("VbmapParams{Tags: %s, NumNodes: %d, "+
+		"NumSlaves: %d, NumVBuckets: %d, NumReplicas: %d",
+		params.Tags, params.NumNodes, params.NumSlaves,
+		params.NumVBuckets, params.NumReplicas)
+}
+
 func (tags TagMap) String() string {
 	return fmt.Sprintf("%v", map[Node]Tag(tags))
 }
