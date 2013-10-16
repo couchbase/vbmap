@@ -383,9 +383,13 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 	RI, err := gen.Generate(params)
 	if err != nil {
-		// assume that there's no solution
-		diag.Printf("Couldn't find a solution for params %s", params)
-		return true
+		switch err {
+		case ErrorNoSolution:
+			diag.Printf("Couldn't find a solution for params %s", params)
+			return true
+		default:
+			return false
+		}
 	}
 
 	for i, row := range RI {
