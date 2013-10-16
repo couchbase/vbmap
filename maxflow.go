@@ -46,7 +46,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	}
 
 	if !g.isSaturated() {
-		return nil, fmt.Errorf("Couldn't find a solution")
+		return nil, ErrorNoSolution
 	}
 
 	return g.toRI(), nil

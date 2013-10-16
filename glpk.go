@@ -68,19 +68,6 @@ end;
 
 type GlpkResult uint
 
-const (
-	GLPK_NO_SOLUTION = GlpkResult(iota)
-)
-
-func (e GlpkResult) Error() string {
-	switch e {
-	case GLPK_NO_SOLUTION:
-		return "The problem has no solution"
-	default:
-		panic(fmt.Sprintf("Got unknown GLPK result code: %d", e))
-	}
-}
-
 func genDataFile(file io.Writer, params VbmapParams) error {
 	tmpl := template.Must(template.New("data").Parse(dataTemplate))
 	return tmpl.Execute(file, params)
@@ -98,7 +85,7 @@ func readSolution(params VbmapParams, outPath string) (RI, error) {
 	for i := range values {
 		_, err := fmt.Fscan(output, &values[i])
 		if err == io.EOF && i == 0 {
-			return nil, GLPK_NO_SOLUTION
+			return nil, ErrorNoSolution
 		}
 
 		if err != nil {

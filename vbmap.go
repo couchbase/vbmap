@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"container/heap"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -11,6 +12,10 @@ import (
 type Node int
 type Tag uint
 type TagMap map[Node]Tag
+
+var (
+	ErrorNoSolution = errors.New("The problem has no solution")
+)
 
 type VbmapParams struct {
 	Tags TagMap
