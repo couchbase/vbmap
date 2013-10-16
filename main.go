@@ -21,6 +21,11 @@ type Engine struct {
 }
 type OutputFormat string
 
+const (
+	noSolutionExitCode   = 1
+	generalErrorExitCode = 2
+)
+
 var availableGenerators []RIGenerator = []RIGenerator{
 	makeGlpkRIGenerator(),
 	makeDummyRIGenerator(),
@@ -191,9 +196,13 @@ func checkInput() {
 	}
 }
 
-func fatal(format string, args ...interface{}) {
+func fatalExitCode(code int, format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
+	os.Exit(code)
+}
+
+func fatal(format string, args ...interface{}) {
+	fatalExitCode(generalErrorExitCode, format, args...)
 }
 
 func parseEngineParams(str string) (params map[string]string) {
@@ -295,7 +304,12 @@ func main() {
 
 	solution, err := VbmapGenerate(params, engine.generator)
 	if err != nil {
-		fatal("ERROR: %s", err.Error())
+		switch err {
+		case ErrorNoSolution:
+			fatalExitCode(noSolutionExitCode, "%s", err.Error())
+		default:
+			fatal("%s", err.Error())
+		}
 	}
 
 	duration := time.Since(start)
