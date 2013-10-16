@@ -137,18 +137,14 @@ func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 		return nil, fmt.Errorf("Couldn't create output file: %s", err.Error())
 	}
 	outputFile.Close()
-	defer func() {
-		os.Remove(outputFile.Name())
-	}()
+	defer os.Remove(outputFile.Name())
 
 	modelFile, err := ioutil.TempFile("", "vbmap_glpk_model")
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create model file: %s", err.Error())
 	}
 	modelFile.Close()
-	defer func() {
-		os.Remove(modelFile.Name())
-	}()
+	defer os.Remove(modelFile.Name())
 
 	err = ioutil.WriteFile(modelFile.Name(), []byte(model), os.FileMode(0644))
 	if err != nil {
