@@ -152,7 +152,6 @@ func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
 			modelFile.Name(), err.Error())
 	}
 
-	// TODO: params
 	cmd := exec.Command("glpsol",
 		"--model", modelFile.Name(),
 		"--tmlim", "10",
