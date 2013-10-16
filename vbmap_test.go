@@ -13,8 +13,12 @@ type TestingWriter struct {
 	t *testing.T
 }
 
-var generators []RIGenerator = []RIGenerator{
+var allGenerators []RIGenerator = []RIGenerator{
 	makeDummyRIGenerator(),
+	makeMaxFlowRIGenerator(),
+}
+
+var tagAwareGenerators []RIGenerator = []RIGenerator{
 	makeMaxFlowRIGenerator(),
 }
 
@@ -61,7 +65,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 			normalizeParams(&params)
 
-			for _, gen := range generators {
+			for _, gen := range allGenerators {
 				RI, err := gen.Generate(params)
 				if err != nil {
 					t.Errorf("Couldn't generate RI: %s", err.Error())
@@ -133,7 +137,7 @@ func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
 func TestRIProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range generators {
+	for _, gen := range allGenerators {
 		check := func(params VbmapParams) bool {
 			return checkRIProperties(gen, params)
 		}
@@ -203,7 +207,7 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 func TestRProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range generators {
+	for _, gen := range allGenerators {
 
 		check := func(params VbmapParams, seed int64) bool {
 			return checkRProperties(gen, params, seed)
@@ -315,10 +319,94 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 func TestVbmapProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range generators {
+	for _, gen := range allGenerators {
 
 		check := func(params VbmapParams, seed int64) bool {
 			return checkVbmapProperties(gen, params, seed)
+		}
+
+		err := quick.Check(check, &quick.Config{MaxCount: 100})
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+}
+
+type EqualTagsVbmapParams struct {
+	VbmapParams
+}
+
+func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
+	tags = make(map[Node]Tag)
+	tagSize := numNodes / numTags
+	tagResidue := numNodes % numTags
+
+	node := 0
+	tag := 0
+	for numTags > 0 {
+		for i := 0; i < tagSize; i++ {
+			tags[Node(node)] = Tag(tag)
+			node++
+		}
+
+		if tagResidue != 0 {
+			tags[Node(node)] = Tag(tag)
+			node++
+			tagResidue--
+		}
+
+		tag++
+		numTags--
+	}
+
+	return
+}
+
+func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
+	numNodes := rand.Int()%100 + 1
+	// number of tags is in range [2, numNodes]
+	numTags := rand.Int()%(numNodes-1) + 2
+
+	params = VbmapParams{
+		Tags:        equalTags(numNodes, numTags),
+		NumNodes:    numNodes,
+		NumSlaves:   10,
+		NumVBuckets: 1024,
+		NumReplicas: 1,
+	}
+	normalizeParams(&params)
+
+	return reflect.ValueOf(EqualTagsVbmapParams{params})
+}
+
+func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
+	RI, err := gen.Generate(params)
+	if err != nil {
+		// assume that there's no solution
+		diag.Printf("Couldn't find a solution for params %s", params)
+		return true
+	}
+
+	for i, row := range RI {
+		for j, elem := range row {
+			if elem {
+				if params.Tags[Node(i)] == params.Tags[Node(j)] {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+func TestRIPropertiesTagAware(t *testing.T) {
+	setup(t)
+
+	for _, gen := range tagAwareGenerators {
+		check := func(params EqualTagsVbmapParams) bool {
+			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
 
 		err := quick.Check(check, &quick.Config{MaxCount: 100})
