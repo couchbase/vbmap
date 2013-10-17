@@ -386,6 +386,16 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 		switch err {
 		case ErrorNoSolution:
 			diag.Printf("Couldn't find a solution for params %s", params)
+
+			// cross-check using glpk generator
+			gen := makeGlpkRIGenerator()
+
+			// if glpk can find a solution then report an error
+			_, err = gen.Generate(params)
+			if err == nil {
+				return false
+			}
+
 			return true
 		default:
 			return false
