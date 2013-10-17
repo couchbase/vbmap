@@ -127,8 +127,11 @@ func normalizeParams(params *VbmapParams) {
 		params.NumReplicas = params.NumNodes - 1
 	}
 
-	if params.NumSlaves >= params.NumNodes {
-		params.NumSlaves = params.NumNodes - 1
+	for _, tagNodes := range params.Tags.TagsNodesMap() {
+		tagMaxSlaves := params.NumNodes - len(tagNodes)
+		if tagMaxSlaves < params.NumSlaves {
+			params.NumSlaves = tagMaxSlaves
+		}
 	}
 
 	if params.NumSlaves < params.NumReplicas {
@@ -152,8 +155,6 @@ func checkInput() {
 	if params.Tags != nil && tagHistogram != nil {
 		fatal("Options --tags and --tag-histogram are exclusive")
 	}
-
-	normalizeParams(&params)
 
 	if params.Tags == nil && tagHistogram == nil {
 		diag.Printf("Tags are not specified. Assuming every node on a separate tag.")
@@ -194,6 +195,8 @@ func checkInput() {
 			fatal("Tag for node %v not specified", node)
 		}
 	}
+
+	normalizeParams(&params)
 }
 
 func fatalExitCode(code int, format string, args ...interface{}) {
