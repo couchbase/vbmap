@@ -194,16 +194,44 @@ func (path *augPath) addEdge(edge *graphEdge) {
 }
 
 type graph struct {
-	params   VbmapParams
-	vertices map[graphVertex][]*graphEdge
-	flow     int
+	params    VbmapParams
+	vertices  map[graphVertex][]*graphEdge
+	distances map[graphVertex]int
+	flow      int
 }
 
 func makeGraph(params VbmapParams) (g *graph) {
 	g = &graph{}
 	g.vertices = make(map[graphVertex][]*graphEdge)
+	g.distances = make(map[graphVertex]int)
 	g.params = params
 	return
+}
+
+func (g *graph) bfs() {
+	queue := []graphVertex{source}
+	seen := make(map[graphVertex]bool)
+
+	seen[source] = true
+	g.distances[source] = 0
+
+	for len(queue) != 0 {
+		v := queue[0]
+		d := g.distances[v]
+
+		queue = queue[1:]
+
+		for _, edge := range g.vertices[v] {
+			_, present := seen[edge.dst]
+			if !present {
+				dst := edge.dst
+
+				queue = append(queue, dst)
+				seen[dst] = true
+				g.distances[dst] = d + 1
+			}
+		}
+	}
 }
 
 func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
