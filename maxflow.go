@@ -179,13 +179,16 @@ func (path augPath) addEdge(edge *graphEdge) {
 	path = append(path, edge)
 }
 
-func (path augPath) removeLastEdge() {
+func (path augPath) removeLastEdge() (edge *graphEdge) {
 	n := len(path)
 	if n == 0 {
 		panic("Removing edge from empty path")
 	}
 
+	edge = path[n-1]
 	path = path[0 : n-1]
+
+	return
 }
 
 func (path augPath) capacity() (result int) {
