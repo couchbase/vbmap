@@ -173,24 +173,35 @@ func (edge *graphEdge) pushFlow(flow int) {
 	}
 }
 
-type augPath struct {
-	edges []*graphEdge
-	flow  int
+type augPath []*graphEdge
+
+func (path augPath) addEdge(edge *graphEdge) {
+	path = append(path, edge)
 }
 
-func makePath() (path *augPath) {
-	path = &augPath{edges: nil, flow: 0}
-	return
-}
-
-func (path *augPath) addEdge(edge *graphEdge) {
-	residual := edge.residual()
-
-	if path.edges == nil || path.flow > residual {
-		path.flow = residual
+func (path augPath) removeLastEdge() {
+	n := len(path)
+	if n == 0 {
+		panic("Removing edge from empty path")
 	}
 
-	path.edges = append(path.edges, edge)
+	path = path[0 : n-1]
+}
+
+func (path augPath) capacity() (result int) {
+	if len(path) == 0 {
+		panic("capacity called on empty path")
+	}
+
+	result = path[0].residual()
+	for _, edge := range path {
+		residual := edge.residual()
+		if residual < result {
+			result = residual
+		}
+	}
+
+	return
 }
 
 type graph struct {
@@ -239,6 +250,29 @@ func (g *graph) bfs() bool {
 
 	_, seenSink := seen[sink]
 	return seenSink
+}
+
+func (g graph) dfsPath(from graphVertex, path *augPath) bool {
+	if from == sink {
+		return true
+	}
+
+	d := g.distances[from]
+
+	for _, edge := range g.vertices[from] {
+		dst := edge.dst
+
+		if g.distances[dst] == d+1 && edge.residual() > 0 {
+			path.addEdge(edge)
+			if g.dfsPath(dst, path) {
+				return true
+			}
+
+			path.removeLastEdge()
+		}
+	}
+
+	return false
 }
 
 func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
