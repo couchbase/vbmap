@@ -211,6 +211,14 @@ func (path augPath) capacity() (result int) {
 	return
 }
 
+func (path *augPath) truncate(i int) {
+	if i >= len(*path) {
+		panic("index out of range in truncate")
+	}
+
+	*path = (*path)[0:i]
+}
+
 type graph struct {
 	params    VbmapParams
 	vertices  map[graphVertex][]*graphEdge
@@ -282,50 +290,46 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 	return false
 }
 
-func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
-	queue := []graphVertex{from}
-	parentEdge := make(map[graphVertex]*graphEdge)
-	seen := make(map[graphVertex]bool)
+func (g *graph) augmentFlow() bool {
+	if !g.bfs() {
+		return false
+	}
 
-	seen[from] = true
-	done := false
+	path := augPath(nil)
+	v := graphVertex(source)
 
-	for len(queue) != 0 && !done {
-		v := queue[0]
-		queue = queue[1:]
+	for {
+		pathFound := g.dfsPath(v, &path)
+		if pathFound {
+			capacity := path.capacity()
+			g.flow += capacity
+			firstSaturatedEdge := -1
 
-		for _, edge := range g.vertices[v] {
-			_, present := seen[edge.dst]
-			if !present && edge.residual() > 0 {
-				queue = append(queue, edge.dst)
-				seen[edge.dst] = true
-				parentEdge[edge.dst] = edge
-
-				if edge.dst == to {
-					done = true
-					break
+			for i, edge := range path {
+				edge.pushFlow(capacity)
+				if firstSaturatedEdge == -1 && edge.isSaturated() {
+					firstSaturatedEdge = i
 				}
+			}
+
+			if firstSaturatedEdge == -1 {
+				panic("No saturated edge on augmenting path")
+			}
+
+			v = path[firstSaturatedEdge].src
+			path.truncate(firstSaturatedEdge)
+		} else {
+			if v == source {
+				break
+			} else {
+				g.distances[v] = -1
+				edge := path.removeLastEdge()
+				v = edge.src
 			}
 		}
 	}
 
-	if done {
-		edges := make([]*graphEdge, 0)
-		path = makePath()
-
-		v := to
-		for v != from {
-			edge := parentEdge[v]
-			edges = append(edges, edge)
-			v = edge.src
-		}
-
-		for i := len(edges) - 1; i >= 0; i-- {
-			path.addEdge(edges[i])
-		}
-	}
-
-	return
+	return true
 }
 
 func (g *graph) addVertex(vertex graphVertex) {
@@ -369,22 +373,11 @@ func (g graph) edges() (result []*graphEdge) {
 	return
 }
 
-func (g *graph) pushFlow(path augPath) {
-	g.flow += path.flow
-
-	for _, edge := range path.edges {
-		edge.pushFlow(path.flow)
-	}
-}
-
 func (g *graph) maximizeFlow() {
 	for {
-		path := g.bfsPath(source, sink)
-		if path == nil {
+		if augmented := g.augmentFlow(); !augmented {
 			break
 		}
-
-		g.pushFlow(*path)
 	}
 }
 
