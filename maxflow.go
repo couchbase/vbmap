@@ -222,6 +222,10 @@ func (g *graph) bfs() {
 		queue = queue[1:]
 
 		for _, edge := range g.vertices[v] {
+			if edge.residual() == 0 {
+				continue
+			}
+
 			_, present := seen[edge.dst]
 			if !present {
 				dst := edge.dst
