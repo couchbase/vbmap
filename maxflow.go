@@ -208,7 +208,7 @@ func makeGraph(params VbmapParams) (g *graph) {
 	return
 }
 
-func (g *graph) bfs() {
+func (g *graph) bfs() bool {
 	queue := []graphVertex{source}
 	seen := make(map[graphVertex]bool)
 
@@ -236,6 +236,9 @@ func (g *graph) bfs() {
 			}
 		}
 	}
+
+	_, seenSink := seen[sink]
+	return seenSink
 }
 
 func (g graph) bfsPath(from graphVertex, to graphVertex) (path *augPath) {
