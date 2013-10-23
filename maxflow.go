@@ -173,6 +173,10 @@ func (edge *graphEdge) pushFlow(flow int) {
 	}
 }
 
+func (edge graphEdge) isSaturated() bool {
+	return edge.residual() == 0
+}
+
 type augPath []*graphEdge
 
 func (path augPath) addEdge(edge *graphEdge) {
@@ -236,7 +240,7 @@ func (g *graph) bfs() bool {
 		queue = queue[1:]
 
 		for _, edge := range g.vertices[v] {
-			if edge.residual() == 0 {
+			if edge.isSaturated() {
 				continue
 			}
 
@@ -265,7 +269,7 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 	for _, edge := range g.vertices[from] {
 		dst := edge.dst
 
-		if g.distances[dst] == d+1 && edge.residual() > 0 {
+		if g.distances[dst] == d+1 && !edge.isSaturated() {
 			path.addEdge(edge)
 			if g.dfsPath(dst, path) {
 				return true
