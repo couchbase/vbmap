@@ -219,16 +219,33 @@ func (path *augPath) truncate(i int) {
 	*path = (*path)[0:i]
 }
 
+type graphVertexData struct {
+	allEdges  []*graphEdge
+	firstEdge int
+}
+
+func makeGraphVertexData() *graphVertexData {
+	return &graphVertexData{allEdges: []*graphEdge{}, firstEdge: 0}
+}
+
+func (v graphVertexData) edges() []*graphEdge {
+	return v.allEdges[v.firstEdge:]
+}
+
+func (v *graphVertexData) addEdge(edge *graphEdge) {
+	v.allEdges = append(v.allEdges, edge)
+}
+
 type graph struct {
 	params    VbmapParams
-	vertices  map[graphVertex][]*graphEdge
+	vertices  map[graphVertex]*graphVertexData
 	distances map[graphVertex]int
 	flow      int
 }
 
 func makeGraph(params VbmapParams) (g *graph) {
 	g = &graph{}
-	g.vertices = make(map[graphVertex][]*graphEdge)
+	g.vertices = make(map[graphVertex]*graphVertexData)
 	g.distances = make(map[graphVertex]int)
 	g.params = params
 	return
@@ -247,7 +264,7 @@ func (g *graph) bfs() bool {
 
 		queue = queue[1:]
 
-		for _, edge := range g.vertices[v] {
+		for _, edge := range g.vertices[v].edges() {
 			if edge.isSaturated() {
 				continue
 			}
@@ -274,7 +291,7 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 
 	d := g.distances[from]
 
-	for _, edge := range g.vertices[from] {
+	for _, edge := range g.vertices[from].edges() {
 		dst := edge.dst
 
 		if g.distances[dst] == d+1 && !edge.isSaturated() {
@@ -335,7 +352,7 @@ func (g *graph) augmentFlow() bool {
 func (g *graph) addVertex(vertex graphVertex) {
 	_, present := g.vertices[vertex]
 	if !present {
-		g.vertices[vertex] = nil
+		g.vertices[vertex] = makeGraphVertexData()
 	}
 }
 
@@ -346,7 +363,7 @@ func (g *graph) addSimpleEdge(src graphVertex, dst graphVertex, capacity int) {
 	edge := &graphEdge{src: src, dst: dst,
 		capacity: capacity, flow: 0, reverseEdge: nil}
 
-	g.vertices[src] = append(g.vertices[src], edge)
+	g.vertices[src].addEdge(edge)
 }
 
 func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
@@ -359,13 +376,13 @@ func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
 	edge.reverseEdge = redge
 	redge.reverseEdge = edge
 
-	g.vertices[src] = append(g.vertices[src], edge)
-	g.vertices[dst] = append(g.vertices[dst], redge)
+	g.vertices[src].addEdge(edge)
+	g.vertices[dst].addEdge(redge)
 }
 
 func (g graph) edges() (result []*graphEdge) {
-	for _, vertexEdges := range g.vertices {
-		for _, edge := range vertexEdges {
+	for _, vertex := range g.vertices {
+		for _, edge := range vertex.edges() {
 			result = append(result, edge)
 		}
 	}
@@ -410,7 +427,7 @@ func (g graph) toRI() (RI RI) {
 		inRepsCounts := make(nodeCountSlice, 0)
 		outRepsCounts := make(nodeCountSlice, 0)
 
-		for _, edge := range g.vertices[tagV] {
+		for _, edge := range g.vertices[tagV].edges() {
 			if !edge.aux {
 				// edge to node sink vertex
 				dstNode := Node(edge.dst.(nodeSinkVertex))
