@@ -381,8 +381,8 @@ func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
 }
 
 func (g graph) edges() (result []*graphEdge) {
-	for _, vertex := range g.vertices {
-		for _, edge := range vertex.edges() {
+	for _, vertexData := range g.vertices {
+		for _, edge := range vertexData.edges() {
 			result = append(result, edge)
 		}
 	}
