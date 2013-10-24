@@ -364,7 +364,7 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 }
 
 func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
-	numNodes := rand.Int()%100 + 1
+	numNodes := rand.Int()%100 + 2
 	// number of tags is in range [2, numNodes]
 	numTags := rand.Int()%(numNodes-1) + 2
 
