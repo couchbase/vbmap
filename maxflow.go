@@ -236,6 +236,14 @@ func (v *graphVertexData) addEdge(edge *graphEdge) {
 	v.allEdges = append(v.allEdges, edge)
 }
 
+func (v *graphVertexData) forgetFirstEdge() {
+	v.firstEdge += 1
+}
+
+func (v *graphVertexData) reset() {
+	v.firstEdge = 0
+}
+
 type graph struct {
 	params    VbmapParams
 	vertices  map[graphVertex]*graphVertexData
@@ -291,7 +299,9 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 
 	d := g.distances[from]
 
-	for _, edge := range g.vertices[from].edges() {
+	fromData := g.vertices[from]
+
+	for _, edge := range fromData.edges() {
 		dst := edge.dst
 
 		if g.distances[dst] == d+1 && !edge.isSaturated() {
@@ -302,12 +312,18 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 
 			path.removeLastEdge()
 		}
+
+		fromData.forgetFirstEdge()
 	}
 
 	return false
 }
 
 func (g *graph) augmentFlow() bool {
+	for _, vertexData := range g.vertices {
+		vertexData.reset()
+	}
+
 	if !g.bfs() {
 		return false
 	}
