@@ -35,6 +35,10 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 
 func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	g := buildFlowGraph(params)
+
+	diag.Print("Constructed flow graph.\n")
+	diag.Print(g.graphStats)
+
 	g.maximizeFlow()
 
 	if gen.dotPath != "" {
@@ -244,11 +248,31 @@ func (v *graphVertexData) reset() {
 	v.firstEdge = 0
 }
 
+type graphStats struct {
+	numVertices int
+	numEdges    int
+}
+
+func (stats graphStats) String() string {
+	return fmt.Sprintf("Graph stats:\n\tVertices: %d\n\tEdges: %d\n",
+		stats.numVertices, stats.numEdges)
+}
+
+func (stats *graphStats) noteVertexAdded() {
+	stats.numVertices += 1
+}
+
+func (stats *graphStats) noteEdgeAdded() {
+	stats.numEdges += 1
+}
+
 type graph struct {
 	params    VbmapParams
 	vertices  map[graphVertex]*graphVertexData
 	distances map[graphVertex]int
 	flow      int
+
+	graphStats
 }
 
 func makeGraph(params VbmapParams) (g *graph) {
@@ -368,6 +392,7 @@ func (g *graph) augmentFlow() bool {
 func (g *graph) addVertex(vertex graphVertex) {
 	_, present := g.vertices[vertex]
 	if !present {
+		g.noteVertexAdded()
 		g.vertices[vertex] = makeGraphVertexData()
 	}
 }
@@ -379,6 +404,7 @@ func (g *graph) addSimpleEdge(src graphVertex, dst graphVertex, capacity int) {
 	edge := &graphEdge{src: src, dst: dst,
 		capacity: capacity, flow: 0, reverseEdge: nil}
 
+	g.noteEdgeAdded()
 	g.vertices[src].addEdge(edge)
 }
 
@@ -394,6 +420,9 @@ func (g *graph) addEdge(src graphVertex, dst graphVertex, capacity int) {
 
 	g.vertices[src].addEdge(edge)
 	g.vertices[dst].addEdge(redge)
+
+	g.noteEdgeAdded()
+	g.noteEdgeAdded()
 }
 
 func (g graph) edges() (result []*graphEdge) {
