@@ -141,7 +141,7 @@ func TestRIProperties(t *testing.T) {
 			return checkRIProperties(gen, params)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 100})
+		err := quick.Check(check, &quick.Config{MaxCount: 250})
 		if err != nil {
 			t.Error(err)
 		}
@@ -212,7 +212,7 @@ func TestRProperties(t *testing.T) {
 			return checkRProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 100})
+		err := quick.Check(check, &quick.Config{MaxCount: 250})
 		if err != nil {
 			t.Error(err)
 		}
@@ -324,7 +324,7 @@ func TestVbmapProperties(t *testing.T) {
 			return checkVbmapProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 100})
+		err := quick.Check(check, &quick.Config{MaxCount: 250})
 		if err != nil {
 			t.Error(err)
 		}
@@ -422,7 +422,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 100})
+		err := quick.Check(check, &quick.Config{MaxCount: 250})
 		if err != nil {
 			t.Error(err)
 		}
