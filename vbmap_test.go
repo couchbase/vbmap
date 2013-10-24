@@ -41,19 +41,18 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 }
 
 func TestRReplicaBalance(t *testing.T) {
-	seed = time.Now().UTC().UnixNano()
-	t.Logf("Using seed %d", seed)
-	rand.Seed(seed)
-
 	setup(t)
 
 	for nodes := 1; nodes <= 50; nodes++ {
 		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
+			seed = time.Now().UTC().UnixNano()
+			rand.Seed(seed)
+
 			t.Log("=======================================")
-			t.Logf("Generating R for %d node, %d replicas",
-				nodes, replicas)
+			t.Logf("Generating R for %d node, %d replicas (seed %d)",
+				nodes, replicas, seed)
 
 			params = VbmapParams{
 				Tags:        tags,
