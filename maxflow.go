@@ -266,6 +266,53 @@ func (stats *graphStats) noteEdgeAdded() {
 	stats.numEdges += 1
 }
 
+type maxflowStats struct {
+	iteration   int
+	numAdvances int
+	numRetreats int
+	numAugments int
+	numEdges    int
+}
+
+func (stats maxflowStats) String() string {
+	return fmt.Sprintf("Max flow stats:\n\tCurrent iteration: %d\n"+
+		"\tNumber of advances: %d\n\tNumber of retreats: %d\n"+
+		"\tNumber of augments: %d\n"+
+		"\tTotal number of edges processed: %d\n",
+		stats.iteration, stats.numAdvances,
+		stats.numRetreats, stats.numAugments, stats.numEdges)
+}
+
+func (stats *maxflowStats) reset() {
+	stats.iteration = 0
+	stats.numAdvances = 0
+	stats.numRetreats = 0
+	stats.numAugments = 0
+	stats.numEdges = 0
+}
+
+func (stats *maxflowStats) nextIteration() {
+	iter := stats.iteration
+	stats.reset()
+	stats.iteration = iter + 1
+}
+
+func (stats *maxflowStats) noteAdvance() {
+	stats.numAdvances += 1
+}
+
+func (stats *maxflowStats) noteRetreat() {
+	stats.numRetreats += 1
+}
+
+func (stats *maxflowStats) noteAugment() {
+	stats.numAugments += 1
+}
+
+func (stats *maxflowStats) noteEdgeProcessed() {
+	stats.numEdges += 1
+}
+
 type graph struct {
 	params    VbmapParams
 	vertices  map[graphVertex]*graphVertexData
@@ -273,6 +320,7 @@ type graph struct {
 	flow      int
 
 	graphStats
+	maxflowStats
 }
 
 func makeGraph(params VbmapParams) (g *graph) {
@@ -316,7 +364,7 @@ func (g *graph) bfs() bool {
 	return seenSink
 }
 
-func (g graph) dfsPath(from graphVertex, path *augPath) bool {
+func (g *graph) dfsPath(from graphVertex, path *augPath) bool {
 	if from == sink {
 		return true
 	}
@@ -326,9 +374,13 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 	fromData := g.vertices[from]
 
 	for _, edge := range fromData.edges() {
+		g.noteEdgeProcessed()
+
 		dst := edge.dst
 
 		if g.distances[dst] == d+1 && !edge.isSaturated() {
+			g.noteAdvance()
+
 			path.addEdge(edge)
 			if g.dfsPath(dst, path) {
 				return true
@@ -340,6 +392,7 @@ func (g graph) dfsPath(from graphVertex, path *augPath) bool {
 		fromData.forgetFirstEdge()
 	}
 
+	g.noteRetreat()
 	return false
 }
 
@@ -368,6 +421,8 @@ func (g *graph) augmentFlow() bool {
 					firstSaturatedEdge = i
 				}
 			}
+
+			g.noteAugment()
 
 			if firstSaturatedEdge == -1 {
 				panic("No saturated edge on augmenting path")
@@ -436,10 +491,15 @@ func (g graph) edges() (result []*graphEdge) {
 }
 
 func (g *graph) maximizeFlow() {
+	g.maxflowStats.reset()
+
 	for {
 		if augmented := g.augmentFlow(); !augmented {
 			break
 		}
+
+		diag.Print(g.maxflowStats.String())
+		g.maxflowStats.nextIteration()
 	}
 }
 
