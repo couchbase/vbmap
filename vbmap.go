@@ -10,8 +10,19 @@ import (
 )
 
 type Node int
+type NodeSlice []Node
+
+func (s NodeSlice) Len() int           { return len(s) }
+func (s NodeSlice) Less(i, j int) bool { return int(s[i]) < int(s[j]) }
+func (s NodeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
 type Tag uint
+type TagSlice []Tag
 type TagMap map[Node]Tag
+
+func (s TagSlice) Len() int           { return len(s) }
+func (s TagSlice) Less(i, j int) bool { return int(s[i]) < int(s[j]) }
+func (s TagSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 var (
 	ErrorNoSolution = errors.New("The problem has no solution")
@@ -55,6 +66,8 @@ func (tags TagMap) TagsList() (result []Tag) {
 		}
 	}
 
+	sort.Sort(TagSlice(result))
+
 	return
 }
 
@@ -70,6 +83,7 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 
 	for node, tag := range tags {
 		m[tag] = append(m[tag], node)
+		sort.Sort(NodeSlice(m[tag]))
 	}
 
 	return
