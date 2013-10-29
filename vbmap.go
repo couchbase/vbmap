@@ -824,7 +824,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 		if slaves.Len() == 0 {
 			// Row matrix contained only zeros. This usually means
 			// that replica count is zero. Other possibility is
-			// that the number of vbucket is less than number of
+			// that the number of vbuckets is less than number of
 			// nodes and some of the nodes end up with no vbuckets
 			// at all. In any case, we just mark the node as a
 			// master for its vbuckets (if any).
