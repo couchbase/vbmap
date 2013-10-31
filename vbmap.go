@@ -16,7 +16,7 @@ func (s NodeSlice) Len() int           { return len(s) }
 func (s NodeSlice) Less(i, j int) bool { return int(s[i]) < int(s[j]) }
 func (s NodeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-type Tag uint
+type Tag int
 type TagSlice []Tag
 type TagMap map[Node]Tag
 
