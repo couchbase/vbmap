@@ -110,7 +110,7 @@ func (RI RI) String() string {
 
 	for _, row := range RI {
 		for _, elem := range row {
-			fmt.Fprintf(buffer, "%2d ", b2i(elem))
+			fmt.Fprintf(buffer, "%2d ", B2i(elem))
 		}
 		fmt.Fprintf(buffer, "\n")
 	}

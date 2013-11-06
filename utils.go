@@ -38,7 +38,7 @@ func SpreadSum(sum int, n int) (result []int) {
 	return
 }
 
-func b2i(b bool) int {
+func B2i(b bool) int {
 	if b {
 		return 1
 	} else {
@@ -46,7 +46,7 @@ func b2i(b bool) int {
 	}
 }
 
-func min(a, b int) int {
+func Min(a, b int) int {
 	if a <= b {
 		return a
 	} else {
