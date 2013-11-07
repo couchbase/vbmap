@@ -7,7 +7,7 @@ import (
 )
 
 // Matrix R with some meta-information.
-type RCandidate struct {
+type R struct {
 	Matrix  [][]int // actual matrix
 	RowSums []int   // row sums for the matrix
 	ColSums []int   // column sums for the matrix
@@ -25,7 +25,7 @@ type RCandidate struct {
 	rawEvaluation int
 }
 
-func (cand RCandidate) String() string {
+func (cand R) String() string {
 	buffer := &bytes.Buffer{}
 
 	nodes := cand.params.Nodes()
@@ -98,8 +98,8 @@ func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
 
 // Construct initial matrix R from RI.
 //
-// Uses buildInitialR to construct RCandidate.
-func makeRCandidate(params VbmapParams, RI RI) (result RCandidate) {
+// Uses buildInitialR to construct R.
+func makeR(params VbmapParams, RI RI) (result R) {
 	result.params = params
 	result.Matrix = buildInitialR(params, RI)
 	result.ColSums = make([]int, params.NumNodes)
@@ -133,7 +133,7 @@ func makeRCandidate(params VbmapParams, RI RI) (result RCandidate) {
 //
 // It differs from raw evaluation in that it allows fixed number of column
 // sums to be off-by-one.
-func (cand RCandidate) computeEvaluation(rawEval int, outliers int) (eval int) {
+func (cand R) computeEvaluation(rawEval int, outliers int) (eval int) {
 	eval = rawEval
 	if outliers > cand.expectedOutliers {
 		eval -= cand.expectedOutliers
@@ -145,13 +145,13 @@ func (cand RCandidate) computeEvaluation(rawEval int, outliers int) (eval int) {
 }
 
 // Compute adjusted evaluation of matrix R.
-func (cand RCandidate) evaluation() int {
+func (cand R) evaluation() int {
 	return cand.computeEvaluation(cand.rawEvaluation, cand.outliers)
 }
 
 // Compute a change in number of outlying elements after swapping elements j
 // and k in certain row.
-func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
+func (cand R) swapOutliersChange(row int, j int, k int) (change int) {
 	a, b := cand.Matrix[row][j], cand.Matrix[row][k]
 	ca := cand.ColSums[j] - a + b
 	cb := cand.ColSums[k] - b + a
@@ -174,7 +174,7 @@ func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
 
 // Compute a change in rawEvaluation after swapping elements j and k in
 // certain row.
-func (cand RCandidate) swapRawEvaluationChange(row int, j int, k int) (change int) {
+func (cand R) swapRawEvaluationChange(row int, j int, k int) (change int) {
 	a, b := cand.Matrix[row][j], cand.Matrix[row][k]
 	ca := cand.ColSums[j] - a + b
 	cb := cand.ColSums[k] - b + a
@@ -192,7 +192,7 @@ func (cand RCandidate) swapRawEvaluationChange(row int, j int, k int) (change in
 
 // Compute a potential change in evaluation after swapping element j and k in
 // certain row.
-func (cand RCandidate) swapBenefit(row int, j int, k int) int {
+func (cand R) swapBenefit(row int, j int, k int) int {
 	eval := cand.evaluation()
 
 	swapOutliers := cand.outliers + cand.swapOutliersChange(row, j, k)
@@ -203,7 +203,7 @@ func (cand RCandidate) swapBenefit(row int, j int, k int) int {
 }
 
 // Swap element j and k in a certain row.
-func (cand *RCandidate) swapElems(row int, j int, k int) {
+func (cand *R) swapElems(row int, j int, k int) {
 	if cand.Matrix[row][j] == 0 || cand.Matrix[row][k] == 0 {
 		panic(fmt.Sprintf("swapping one or more zeros (%d: %d <-> %d)",
 			row, j, k))
@@ -219,8 +219,8 @@ func (cand *RCandidate) swapElems(row int, j int, k int) {
 	cand.Matrix[row][j], cand.Matrix[row][k] = b, a
 }
 
-// Make a copy of RCandidate.
-func (cand RCandidate) copy() (result RCandidate) {
+// Make a copy of R.
+func (cand R) copy() (result R) {
 	result.params = cand.params
 	result.expectedColSum = cand.expectedColSum
 	result.expectedOutliers = cand.expectedOutliers
@@ -331,8 +331,8 @@ func (tabu Tabu) expire(time int) {
 // evaluation for quite a long time, then the search is stopped. It might be
 // retried by buildR(). This will start everything over with new initial
 // matrix R.
-func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
-	cand := makeRCandidate(params, RI)
+func doBuildR(params VbmapParams, RI RI) (best R) {
+	cand := makeR(params, RI)
 	best = cand.copy()
 
 	if params.NumSlaves <= 1 || params.NumReplicas == 0 {
@@ -463,7 +463,7 @@ func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
 // randomized initial R. If this doesn't lead to a matrix with zero evaluation
 // after fixed number of iterations, then the matrix which had the best
 // evaluation is returned.
-func BuildR(params VbmapParams, RI RI) (best RCandidate) {
+func BuildR(params VbmapParams, RI RI) (best R) {
 	bestEvaluation := (1 << 31) - 1
 
 	for i := 0; i < 10; i++ {

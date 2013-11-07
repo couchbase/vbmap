@@ -188,7 +188,7 @@ func chooseReplicas(candidates []Slave,
 }
 
 // Construct vbucket map from a matrix R.
-func buildVbmap(R RCandidate) (vbmap Vbmap) {
+func buildVbmap(R R) (vbmap Vbmap) {
 	params := R.params
 	vbmap = makeVbmap(params)
 
