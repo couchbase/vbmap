@@ -94,3 +94,39 @@ func KSubsets(n, k int, f func([]int)) {
 		}
 	}
 }
+
+func Permutations(n int, f func([]int)) {
+	perm := make([]int, n)
+	for i := 0; i < n; i++ {
+		perm[i] = i
+	}
+
+	for {
+		f(perm)
+
+		var i int
+		for i = n - 2; i >= 0; i-- {
+			if perm[i] < perm[i+1] {
+				break
+			}
+		}
+
+		if i < 0 {
+			break
+		}
+
+		var j int
+		for j = n - 1; j > i; j-- {
+			if perm[j] > perm[i] {
+				break
+			}
+		}
+
+		if j <= i {
+			panic("cannot happen")
+		}
+
+		perm[i], perm[j] = perm[j], perm[i]
+		Reverse(perm[i+1:])
+	}
+}
