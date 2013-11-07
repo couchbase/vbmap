@@ -53,3 +53,37 @@ func Min(a, b int) int {
 		return b
 	}
 }
+
+func KSubsets(n, k int, f func([]int)) {
+	if k > n {
+		panic("k cannot be larger than n")
+	}
+
+	subset := make([]int, k)
+	for i := 0; i < k; i++ {
+		subset[i] = i
+	}
+
+	for {
+		f(subset)
+
+		var i int
+		prev := n
+		for i = k - 1; i >= 0; i-- {
+			if subset[i]+1 < prev {
+				subset[i]++
+				for j := i + 1; j < k; j++ {
+					subset[j] = subset[j-1] + 1
+				}
+
+				break
+			}
+
+			prev = subset[i]
+		}
+
+		if i < 0 {
+			break
+		}
+	}
+}
