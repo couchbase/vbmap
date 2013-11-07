@@ -8,13 +8,13 @@ import (
 
 // Matrix R with some meta-information.
 type RCandidate struct {
-	params VbmapParams // corresponding vbucket map params
-	matrix [][]int     // actual matrix
+	Matrix  [][]int // actual matrix
+	RowSums []int   // row sums for the matrix
+	ColSums []int   // column sums for the matrix
 
-	rowSums          []int // row sums for the matrix
-	colSums          []int // column sums for the matrix
-	expectedColSum   int   // expected column sum
-	expectedOutliers int   // number of columns that can be off-by-one
+	params           VbmapParams // corresponding vbucket map params
+	expectedColSum   int         // expected column sum
+	expectedOutliers int         // number of columns that can be off-by-one
 
 	outliers int // actual number of columns that are off-by-one
 
@@ -42,12 +42,12 @@ func (cand RCandidate) String() string {
 	}
 	fmt.Fprintf(buffer, "|\n")
 
-	for i, row := range cand.matrix {
+	for i, row := range cand.Matrix {
 		fmt.Fprintf(buffer, "%3d |", cand.params.Tags[Node(i)])
 		for _, elem := range row {
 			fmt.Fprintf(buffer, "%3d ", elem)
 		}
-		fmt.Fprintf(buffer, "| %d\n", cand.rowSums[i])
+		fmt.Fprintf(buffer, "| %d\n", cand.RowSums[i])
 	}
 
 	fmt.Fprintf(buffer, "____|")
@@ -58,7 +58,7 @@ func (cand RCandidate) String() string {
 
 	fmt.Fprintf(buffer, "    |")
 	for i := range nodes {
-		fmt.Fprintf(buffer, "%3d ", cand.colSums[i])
+		fmt.Fprintf(buffer, "%3d ", cand.ColSums[i])
 	}
 	fmt.Fprintf(buffer, "|\n")
 	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.evaluation())
@@ -101,24 +101,24 @@ func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
 // Uses buildInitialR to construct RCandidate.
 func makeRCandidate(params VbmapParams, RI RI) (result RCandidate) {
 	result.params = params
-	result.matrix = buildInitialR(params, RI)
-	result.colSums = make([]int, params.NumNodes)
-	result.rowSums = make([]int, params.NumNodes)
+	result.Matrix = buildInitialR(params, RI)
+	result.ColSums = make([]int, params.NumNodes)
+	result.RowSums = make([]int, params.NumNodes)
 
-	for i, row := range result.matrix {
+	for i, row := range result.Matrix {
 		rowSum := 0
 		for j, elem := range row {
 			rowSum += elem
-			result.colSums[j] += elem
+			result.ColSums[j] += elem
 		}
-		result.rowSums[i] = rowSum
+		result.RowSums[i] = rowSum
 	}
 
 	numReplications := params.NumVBuckets * params.NumReplicas
 	result.expectedColSum = numReplications / params.NumNodes
 	result.expectedOutliers = numReplications % params.NumNodes
 
-	for _, sum := range result.colSums {
+	for _, sum := range result.ColSums {
 		result.rawEvaluation += Abs(sum - result.expectedColSum)
 		if sum == result.expectedColSum+1 {
 			result.outliers += 1
@@ -152,14 +152,14 @@ func (cand RCandidate) evaluation() int {
 // Compute a change in number of outlying elements after swapping elements j
 // and k in certain row.
 func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
-	a, b := cand.matrix[row][j], cand.matrix[row][k]
-	ca := cand.colSums[j] - a + b
-	cb := cand.colSums[k] - b + a
+	a, b := cand.Matrix[row][j], cand.Matrix[row][k]
+	ca := cand.ColSums[j] - a + b
+	cb := cand.ColSums[k] - b + a
 
-	if cand.colSums[j] == cand.expectedColSum+1 {
+	if cand.ColSums[j] == cand.expectedColSum+1 {
 		change -= 1
 	}
-	if cand.colSums[k] == cand.expectedColSum+1 {
+	if cand.ColSums[k] == cand.expectedColSum+1 {
 		change -= 1
 	}
 	if ca == cand.expectedColSum+1 {
@@ -175,15 +175,15 @@ func (cand RCandidate) swapOutliersChange(row int, j int, k int) (change int) {
 // Compute a change in rawEvaluation after swapping elements j and k in
 // certain row.
 func (cand RCandidate) swapRawEvaluationChange(row int, j int, k int) (change int) {
-	a, b := cand.matrix[row][j], cand.matrix[row][k]
-	ca := cand.colSums[j] - a + b
-	cb := cand.colSums[k] - b + a
+	a, b := cand.Matrix[row][j], cand.Matrix[row][k]
+	ca := cand.ColSums[j] - a + b
+	cb := cand.ColSums[k] - b + a
 
 	evalA := Abs(ca - cand.expectedColSum)
 	evalB := Abs(cb - cand.expectedColSum)
 
-	oldEvalA := Abs(cand.colSums[j] - cand.expectedColSum)
-	oldEvalB := Abs(cand.colSums[k] - cand.expectedColSum)
+	oldEvalA := Abs(cand.ColSums[j] - cand.expectedColSum)
+	oldEvalB := Abs(cand.ColSums[k] - cand.expectedColSum)
 
 	change = evalA - oldEvalA + evalB - oldEvalB
 
@@ -204,7 +204,7 @@ func (cand RCandidate) swapBenefit(row int, j int, k int) int {
 
 // Swap element j and k in a certain row.
 func (cand *RCandidate) swapElems(row int, j int, k int) {
-	if cand.matrix[row][j] == 0 || cand.matrix[row][k] == 0 {
+	if cand.Matrix[row][j] == 0 || cand.Matrix[row][k] == 0 {
 		panic(fmt.Sprintf("swapping one or more zeros (%d: %d <-> %d)",
 			row, j, k))
 	}
@@ -212,11 +212,11 @@ func (cand *RCandidate) swapElems(row int, j int, k int) {
 	cand.rawEvaluation += cand.swapRawEvaluationChange(row, j, k)
 	cand.outliers += cand.swapOutliersChange(row, j, k)
 
-	a, b := cand.matrix[row][j], cand.matrix[row][k]
+	a, b := cand.Matrix[row][j], cand.Matrix[row][k]
 
-	cand.colSums[j] += b - a
-	cand.colSums[k] += a - b
-	cand.matrix[row][j], cand.matrix[row][k] = b, a
+	cand.ColSums[j] += b - a
+	cand.ColSums[k] += a - b
+	cand.Matrix[row][j], cand.Matrix[row][k] = b, a
 }
 
 // Make a copy of RCandidate.
@@ -227,17 +227,17 @@ func (cand RCandidate) copy() (result RCandidate) {
 	result.outliers = cand.outliers
 	result.rawEvaluation = cand.rawEvaluation
 
-	result.matrix = make([][]int, cand.params.NumNodes)
-	for i, row := range cand.matrix {
-		result.matrix[i] = make([]int, cand.params.NumNodes)
-		copy(result.matrix[i], row)
+	result.Matrix = make([][]int, cand.params.NumNodes)
+	for i, row := range cand.Matrix {
+		result.Matrix[i] = make([]int, cand.params.NumNodes)
+		copy(result.Matrix[i], row)
 	}
 
-	result.rowSums = make([]int, cand.params.NumNodes)
-	copy(result.rowSums, cand.rowSums)
+	result.RowSums = make([]int, cand.params.NumNodes)
+	copy(result.RowSums, cand.RowSums)
 
-	result.colSums = make([]int, cand.params.NumNodes)
-	copy(result.colSums, cand.colSums)
+	result.ColSums = make([]int, cand.params.NumNodes)
+	copy(result.ColSums, cand.ColSums)
 
 	return
 }
@@ -379,7 +379,7 @@ func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
 		// indexes of columns that have sums lower or equal to expected
 		lowElems = []int{}
 
-		for i, elem := range cand.colSums {
+		for i, elem := range cand.ColSums {
 			switch {
 			case elem <= cand.expectedColSum:
 				lowElems = append(lowElems, i)
@@ -397,8 +397,8 @@ func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
 		candidateRows = []int{}
 
 		for row := 0; row < params.NumNodes; row++ {
-			lowElem := cand.matrix[row][lowIx]
-			highElem := cand.matrix[row][highIx]
+			lowElem := cand.Matrix[row][lowIx]
+			highElem := cand.Matrix[row][highIx]
 
 			if lowElem != 0 && highElem != 0 && highElem != lowElem {
 				benefit := cand.swapBenefit(row, lowIx, highIx)
@@ -463,7 +463,7 @@ func doBuildR(params VbmapParams, RI RI) (best RCandidate) {
 // randomized initial R. If this doesn't lead to a matrix with zero evaluation
 // after fixed number of iterations, then the matrix which had the best
 // evaluation is returned.
-func buildR(params VbmapParams, RI RI) (best RCandidate) {
+func BuildR(params VbmapParams, RI RI) (best RCandidate) {
 	bestEvaluation := (1 << 31) - 1
 
 	for i := 0; i < 10; i++ {

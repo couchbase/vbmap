@@ -203,7 +203,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 		// Otherwise matrix R defines the amount of active vbuckets
 		// each node has.
 		nodeVbs = make([]int, params.NumNodes)
-		for i, sum := range R.rowSums {
+		for i, sum := range R.RowSums {
 			vbs := sum / params.NumReplicas
 			if sum%params.NumReplicas != 0 {
 				panic("row sum is not multiple of NumReplicas")
@@ -214,7 +214,7 @@ func buildVbmap(R RCandidate) (vbmap Vbmap) {
 	}
 
 	vbucket := 0
-	for i, row := range R.matrix {
+	for i, row := range R.Matrix {
 		slaves := &SlaveHeap{}
 		counts := make(map[IndexPair]int)
 
@@ -355,8 +355,7 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error)
 
 	diag.Printf("Generated topology:\n%s", RI.String())
 
-	R := buildR(params, RI)
-
+	R := BuildR(params, RI)
 	diag.Printf("Final map R:\n%s", R.String())
 
 	return buildVbmap(R), nil
