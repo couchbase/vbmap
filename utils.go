@@ -54,6 +54,13 @@ func Min(a, b int) int {
 	}
 }
 
+func Reverse(a []int) {
+	n := len(a)
+	for i := 0; i < n/2; i++ {
+		a[i], a[n-i-1] = a[n-i-1], a[i]
+	}
+}
+
 func KSubsets(n, k int, f func([]int)) {
 	if k > n {
 		panic("k cannot be larger than n")
