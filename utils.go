@@ -4,6 +4,10 @@ import (
 	"math/rand"
 )
 
+const (
+	MaxInt = int(^uint(0) >> 1)
+)
+
 func Abs(v int) int {
 	if v < 0 {
 		return -v
