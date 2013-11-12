@@ -332,7 +332,7 @@ func TestVbmapProperties(t *testing.T) {
 	}
 }
 
-type EqualTagsVbmapParams struct {
+type EqualTagsR1VbmapParams struct {
 	VbmapParams
 }
 
@@ -362,7 +362,7 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	return
 }
 
-func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
+func (_ EqualTagsR1VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 	numNodes := rand.Int()%100 + 2
 	// number of tags is in range [2, numNodes]
 	numTags := rand.Int()%(numNodes-1) + 2
@@ -376,7 +376,7 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 	}
 	normalizeParams(&params)
 
-	return reflect.ValueOf(EqualTagsVbmapParams{params})
+	return reflect.ValueOf(EqualTagsR1VbmapParams{params})
 }
 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
@@ -418,7 +418,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 	setup(t)
 
 	for _, gen := range tagAwareGenerators {
-		check := func(params EqualTagsVbmapParams) bool {
+		check := func(params EqualTagsR1VbmapParams) bool {
 			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
 
