@@ -429,3 +429,95 @@ func TestRIPropertiesTagAware(t *testing.T) {
 
 	}
 }
+
+type EqualTagsVbmapParams struct {
+	VbmapParams
+}
+
+func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
+	numNodes := rand.Int()%100 + 2
+	numReplicas := rand.Int()%3 + 1
+	// number of tags is in range [numReplicas+1, numNodes]
+	numTags := rand.Int()%(numNodes-numReplicas) + numReplicas + 1
+
+	params = VbmapParams{
+		Tags:        equalTags(numNodes, numTags),
+		NumNodes:    numNodes,
+		NumSlaves:   10,
+		NumVBuckets: 1024,
+		NumReplicas: numReplicas,
+	}
+	normalizeParams(&params)
+
+	return reflect.ValueOf(EqualTagsVbmapParams{params})
+}
+
+func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
+	RI, err := gen.Generate(params)
+	if err != nil {
+		if err == ErrorNoSolution {
+			diag.Printf("Couldn't find a solution for params %s", params)
+			return true
+		}
+
+		return false
+	}
+
+	R := BuildR(params, RI)
+
+	for i, row := range R.Matrix {
+		counts := make(map[Tag]int)
+
+		for j, vbs := range row {
+			if vbs == 0 {
+				continue
+			}
+
+			tag := params.Tags[Node(j)]
+			count, _ := counts[tag]
+			counts[tag] = count + vbs
+		}
+
+		vbuckets := R.RowSums[i] / params.NumReplicas
+
+		for _, count := range counts {
+			if count > vbuckets {
+				diag.Printf("Can't generate fully rack aware "+
+					"vbucket map for params %s", params)
+				return true
+			}
+		}
+	}
+
+	vbmap := buildVbmap(R)
+	for _, chain := range vbmap {
+		tags := make(map[Tag]bool)
+
+		for _, node := range chain {
+			tag := params.Tags[node]
+			tags[tag] = true
+		}
+
+		if len(chain) != len(tags) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestVbmapTagAware(t *testing.T) {
+	setup(t)
+
+	for _, gen := range tagAwareGenerators {
+		check := func(params EqualTagsVbmapParams) bool {
+			return checkVbmapTagAware(gen, params.VbmapParams)
+		}
+
+		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+}
