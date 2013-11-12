@@ -71,8 +71,8 @@ func TestRReplicaBalance(t *testing.T) {
 				}
 
 				R := BuildR(params, RI)
-				if R.evaluation() != 0 {
-					t.Error("Generated map R has non-zero evaluation")
+				if R.evaluation() > 10 {
+					t.Error("Generated map R has too large evaluation")
 				}
 			}
 		}
