@@ -70,7 +70,7 @@ func TestRReplicaBalance(t *testing.T) {
 					t.Errorf("Couldn't generate RI: %s", err.Error())
 				}
 
-				R := buildR(params, RI)
+				R := BuildR(params, RI)
 				if R.evaluation() != 0 {
 					t.Error("Generated map R has non-zero evaluation")
 				}
@@ -156,10 +156,10 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		return false
 	}
 
-	R := buildR(params, RI)
+	R := BuildR(params, RI)
 	if params.NumReplicas == 0 {
 		// no replicas? R should obviously be empty
-		for _, row := range R.matrix {
+		for _, row := range R.Matrix {
 			for _, elem := range row {
 				if elem != 0 {
 					return false
@@ -170,8 +170,8 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		// check that we follow RI topology
 		for i, row := range RI {
 			for j, elem := range row {
-				if !elem && R.matrix[i][j] != 0 ||
-					elem && R.matrix[i][j] == 0 {
+				if !elem && R.Matrix[i][j] != 0 ||
+					elem && R.Matrix[i][j] == 0 {
 					return false
 				}
 			}
@@ -180,7 +180,7 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		totalVBuckets := 0
 
 		// check active vbuckets balance
-		for _, sum := range R.rowSums {
+		for _, sum := range R.RowSums {
 			if sum%params.NumReplicas != 0 {
 				return false
 			}
@@ -231,7 +231,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 		return false
 	}
 
-	R := buildR(params, RI)
+	R := BuildR(params, RI)
 	vbmap := buildVbmap(R)
 
 	if len(vbmap) != params.NumVBuckets {
@@ -270,7 +270,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 	}
 
 	// number of replications should correspond to one defined by R
-	for i, row := range R.matrix {
+	for i, row := range R.Matrix {
 		for j, elem := range row {
 			if elem != 0 {
 				pair := NodePair{Node(i), Node(j)}
@@ -285,7 +285,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 
 	// number of active vbuckets should correspond to one defined
 	// by matrix R
-	for n, sum := range R.rowSums {
+	for n, sum := range R.RowSums {
 		if params.NumReplicas != 0 {
 			// if we have at least one replica then number
 			// of active vbuckets is defined by matrix R
@@ -306,7 +306,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 
 	// number of replica vbuckets should correspond to one defined
 	// by R
-	for n, sum := range R.colSums {
+	for n, sum := range R.ColSums {
 		if sum != replicaVBuckets[n] {
 			return false
 		}
