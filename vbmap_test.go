@@ -54,7 +54,7 @@ func TestRReplicaBalance(t *testing.T) {
 			t.Logf("Generating R for %d node, %d replicas (seed %d)",
 				nodes, replicas, seed)
 
-			params = VbmapParams{
+			params := VbmapParams{
 				Tags:        tags,
 				NumNodes:    nodes,
 				NumSlaves:   10,
@@ -83,7 +83,7 @@ func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 	nodes := rand.Int()%100 + 1
 	replicas := rand.Int() % 4
 
-	params = VbmapParams{
+	params := VbmapParams{
 		Tags:        trivialTags(nodes),
 		NumNodes:    nodes,
 		NumSlaves:   10,
@@ -367,7 +367,7 @@ func (_ EqualTagsR1VbmapParams) Generate(rand *rand.Rand, size int) reflect.Valu
 	// number of tags is in range [2, numNodes]
 	numTags := rand.Int()%(numNodes-1) + 2
 
-	params = VbmapParams{
+	params := VbmapParams{
 		Tags:        equalTags(numNodes, numTags),
 		NumNodes:    numNodes,
 		NumSlaves:   10,
@@ -440,7 +440,7 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 	// number of tags is in range [numReplicas+1, numNodes]
 	numTags := rand.Int()%(numNodes-numReplicas) + numReplicas + 1
 
-	params = VbmapParams{
+	params := VbmapParams{
 		Tags:        equalTags(numNodes, numTags),
 		NumNodes:    numNodes,
 		NumSlaves:   10,
