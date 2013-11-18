@@ -138,8 +138,8 @@ func (ctx *selectionCtx) getStat(x, y Node, distance int) int {
 }
 
 func (ctx *selectionCtx) getTagStat(x, y Node, distance int) int {
-	xTag := params.Tags[x]
-	yTag := params.Tags[y]
+	xTag := ctx.params.Tags[x]
+	yTag := ctx.params.Tags[y]
 	tagPair := tagPair{xTag, yTag, distance}
 
 	stat, _ := ctx.tagStats[tagPair]
@@ -175,7 +175,7 @@ func (ctx *selectionCtx) notePair(x, y Node, distance int) {
 
 func (ctx *selectionCtx) noteChain(chain []Node) {
 	for i, node := range chain {
-		tag := params.Tags[node]
+		tag := ctx.params.Tags[node]
 
 		nodeCount := ctx.slaveCounts[node]
 		tagCount := ctx.tagCounts[tag]
