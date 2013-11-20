@@ -70,8 +70,8 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
 
-		g.AddSimpleEdge(Source, nodeSrcV, params.NumSlaves)
-		g.AddSimpleEdge(nodeSinkV, Sink, params.NumSlaves)
+		g.AddEdge(Source, nodeSrcV, params.NumSlaves)
+		g.AddEdge(nodeSinkV, Sink, params.NumSlaves)
 
 		for _, tag := range tags {
 			if tag == nodeTag {

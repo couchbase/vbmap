@@ -397,7 +397,7 @@ func (g *Graph) addVertex(vertex GraphVertex) {
 	}
 }
 
-func (g *Graph) AddSimpleEdge(src GraphVertex, dst GraphVertex, capacity int) {
+func (g *Graph) addSimpleEdge(src GraphVertex, dst GraphVertex, capacity int) {
 	g.addVertex(src)
 	g.addVertex(dst)
 
