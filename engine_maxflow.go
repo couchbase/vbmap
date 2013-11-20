@@ -125,7 +125,7 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 		outRepsCounts := make(nodeCountSlice, 0)
 
 		for _, edge := range g.EdgesFromVertex(tagV) {
-			if !edge.Aux {
+			if !edge.IsReverseEdge() {
 				// edge to node sink vertex
 				dstNode := Node(edge.Dst.(NodeSinkVertex))
 

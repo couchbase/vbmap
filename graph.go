@@ -40,6 +40,14 @@ const (
 	Sink   SimpleVertex = "sink"
 )
 
+type edgeType int
+
+const (
+	edgeNormal  edgeType = iota
+	edgeReverse edgeType = iota
+	edgeDemand  edgeType = iota
+)
+
 type GraphEdge struct {
 	Src GraphVertex
 	Dst GraphVertex
@@ -47,13 +55,12 @@ type GraphEdge struct {
 	Demand      int
 	ReverseEdge *GraphEdge
 
-	// is this an auxiliary edge?
-	Aux bool
-
 	// actual capacity adjusted for demand
 	capacity int
 	// flow according to adjusted capacity
 	flow int
+
+	etype edgeType
 }
 
 func (edge GraphEdge) Capacity() int {
@@ -78,6 +85,10 @@ func (edge GraphEdge) MustREdge() *GraphEdge {
 	}
 
 	return edge.ReverseEdge
+}
+
+func (edge GraphEdge) IsReverseEdge() bool {
+	return edge.etype == edgeReverse
 }
 
 func (edge *GraphEdge) pushFlow(flow int) {
@@ -297,7 +308,7 @@ func (g *Graph) bfsUnsaturated() bool {
 
 func (g *Graph) bfsNetwork() int {
 	return g.bfsGeneric(func(edge *GraphEdge) bool {
-		return !edge.Aux
+		return edge.etype == edgeNormal
 	})
 }
 
@@ -389,38 +400,33 @@ func (g *Graph) addVertex(vertex GraphVertex) {
 	}
 }
 
-func (g *Graph) addSimpleEdge(src GraphVertex, dst GraphVertex, capacity int) {
+func (g *Graph) addEdge(src, dst GraphVertex,
+	capacity, demand int, etype edgeType) *GraphEdge {
+
 	g.addVertex(src)
 	g.addVertex(dst)
 
-	edge := &GraphEdge{Src: src, Dst: dst,
-		ReverseEdge: nil, capacity: capacity}
+	edge := &GraphEdge{Src: src, Dst: dst, Demand: demand,
+		capacity: capacity, etype: etype}
 
 	g.noteEdgeAdded()
 	g.vertices[src].addEdge(edge)
+
+	return edge
 }
 
 func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
-	g.addVertex(src)
-	g.addVertex(dst)
-
 	capacity -= demand
 
-	edge := &GraphEdge{Src: src, Dst: dst, capacity: capacity, Demand: demand}
-	redge := &GraphEdge{Src: dst, Dst: src, Aux: true}
+	edge := g.addEdge(src, dst, capacity, demand, edgeNormal)
+	redge := g.addEdge(dst, src, 0, 0, edgeReverse)
 
 	edge.ReverseEdge = redge
 	redge.ReverseEdge = edge
 
-	g.vertices[src].addEdge(edge)
-	g.vertices[dst].addEdge(redge)
-
-	g.noteEdgeAdded()
-	g.noteEdgeAdded()
-
 	if demand != 0 {
-		g.addSimpleEdge(src, Sink, demand)
-		g.addSimpleEdge(dst, Source, demand)
+		g.addEdge(src, Sink, demand, 0, edgeDemand)
+		g.addEdge(dst, Source, demand, 0, edgeDemand)
 	}
 }
 
@@ -449,7 +455,7 @@ func (g *Graph) MaximizeFlow() {
 
 func (g *Graph) IsSaturated() bool {
 	for _, edge := range g.vertices[Source].edges() {
-		if edge.Aux {
+		if edge.IsReverseEdge() {
 			continue
 		}
 
@@ -492,7 +498,7 @@ func (g *Graph) Dot(path string) (err error) {
 
 	for _, edge := range g.edges() {
 		style := "solid"
-		if edge.Aux {
+		if edge.IsReverseEdge() {
 			style = "dashed"
 		}
 
