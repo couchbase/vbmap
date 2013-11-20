@@ -54,7 +54,9 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 }
 
 func buildFlowGraph(params VbmapParams) (g *Graph) {
-	g = NewGraph(params.String())
+	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
+	g = NewGraph(graphName)
+
 	tags := params.Tags.TagsList()
 	tagsNodes := params.Tags.TagsNodesMap()
 
