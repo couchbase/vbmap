@@ -330,21 +330,28 @@ func makeGraph(params VbmapParams) (g *graph) {
 	return
 }
 
-func (g *graph) bfs() bool {
+type edgePredicate func(*graphEdge) bool
+
+func (g *graph) bfsGeneric(pred edgePredicate) int {
 	queue := []graphVertex{source}
 	seen := make(map[graphVertex]bool)
+
+	for v, _ := range g.vertices {
+		g.distances[v] = -1
+	}
 
 	seen[source] = true
 	g.distances[source] = 0
 
+	var d int
 	for len(queue) != 0 {
 		v := queue[0]
-		d := g.distances[v]
+		d = g.distances[v]
 
 		queue = queue[1:]
 
 		for _, edge := range g.vertices[v].edges() {
-			if edge.isSaturated() {
+			if !pred(edge) {
 				continue
 			}
 
@@ -359,8 +366,15 @@ func (g *graph) bfs() bool {
 		}
 	}
 
-	_, seenSink := seen[sink]
-	return seenSink
+	return d
+}
+
+func (g *graph) bfsUnsaturated() bool {
+	_ = g.bfsGeneric(func(edge *graphEdge) bool {
+		return !edge.isSaturated()
+	})
+
+	return g.distances[sink] != -1
 }
 
 func (g *graph) dfsPath(from graphVertex, path *augPath) bool {
@@ -400,7 +414,7 @@ func (g *graph) augmentFlow() bool {
 		vertexData.reset()
 	}
 
-	if !g.bfs() {
+	if !g.bfsUnsaturated() {
 		return false
 	}
 
