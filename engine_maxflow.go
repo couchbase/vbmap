@@ -70,8 +70,8 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
 
-		g.AddEdge(Source, nodeSrcV, params.NumSlaves)
-		g.AddEdge(nodeSinkV, Sink, params.NumSlaves)
+		g.AddEdge(Source, nodeSrcV, params.NumSlaves, 0)
+		g.AddEdge(nodeSinkV, Sink, params.NumSlaves, 0)
 
 		for _, tag := range tags {
 			if tag == nodeTag {
@@ -82,7 +82,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 			tagCapacity := Min(tagNodesCount, maxReplicationsPerTag)
 
 			tagV := TagVertex(tag)
-			g.AddEdge(nodeSrcV, tagV, tagCapacity)
+			g.AddEdge(nodeSrcV, tagV, tagCapacity, 0)
 		}
 	}
 
@@ -93,7 +93,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		for _, tagNode := range tagNodes {
 			tagNodeV := NodeSinkVertex(tagNode)
 
-			g.AddEdge(tagV, tagNodeV, params.NumSlaves)
+			g.AddEdge(tagV, tagNodeV, params.NumSlaves, 0)
 		}
 	}
 
@@ -129,14 +129,14 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 				// edge to node sink vertex
 				dstNode := Node(edge.Dst.(NodeSinkVertex))
 
-				count := nodeCount{dstNode, edge.Flow}
+				count := nodeCount{dstNode, edge.Flow()}
 				inRepsCounts = append(inRepsCounts, count)
 			} else {
 				// reverse edge to node source vertex
 				redge := edge.MustREdge()
 				srcNode := Node(redge.Src.(NodeSourceVertex))
 
-				count := nodeCount{srcNode, redge.Flow}
+				count := nodeCount{srcNode, redge.Flow()}
 				outRepsCounts = append(outRepsCounts, count)
 			}
 		}

@@ -44,40 +44,32 @@ type GraphEdge struct {
 	Src GraphVertex
 	Dst GraphVertex
 
-	Capacity    int
 	Demand      int
-	Flow        int
 	ReverseEdge *GraphEdge
 
 	// is this an auxiliary edge?
 	Aux bool
+
+	// actual capacity adjusted for demand
+	capacity int
+	// flow according to adjusted capacity
+	flow int
+}
+
+func (edge GraphEdge) Capacity() int {
+	return edge.Demand + edge.capacity
+}
+
+func (edge GraphEdge) Flow() int {
+	return edge.Demand + edge.flow
 }
 
 func (edge GraphEdge) String() string {
 	return fmt.Sprintf("%s->%s", edge.Src, edge.Dst)
 }
 
-func (edge *GraphEdge) SetDemand(demand int) {
-	if edge.Aux {
-		panic("demands are not supposed to be adjusted for aux edges")
-	}
-
-	if edge.Flow < demand {
-		panic("edge flow must greater or equal than demand")
-	}
-
-	edge.Demand = demand
-	if edge.ReverseEdge != nil {
-		edge.ReverseEdge.Demand = -demand
-	}
-}
-
 func (edge GraphEdge) residual() int {
-	if !edge.Aux {
-		return edge.Capacity - edge.Flow
-	} else {
-		return edge.Demand - edge.Flow
-	}
+	return edge.capacity - edge.flow
 }
 
 func (edge GraphEdge) MustREdge() *GraphEdge {
@@ -96,9 +88,9 @@ func (edge *GraphEdge) pushFlow(flow int) {
 			flow, edge, residual))
 	}
 
-	edge.Flow += flow
+	edge.flow += flow
 	if edge.ReverseEdge != nil {
-		edge.ReverseEdge.Flow -= flow
+		edge.ReverseEdge.flow -= flow
 	}
 }
 
@@ -402,18 +394,20 @@ func (g *Graph) addSimpleEdge(src GraphVertex, dst GraphVertex, capacity int) {
 	g.addVertex(dst)
 
 	edge := &GraphEdge{Src: src, Dst: dst,
-		Capacity: capacity, Flow: 0, ReverseEdge: nil}
+		ReverseEdge: nil, capacity: capacity}
 
 	g.noteEdgeAdded()
 	g.vertices[src].addEdge(edge)
 }
 
-func (g *Graph) AddEdge(src GraphVertex, dst GraphVertex, capacity int) {
+func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	g.addVertex(src)
 	g.addVertex(dst)
 
-	edge := &GraphEdge{Src: src, Dst: dst, Capacity: capacity, Flow: 0}
-	redge := &GraphEdge{Src: dst, Dst: src, Capacity: 0, Flow: 0, Aux: true}
+	capacity -= demand
+
+	edge := &GraphEdge{Src: src, Dst: dst, capacity: capacity, Demand: demand}
+	redge := &GraphEdge{Src: dst, Dst: src, Aux: true}
 
 	edge.ReverseEdge = redge
 	redge.ReverseEdge = edge
@@ -423,6 +417,11 @@ func (g *Graph) AddEdge(src GraphVertex, dst GraphVertex, capacity int) {
 
 	g.noteEdgeAdded()
 	g.noteEdgeAdded()
+
+	if demand != 0 {
+		g.addSimpleEdge(src, Sink, demand)
+		g.addSimpleEdge(dst, Source, demand)
+	}
 }
 
 func (g *Graph) edges() (result []*GraphEdge) {
