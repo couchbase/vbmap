@@ -27,6 +27,7 @@ type GraphEdge struct {
 	Dst GraphVertex
 
 	Capacity    int
+	Demand      int
 	Flow        int
 	ReverseEdge *GraphEdge
 
@@ -38,8 +39,27 @@ func (edge GraphEdge) String() string {
 	return fmt.Sprintf("%s->%s", edge.Src, edge.Dst)
 }
 
+func (edge *GraphEdge) SetDemand(demand int) {
+	if edge.Aux {
+		panic("demands are not supposed to be adjusted for aux edges")
+	}
+
+	if edge.Flow < demand {
+		panic("edge flow must greater or equal than demand")
+	}
+
+	edge.Demand = demand
+	if edge.ReverseEdge != nil {
+		edge.ReverseEdge.Demand = -demand
+	}
+}
+
 func (edge GraphEdge) residual() int {
-	return edge.Capacity - edge.Flow
+	if !edge.Aux {
+		return edge.Capacity - edge.Flow
+	} else {
+		return edge.Demand - edge.Flow
+	}
 }
 
 func (edge GraphEdge) MustREdge() *GraphEdge {
