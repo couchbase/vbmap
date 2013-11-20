@@ -419,10 +419,13 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	capacity -= demand
 
 	edge := g.addEdge(src, dst, capacity, demand, edgeNormal)
-	redge := g.addEdge(dst, src, 0, 0, edgeReverse)
 
-	edge.ReverseEdge = redge
-	redge.ReverseEdge = edge
+	if src != Source && dst != Sink {
+		redge := g.addEdge(dst, src, 0, 0, edgeReverse)
+
+		edge.ReverseEdge = redge
+		redge.ReverseEdge = edge
+	}
 
 	if demand != 0 {
 		g.addEdge(src, Sink, demand, 0, edgeDemand)
