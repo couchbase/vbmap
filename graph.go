@@ -17,6 +17,24 @@ func (v SimpleVertex) String() string {
 	return string(v)
 }
 
+type TagVertex Tag
+
+func (v TagVertex) String() string {
+	return fmt.Sprintf("tag_%d", int(v))
+}
+
+type NodeSourceVertex Node
+
+func (v NodeSourceVertex) String() string {
+	return fmt.Sprintf("node_%d_source", int(v))
+}
+
+type NodeSinkVertex Node
+
+func (v NodeSinkVertex) String() string {
+	return fmt.Sprintf("node_%d_sink", int(v))
+}
+
 const (
 	source SimpleVertex = "source"
 	sink   SimpleVertex = "sink"

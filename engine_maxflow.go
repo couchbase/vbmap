@@ -67,8 +67,8 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 
 	for _, node := range params.Nodes() {
 		nodeTag := params.Tags[node]
-		nodeSrcV := nodeSourceVertex(node)
-		nodeSinkV := nodeSinkVertex(node)
+		nodeSrcV := NodeSourceVertex(node)
+		nodeSinkV := NodeSinkVertex(node)
 
 		g.AddSimpleEdge(source, nodeSrcV, params.NumSlaves)
 		g.AddSimpleEdge(nodeSinkV, sink, params.NumSlaves)
@@ -81,41 +81,23 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 			tagNodesCount := len(tagsNodes[tag])
 			tagCapacity := Min(tagNodesCount, maxReplicationsPerTag)
 
-			tagV := tagVertex(tag)
+			tagV := TagVertex(tag)
 			g.AddEdge(nodeSrcV, tagV, tagCapacity)
 		}
 	}
 
 	for _, tag := range tags {
 		tagNodes := tagsNodes[tag]
-		tagV := tagVertex(tag)
+		tagV := TagVertex(tag)
 
 		for _, tagNode := range tagNodes {
-			tagNodeV := nodeSinkVertex(tagNode)
+			tagNodeV := NodeSinkVertex(tagNode)
 
 			g.AddEdge(tagV, tagNodeV, params.NumSlaves)
 		}
 	}
 
 	return
-}
-
-type tagVertex Tag
-
-func (v tagVertex) String() string {
-	return fmt.Sprintf("tag_%d", int(v))
-}
-
-type nodeSourceVertex Node
-
-func (v nodeSourceVertex) String() string {
-	return fmt.Sprintf("node_%d_source", int(v))
-}
-
-type nodeSinkVertex Node
-
-func (v nodeSinkVertex) String() string {
-	return fmt.Sprintf("node_%d_sink", int(v))
 }
 
 type nodeCount struct {
@@ -137,7 +119,7 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 	}
 
 	for _, tag := range params.Tags.TagsList() {
-		tagV := tagVertex(tag)
+		tagV := TagVertex(tag)
 
 		inRepsCounts := make(nodeCountSlice, 0)
 		outRepsCounts := make(nodeCountSlice, 0)
@@ -145,14 +127,14 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 		for _, edge := range g.EdgesFromVertex(tagV) {
 			if !edge.Aux {
 				// edge to node sink vertex
-				dstNode := Node(edge.Dst.(nodeSinkVertex))
+				dstNode := Node(edge.Dst.(NodeSinkVertex))
 
 				count := nodeCount{dstNode, edge.Flow}
 				inRepsCounts = append(inRepsCounts, count)
 			} else {
 				// reverse edge to node source vertex
 				redge := edge.MustREdge()
-				srcNode := Node(redge.Src.(nodeSourceVertex))
+				srcNode := Node(redge.Src.(NodeSourceVertex))
 
 				count := nodeCount{srcNode, redge.Flow}
 				outRepsCounts = append(outRepsCounts, count)
