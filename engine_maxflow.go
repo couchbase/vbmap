@@ -523,8 +523,17 @@ func (g *graph) maximizeFlow() {
 }
 
 func (g graph) isSaturated() bool {
-	expectedFlow := g.params.NumNodes * g.params.NumSlaves
-	return g.flow == expectedFlow
+	for _, edge := range g.vertices[source].edges() {
+		if edge.aux {
+			continue
+		}
+
+		if !edge.isSaturated() {
+			return false
+		}
+	}
+
+	return true
 }
 
 type nodeCount struct {
