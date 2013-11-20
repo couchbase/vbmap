@@ -485,10 +485,10 @@ func (g *Graph) Dot(path string) (err error) {
 		}
 
 		fmt.Fprintf(buffer,
-			"%s -> %s [label=\"%d (cap %d)\", decorate,"+
+			"%s -> %s [label=\"%d (%d..%d)\", decorate,"+
 				" style=%s, color=%s];\n",
 			edge.Src, edge.Dst, edge.Flow,
-			edge.Capacity, style, color)
+			edge.Demand, edge.Capacity, style, color)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
