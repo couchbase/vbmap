@@ -36,8 +36,8 @@ func (v NodeSinkVertex) String() string {
 }
 
 const (
-	source SimpleVertex = "source"
-	sink   SimpleVertex = "sink"
+	Source SimpleVertex = "source"
+	Sink   SimpleVertex = "sink"
 )
 
 type GraphEdge struct {
@@ -259,15 +259,15 @@ func NewGraph(name string) (g *Graph) {
 type edgePredicate func(*GraphEdge) bool
 
 func (g *Graph) bfsGeneric(pred edgePredicate) int {
-	queue := []GraphVertex{source}
+	queue := []GraphVertex{Source}
 	seen := make(map[GraphVertex]bool)
 
 	for v, _ := range g.vertices {
 		g.distances[v] = -1
 	}
 
-	seen[source] = true
-	g.distances[source] = 0
+	seen[Source] = true
+	g.distances[Source] = 0
 
 	var d int
 	for len(queue) != 0 {
@@ -300,7 +300,7 @@ func (g *Graph) bfsUnsaturated() bool {
 		return !edge.isSaturated()
 	})
 
-	return g.distances[sink] != -1
+	return g.distances[Sink] != -1
 }
 
 func (g *Graph) bfsNetwork() int {
@@ -310,7 +310,7 @@ func (g *Graph) bfsNetwork() int {
 }
 
 func (g *Graph) dfsPath(from GraphVertex, path *augPath) bool {
-	if from == sink {
+	if from == Sink {
 		return true
 	}
 
@@ -351,7 +351,7 @@ func (g *Graph) augmentFlow() bool {
 	}
 
 	path := augPath(nil)
-	v := GraphVertex(source)
+	v := GraphVertex(Source)
 
 	for {
 		pathFound := g.dfsPath(v, &path)
@@ -376,7 +376,7 @@ func (g *Graph) augmentFlow() bool {
 			v = path[firstSaturatedEdge].Src
 			path.truncate(firstSaturatedEdge)
 		} else {
-			if v == source {
+			if v == Source {
 				break
 			} else {
 				g.distances[v] = -1
@@ -449,7 +449,7 @@ func (g *Graph) MaximizeFlow() {
 }
 
 func (g *Graph) IsSaturated() bool {
-	for _, edge := range g.vertices[source].edges() {
+	for _, edge := range g.vertices[Source].edges() {
 		if edge.Aux {
 			continue
 		}
