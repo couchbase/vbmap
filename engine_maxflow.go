@@ -377,6 +377,12 @@ func (g *graph) bfsUnsaturated() bool {
 	return g.distances[sink] != -1
 }
 
+func (g *graph) bfsNetwork() int {
+	return g.bfsGeneric(func(edge *graphEdge) bool {
+		return !edge.aux
+	})
+}
+
 func (g *graph) dfsPath(from graphVertex, path *augPath) bool {
 	if from == sink {
 		return true
@@ -615,25 +621,20 @@ func (g graph) dot(path string) (err error) {
 	label := fmt.Sprintf(`%s\nflow = %d`, g.params.String(), g.flow)
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
-	groupVertices(buffer, []graphVertex{source}, "source")
-	groupVertices(buffer, []graphVertex{sink}, "sink")
+	dist := g.bfsNetwork()
+	groups := make([][]graphVertex, dist+1)
 
-	nodeSrcVertices := make([]graphVertex, 0)
-	nodeSinkVertices := make([]graphVertex, 0)
-	tagVertices := make([]graphVertex, 0)
-
-	for _, node := range g.params.Nodes() {
-		nodeSrcVertices = append(nodeSrcVertices, nodeSourceVertex(node))
-		nodeSinkVertices = append(nodeSinkVertices, nodeSinkVertex(node))
+	for v, _ := range g.vertices {
+		d := g.distances[v]
+		groups[d] = append(groups[d], v)
 	}
 
-	for _, tag := range g.params.Tags.TagsList() {
-		tagVertices = append(tagVertices, tagVertex(tag))
-	}
+	groupVertices(buffer, groups[0], "source")
+	groupVertices(buffer, groups[dist], "sink")
 
-	groupVertices(buffer, nodeSrcVertices, "same")
-	groupVertices(buffer, tagVertices, "same")
-	groupVertices(buffer, nodeSinkVertices, "same")
+	for _, group := range groups[1:dist] {
+		groupVertices(buffer, group, "same")
+	}
 
 	for _, edge := range g.edges() {
 		style := "solid"
