@@ -440,10 +440,15 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	}
 
 	if demand != 0 {
-		demandEdge1 := g.addEdge(src, Sink, demand, 0, edgeDemand)
-		demandEdge2 := g.addEdge(Source, dst, demand, 0, edgeDemand)
+		if src != Source {
+			demandEdge := g.addEdge(src, Sink, demand, 0, edgeDemand)
+			edge.demandEdges = append(edge.demandEdges, demandEdge)
+		}
 
-		edge.demandEdges = []*GraphEdge{demandEdge1, demandEdge2}
+		if dst != Sink {
+			demandEdge := g.addEdge(Source, dst, demand, 0, edgeDemand)
+			edge.demandEdges = append(edge.demandEdges, demandEdge)
+		}
 	}
 }
 
