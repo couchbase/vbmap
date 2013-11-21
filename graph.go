@@ -535,11 +535,16 @@ func (g *Graph) Dot(path string) (err error) {
 			color = "darkgreen"
 		}
 
+		labelcolor := "black"
+		if edge.etype == edgeNormal && edge.Flow() < edge.Demand {
+			labelcolor = "red"
+		}
+
 		fmt.Fprintf(buffer,
 			"%s -> %s [label=\"%d (%d..%d)\", decorate,"+
-				" style=%s, color=%s];\n",
+				" style=%s, color=%s, fontcolor=%s];\n",
 			edge.Src, edge.Dst, edge.Flow(),
-			edge.Demand, edge.Capacity(), style, color)
+			edge.Demand, edge.Capacity(), style, color, labelcolor)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
