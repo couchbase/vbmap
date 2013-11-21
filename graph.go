@@ -462,7 +462,7 @@ func (g *Graph) edges() (result []*GraphEdge) {
 	return
 }
 
-func (g *Graph) MaximizeFlow() {
+func (g *Graph) MaximizeFlow() bool {
 	g.maxflowStats.reset()
 
 	for {
@@ -473,15 +473,13 @@ func (g *Graph) MaximizeFlow() {
 		diag.Print(g.maxflowStats.String())
 		g.maxflowStats.nextIteration()
 	}
+
+	return g.isFeasible()
 }
 
-func (g *Graph) IsSaturated() bool {
+func (g *Graph) isFeasible() bool {
 	for _, edge := range g.vertices[Source].edges() {
-		if edge.IsReverseEdge() {
-			continue
-		}
-
-		if !edge.isSaturated() {
+		if edge.etype == edgeDemand && !edge.isSaturated() {
 			return false
 		}
 	}

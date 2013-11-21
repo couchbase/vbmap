@@ -36,7 +36,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	diag.Print("Constructed flow graph.\n")
 	diag.Print(g.graphStats)
 
-	g.MaximizeFlow()
+	feasible := g.MaximizeFlow()
 
 	if gen.dotPath != "" {
 		err := g.Dot(gen.dotPath)
@@ -46,7 +46,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 		}
 	}
 
-	if !g.IsSaturated() {
+	if !feasible {
 		return nil, ErrorNoSolution
 	}
 
@@ -70,7 +70,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
 
-		g.AddEdge(Source, nodeSrcV, params.NumSlaves, 0)
+		g.AddEdge(Source, nodeSrcV, params.NumSlaves, params.NumSlaves)
 		g.AddEdge(nodeSinkV, Sink, params.NumSlaves, 0)
 
 		for _, tag := range tags {
