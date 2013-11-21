@@ -60,7 +60,8 @@ type GraphEdge struct {
 	// flow according to adjusted capacity
 	flow int
 
-	etype edgeType
+	etype       edgeType
+	demandEdges []*GraphEdge
 }
 
 func (edge GraphEdge) Capacity() int {
@@ -68,7 +69,18 @@ func (edge GraphEdge) Capacity() int {
 }
 
 func (edge GraphEdge) Flow() int {
-	return edge.Demand + edge.flow
+	if edge.demandEdges == nil {
+		return edge.flow
+	} else {
+		demandFlow := MaxInt
+		for _, demandEdge := range edge.demandEdges {
+			if demandEdge.flow < demandFlow {
+				demandFlow = demandEdge.flow
+			}
+		}
+
+		return edge.flow + demandFlow
+	}
 }
 
 func (edge GraphEdge) String() string {
@@ -428,8 +440,10 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	}
 
 	if demand != 0 {
-		g.addEdge(src, Sink, demand, 0, edgeDemand)
-		g.addEdge(Source, dst, demand, 0, edgeDemand)
+		demandEdge1 := g.addEdge(src, Sink, demand, 0, edgeDemand)
+		demandEdge2 := g.addEdge(Source, dst, demand, 0, edgeDemand)
+
+		edge.demandEdges = []*GraphEdge{demandEdge1, demandEdge2}
 	}
 }
 
