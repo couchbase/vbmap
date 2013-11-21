@@ -505,7 +505,8 @@ func (g *Graph) Dot(path string) (err error) {
 	fmt.Fprintf(buffer, "rankdir=LR;\n")
 	fmt.Fprintf(buffer, "labelloc=t; labeljust=l; ")
 
-	label := fmt.Sprintf(`%s\nflow = %d`, g.name, g.flow)
+	label := fmt.Sprintf(`%s\nflow = %d\nfeasible = %v`,
+		g.name, g.flow, g.isFeasible())
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
 	dist := g.bfsNetwork()
