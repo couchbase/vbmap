@@ -526,7 +526,7 @@ func (g *Graph) Dot(path string) (err error) {
 		}
 
 		color := "red"
-		if edge.residual() > 0 {
+		if edge.Flow() < edge.Capacity() {
 			color = "darkgreen"
 		}
 
