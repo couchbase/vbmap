@@ -546,11 +546,18 @@ func (g *Graph) Dot(path string) (err error) {
 			labelcolor = "red"
 		}
 
+		capacity := edge.Capacity()
+		capacityString := fmt.Sprintf("%d", capacity)
+
+		if capacity == MaxInt {
+			capacityString = "∞"
+		}
+
 		fmt.Fprintf(buffer,
-			"%s -> %s [label=\"%d (%d..%d)\", decorate,"+
+			"%s -> %s [label=\"%d (%d..%s)\", decorate,"+
 				" style=%s, color=%s, fontcolor=%s];\n",
 			edge.Src, edge.Dst, edge.Flow(),
-			edge.Demand, edge.Capacity(), style, color, labelcolor)
+			edge.Demand, capacityString, style, color, labelcolor)
 	}
 
 	fmt.Fprintf(buffer, "}\n")
