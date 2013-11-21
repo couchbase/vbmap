@@ -38,6 +38,9 @@ func (v NodeSinkVertex) String() string {
 const (
 	Source SimpleVertex = "source"
 	Sink   SimpleVertex = "sink"
+
+	supplySource SimpleVertex = "supply"
+	demandSink   SimpleVertex = "demand"
 )
 
 type edgeType int
@@ -268,21 +271,25 @@ func NewGraph(name string) (g *Graph) {
 	g.name = name
 	g.vertices = make(map[GraphVertex]*graphVertexData)
 	g.distances = make(map[GraphVertex]int)
+
+	g.addEdge(supplySource, Source, MaxInt, 0, edgeNormal)
+	g.addEdge(Sink, demandSink, MaxInt, 0, edgeNormal)
+
 	return
 }
 
 type edgePredicate func(*GraphEdge) bool
 
 func (g *Graph) bfsGeneric(pred edgePredicate) int {
-	queue := []GraphVertex{Source}
+	queue := []GraphVertex{supplySource}
 	seen := make(map[GraphVertex]bool)
 
 	for v, _ := range g.vertices {
 		g.distances[v] = -1
 	}
 
-	seen[Source] = true
-	g.distances[Source] = 0
+	seen[supplySource] = true
+	g.distances[supplySource] = 0
 
 	var d int
 	for len(queue) != 0 {
@@ -315,7 +322,7 @@ func (g *Graph) bfsUnsaturated() bool {
 		return !edge.isSaturated()
 	})
 
-	return g.distances[Sink] != -1
+	return g.distances[demandSink] != -1
 }
 
 func (g *Graph) bfsNetwork() int {
@@ -325,7 +332,7 @@ func (g *Graph) bfsNetwork() int {
 }
 
 func (g *Graph) dfsPath(from GraphVertex, path *augPath) bool {
-	if from == Sink {
+	if from == demandSink {
 		return true
 	}
 
@@ -366,7 +373,7 @@ func (g *Graph) augmentFlow() bool {
 	}
 
 	path := augPath(nil)
-	v := GraphVertex(Source)
+	v := GraphVertex(supplySource)
 
 	for {
 		pathFound := g.dfsPath(v, &path)
@@ -391,7 +398,7 @@ func (g *Graph) augmentFlow() bool {
 			v = path[firstSaturatedEdge].Src
 			path.truncate(firstSaturatedEdge)
 		} else {
-			if v == Source {
+			if v == supplySource {
 				break
 			} else {
 				g.distances[v] = -1
@@ -431,24 +438,16 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	capacity -= demand
 
 	edge := g.addEdge(src, dst, capacity, demand, edgeNormal)
+	redge := g.addEdge(dst, src, 0, 0, edgeReverse)
 
-	if src != Source && dst != Sink {
-		redge := g.addEdge(dst, src, 0, 0, edgeReverse)
-
-		edge.ReverseEdge = redge
-		redge.ReverseEdge = edge
-	}
+	edge.ReverseEdge = redge
+	redge.ReverseEdge = edge
 
 	if demand != 0 {
-		if src != Source {
-			demandEdge := g.addEdge(src, Sink, demand, 0, edgeDemand)
-			edge.demandEdges = append(edge.demandEdges, demandEdge)
-		}
+		demandEdge1 := g.addEdge(src, demandSink, demand, 0, edgeDemand)
+		demandEdge2 := g.addEdge(supplySource, dst, demand, 0, edgeDemand)
 
-		if dst != Sink {
-			demandEdge := g.addEdge(Source, dst, demand, 0, edgeDemand)
-			edge.demandEdges = append(edge.demandEdges, demandEdge)
-		}
+		edge.demandEdges = []*GraphEdge{demandEdge1, demandEdge2}
 	}
 }
 
@@ -478,7 +477,7 @@ func (g *Graph) MaximizeFlow() bool {
 }
 
 func (g *Graph) isFeasible() bool {
-	for _, edge := range g.vertices[Source].edges() {
+	for _, edge := range g.vertices[supplySource].edges() {
 		if edge.etype == edgeDemand && !edge.isSaturated() {
 			return false
 		}
