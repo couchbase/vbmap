@@ -500,9 +500,15 @@ func (g *Graph) Dot(path string) (err error) {
 	}
 
 	for _, edge := range g.edges() {
-		style := "solid"
-		if edge.IsReverseEdge() {
+		var style string
+
+		switch edge.etype {
+		case edgeNormal:
+			style = "solid"
+		case edgeReverse:
 			style = "dashed"
+		case edgeDemand:
+			style = "dotted"
 		}
 
 		color := "red"
