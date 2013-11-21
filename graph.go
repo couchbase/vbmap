@@ -489,8 +489,16 @@ func (g *Graph) IsSaturated() bool {
 	return true
 }
 
-func (g *Graph) EdgesFromVertex(v GraphVertex) []*GraphEdge {
-	return g.vertices[v].edges()
+func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
+	for _, edge := range g.vertices[v].edges() {
+		if edge.etype == edgeDemand {
+			continue
+		}
+
+		edges = append(edges, edge)
+	}
+
+	return
 }
 
 func (g *Graph) Dot(path string) (err error) {
