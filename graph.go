@@ -429,7 +429,7 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 
 	if demand != 0 {
 		g.addEdge(src, Sink, demand, 0, edgeDemand)
-		g.addEdge(dst, Source, demand, 0, edgeDemand)
+		g.addEdge(Source, dst, demand, 0, edgeDemand)
 	}
 }
 
