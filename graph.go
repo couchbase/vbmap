@@ -538,12 +538,15 @@ func (g *Graph) Dot(path string) (err error) {
 		g.name, g.flow, g.hasFeasibleFlow())
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
-	dist := g.bfsNetwork(supplySource)
+	dist := g.bfsNetwork(Source)
 	groups := make([][]GraphVertex, dist+1)
 
 	for v, _ := range g.vertices {
 		d := g.distances[v]
-		groups[d] = append(groups[d], v)
+
+		if d != -1 {
+			groups[d] = append(groups[d], v)
+		}
 	}
 
 	groupVertices(buffer, groups[0], "source")
@@ -555,6 +558,10 @@ func (g *Graph) Dot(path string) (err error) {
 
 	for _, edge := range g.edges() {
 		var style string
+
+		if edge.etype != edgeNormal {
+			continue
+		}
 
 		switch edge.etype {
 		case edgeNormal:
