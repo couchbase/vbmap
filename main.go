@@ -211,7 +211,7 @@ func fatal(format string, args ...interface{}) {
 func parseEngineParams(str string) (params map[string]string) {
 	params = make(map[string]string)
 
-	for _, kv := range strings.Split(str, ";") {
+	for _, kv := range strings.Split(str, ",") {
 		var k, v string
 
 		switch split := strings.SplitN(kv, "=", 2); len(split) {
