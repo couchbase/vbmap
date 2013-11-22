@@ -462,19 +462,22 @@ func (g *Graph) edges() (result []*GraphEdge) {
 }
 
 func (g *Graph) MaximizeFlow() bool {
+	g.doMaximizeFlow(supplySource, demandSink, "MaximizeFlow stats")
+	return g.isFeasible()
+}
+
+func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 	g.maxflowStats.reset()
 
 	for {
-		augmented := g.augmentFlow(supplySource, demandSink)
+		augmented := g.augmentFlow(source, sink)
 		if !augmented {
 			break
 		}
 
-		diag.Print("MaximizeFlow stats:\n", g.maxflowStats.String())
+		diag.Printf("%s:\n%s", statsHeader, g.maxflowStats.String())
 		g.maxflowStats.nextIteration()
 	}
-
-	return g.isFeasible()
 }
 
 func (g *Graph) isFeasible() bool {
