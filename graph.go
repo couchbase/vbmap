@@ -210,6 +210,16 @@ func (v *graphVertexData) isSaturated() bool {
 	return true
 }
 
+func (v *graphVertexData) flow() (result int) {
+	for _, edge := range v.edges() {
+		if edge.etype == edgeNormal {
+			result += edge.Flow()
+		}
+	}
+
+	return
+}
+
 type graphStats struct {
 	numVertices int
 	numEdges    int
@@ -279,7 +289,6 @@ type Graph struct {
 	name      string
 	vertices  map[GraphVertex]*graphVertexData
 	distances map[GraphVertex]int
-	flow      int
 
 	graphStats
 	maxflowStats
@@ -397,7 +406,6 @@ func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 		pathFound := g.dfsPath(v, sink, &path)
 		if pathFound {
 			capacity := path.capacity()
-			g.flow += capacity
 			firstSaturatedEdge := -1
 
 			for i, edge := range path {
@@ -544,7 +552,7 @@ func (g *Graph) Dot(path string) (err error) {
 	fmt.Fprintf(buffer, "labelloc=t; labeljust=l; ")
 
 	label := fmt.Sprintf(`%s\nflow = %d\nfeasible = %v`,
-		g.name, g.flow, g.hasFeasibleFlow())
+		g.name, g.vertices[Source].flow(), g.hasFeasibleFlow())
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
 	dist := g.bfsNetwork(Source)
