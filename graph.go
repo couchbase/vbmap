@@ -544,7 +544,7 @@ func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
 	return
 }
 
-func (g *Graph) Dot(path string) (err error) {
+func (g *Graph) Dot(path string, verbose bool) (err error) {
 	buffer := &bytes.Buffer{}
 
 	fmt.Fprintf(buffer, "digraph G {\n")
@@ -576,7 +576,7 @@ func (g *Graph) Dot(path string) (err error) {
 	for _, edge := range g.edges() {
 		var style string
 
-		if edge.etype != edgeNormal {
+		if edge.etype != edgeNormal && !verbose {
 			continue
 		}
 

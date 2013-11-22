@@ -6,11 +6,12 @@ import (
 )
 
 type MaxFlowRIGenerator struct {
-	dotPath string
+	dotPath    string
+	dotVerbose bool
 }
 
 func makeMaxFlowRIGenerator() *MaxFlowRIGenerator {
-	return &MaxFlowRIGenerator{dotPath: ""}
+	return &MaxFlowRIGenerator{dotPath: "", dotVerbose: false}
 }
 
 func (_ MaxFlowRIGenerator) String() string {
@@ -22,6 +23,8 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 		switch k {
 		case "dot":
 			gen.dotPath = v
+		case "dotVerbose":
+			gen.dotVerbose = true
 		default:
 			return fmt.Errorf("unsupported parameter '%s'", k)
 		}
@@ -39,7 +42,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	feasible := g.MaximizeFlow()
 
 	if gen.dotPath != "" {
-		err := g.Dot(gen.dotPath)
+		err := g.Dot(gen.dotPath, gen.dotVerbose)
 		if err != nil {
 			diag.Printf("Couldn't create dot file %s: %s",
 				gen.dotPath, err.Error())
