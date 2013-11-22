@@ -96,6 +96,49 @@ func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
 	return
 }
 
+func buildRFlowGraph(params VbmapParams, RI RI, activeVbs []int) (g *Graph) {
+	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
+	g = NewGraph(graphName)
+
+	colSum := params.NumVBuckets * params.NumReplicas / params.NumNodes
+
+	for i, row := range RI {
+		node := Node(i)
+		nodeSrcV := NodeSourceVertex(node)
+		nodeSinkV := NodeSinkVertex(node)
+
+		rowSum := activeVbs[i] * params.NumReplicas
+
+		g.AddEdge(Source, nodeSrcV, rowSum, rowSum)
+		g.AddEdge(nodeSinkV, Sink, colSum+1, colSum)
+
+		seenTags := make(map[Tag]bool)
+		for j, elem := range row {
+			if !elem {
+				continue
+			}
+
+			dstNode := Node(j)
+			dstNodeTag := params.Tags[dstNode]
+
+			dstNodeSinkV := NodeSinkVertex(dstNode)
+			tagV := TagNodeVertex{dstNodeTag, node}
+
+			if _, seen := seenTags[dstNodeTag]; !seen {
+				maxVbsPerTag := rowSum / params.NumReplicas
+
+				g.AddEdge(nodeSrcV, tagV, maxVbsPerTag, 0)
+				seenTags[dstNodeTag] = true
+			}
+
+			elem := rowSum / params.NumSlaves
+			g.AddEdge(tagV, dstNodeSinkV, elem+1, elem)
+		}
+	}
+
+	return
+}
+
 // Construct initial matrix R from RI.
 //
 // Uses buildInitialR to construct R.

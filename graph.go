@@ -35,6 +35,15 @@ func (v NodeSinkVertex) String() string {
 	return fmt.Sprintf("node_%d_sink", int(v))
 }
 
+type TagNodeVertex struct {
+	Tag  Tag
+	Node Node
+}
+
+func (v TagNodeVertex) String() string {
+	return fmt.Sprintf("tag_%d_node_%d", int(v.Tag), int(v.Node))
+}
+
 const (
 	Source SimpleVertex = "source"
 	Sink   SimpleVertex = "sink"
