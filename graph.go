@@ -191,6 +191,16 @@ func (v *graphVertexData) reset() {
 	v.firstEdge = 0
 }
 
+func (v *graphVertexData) isSaturated() bool {
+	for _, edge := range v.edges() {
+		if !edge.isSaturated() {
+			return false
+		}
+	}
+
+	return true
+}
+
 type graphStats struct {
 	numVertices int
 	numEdges    int
@@ -272,8 +282,7 @@ func NewGraph(name string) (g *Graph) {
 	g.vertices = make(map[GraphVertex]*graphVertexData)
 	g.distances = make(map[GraphVertex]int)
 
-	g.addEdge(supplySource, Source, MaxInt, 0, edgeNormal)
-	g.addEdge(Sink, demandSink, MaxInt, 0, edgeNormal)
+	g.addEdge(Sink, Source, MaxInt, 0, edgeDemand)
 
 	return
 }
@@ -461,9 +470,35 @@ func (g *Graph) edges() (result []*GraphEdge) {
 	return
 }
 
+func (g *Graph) hasFeasibleFlow() bool {
+	_, haveDemands := g.vertices[supplySource]
+	if !haveDemands {
+		return true
+	}
+
+	if g.vertices[supplySource].isSaturated() {
+		return true
+	}
+
+	return false
+}
+
+func (g *Graph) FindFeasibleFlow() bool {
+	if g.hasFeasibleFlow() {
+		return true
+	}
+
+	g.doMaximizeFlow(supplySource, demandSink, "FindFeasibleFlow stats")
+	return g.hasFeasibleFlow()
+}
+
 func (g *Graph) MaximizeFlow() bool {
-	g.doMaximizeFlow(supplySource, demandSink, "MaximizeFlow stats")
-	return g.isFeasible()
+	if !g.FindFeasibleFlow() {
+		return false
+	}
+
+	g.doMaximizeFlow(Source, Sink, "MaximizeFlow stats")
+	return true
 }
 
 func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
@@ -478,16 +513,6 @@ func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 		diag.Printf("%s:\n%s", statsHeader, g.maxflowStats.String())
 		g.maxflowStats.nextIteration()
 	}
-}
-
-func (g *Graph) isFeasible() bool {
-	for _, edge := range g.vertices[supplySource].edges() {
-		if edge.etype == edgeDemand && !edge.isSaturated() {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
@@ -510,7 +535,7 @@ func (g *Graph) Dot(path string) (err error) {
 	fmt.Fprintf(buffer, "labelloc=t; labeljust=l; ")
 
 	label := fmt.Sprintf(`%s\nflow = %d\nfeasible = %v`,
-		g.name, g.flow, g.isFeasible())
+		g.name, g.flow, g.hasFeasibleFlow())
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
 	dist := g.bfsNetwork(supplySource)
