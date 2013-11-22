@@ -218,7 +218,7 @@ type maxflowStats struct {
 }
 
 func (stats maxflowStats) String() string {
-	return fmt.Sprintf("Max flow stats:\n\tCurrent iteration: %d\n"+
+	return fmt.Sprintf("\tCurrent iteration: %d\n"+
 		"\tNumber of advances: %d\n\tNumber of retreats: %d\n"+
 		"\tNumber of augments: %d\n"+
 		"\tTotal number of edges processed: %d\n",
@@ -470,7 +470,7 @@ func (g *Graph) MaximizeFlow() bool {
 			break
 		}
 
-		diag.Print(g.maxflowStats.String())
+		diag.Print("MaximizeFlow stats:\n", g.maxflowStats.String())
 		g.maxflowStats.nextIteration()
 	}
 
