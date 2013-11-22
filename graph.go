@@ -280,16 +280,16 @@ func NewGraph(name string) (g *Graph) {
 
 type edgePredicate func(*GraphEdge) bool
 
-func (g *Graph) bfsGeneric(pred edgePredicate) int {
-	queue := []GraphVertex{supplySource}
+func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
+	queue := []GraphVertex{source}
 	seen := make(map[GraphVertex]bool)
 
 	for v, _ := range g.vertices {
 		g.distances[v] = -1
 	}
 
-	seen[supplySource] = true
-	g.distances[supplySource] = 0
+	seen[source] = true
+	g.distances[source] = 0
 
 	var d int
 	for len(queue) != 0 {
@@ -317,22 +317,22 @@ func (g *Graph) bfsGeneric(pred edgePredicate) int {
 	return d
 }
 
-func (g *Graph) bfsUnsaturated() bool {
-	_ = g.bfsGeneric(func(edge *GraphEdge) bool {
+func (g *Graph) bfsUnsaturated(source GraphVertex) bool {
+	_ = g.bfsGeneric(source, func(edge *GraphEdge) bool {
 		return !edge.isSaturated()
 	})
 
 	return g.distances[demandSink] != -1
 }
 
-func (g *Graph) bfsNetwork() int {
-	return g.bfsGeneric(func(edge *GraphEdge) bool {
+func (g *Graph) bfsNetwork(source GraphVertex) int {
+	return g.bfsGeneric(source, func(edge *GraphEdge) bool {
 		return edge.etype == edgeNormal
 	})
 }
 
-func (g *Graph) dfsPath(from GraphVertex, path *augPath) bool {
-	if from == demandSink {
+func (g *Graph) dfsPath(from, to GraphVertex, path *augPath) bool {
+	if from == to {
 		return true
 	}
 
@@ -349,7 +349,7 @@ func (g *Graph) dfsPath(from GraphVertex, path *augPath) bool {
 			g.noteAdvance()
 
 			path.addEdge(edge)
-			if g.dfsPath(dst, path) {
+			if g.dfsPath(dst, to, path) {
 				return true
 			}
 
@@ -363,20 +363,20 @@ func (g *Graph) dfsPath(from GraphVertex, path *augPath) bool {
 	return false
 }
 
-func (g *Graph) augmentFlow() bool {
+func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 	for _, vertexData := range g.vertices {
 		vertexData.reset()
 	}
 
-	if !g.bfsUnsaturated() {
+	if !g.bfsUnsaturated(source) {
 		return false
 	}
 
 	path := augPath(nil)
-	v := GraphVertex(supplySource)
+	v := source
 
 	for {
-		pathFound := g.dfsPath(v, &path)
+		pathFound := g.dfsPath(v, sink, &path)
 		if pathFound {
 			capacity := path.capacity()
 			g.flow += capacity
@@ -398,7 +398,7 @@ func (g *Graph) augmentFlow() bool {
 			v = path[firstSaturatedEdge].Src
 			path.truncate(firstSaturatedEdge)
 		} else {
-			if v == supplySource {
+			if v == source {
 				break
 			} else {
 				g.distances[v] = -1
@@ -465,7 +465,8 @@ func (g *Graph) MaximizeFlow() bool {
 	g.maxflowStats.reset()
 
 	for {
-		if augmented := g.augmentFlow(); !augmented {
+		augmented := g.augmentFlow(supplySource, demandSink)
+		if !augmented {
 			break
 		}
 
@@ -509,7 +510,7 @@ func (g *Graph) Dot(path string) (err error) {
 		g.name, g.flow, g.isFeasible())
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
-	dist := g.bfsNetwork()
+	dist := g.bfsNetwork(supplySource)
 	groups := make([][]GraphVertex, dist+1)
 
 	for v, _ := range g.vertices {
