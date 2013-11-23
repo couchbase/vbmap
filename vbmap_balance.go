@@ -139,12 +139,37 @@ func buildRFlowGraph(params VbmapParams, RI RI, activeVbs []int) (g *Graph) {
 	return
 }
 
+func graphToR(g *Graph, params VbmapParams) (R R) {
+	matrix := make([][]int, params.NumNodes)
+
+	for i := range matrix {
+		matrix[i] = make([]int, params.NumNodes)
+	}
+
+	for _, dst := range params.Nodes() {
+		dstVertex := NodeSinkVertex(dst)
+
+		for _, edge := range g.EdgesToVertex(dstVertex) {
+			src := edge.Src.(TagNodeVertex).Node
+
+			matrix[int(src)][int(dst)] = edge.Flow()
+		}
+	}
+
+	return makeRFromMatrix(params, matrix)
+}
+
 // Construct initial matrix R from RI.
 //
 // Uses buildInitialR to construct R.
 func makeR(params VbmapParams, RI RI) (result R) {
+	matrix := buildInitialR(params, RI)
+	return makeRFromMatrix(params, matrix)
+}
+
+func makeRFromMatrix(params VbmapParams, matrix [][]int) (result R) {
 	result.params = params
-	result.Matrix = buildInitialR(params, RI)
+	result.Matrix = matrix
 	result.ColSums = make([]int, params.NumNodes)
 	result.RowSums = make([]int, params.NumNodes)
 
