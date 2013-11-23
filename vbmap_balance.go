@@ -525,32 +525,19 @@ func doBuildR(params VbmapParams, RI RI) (best R) {
 }
 
 // Build balanced matrix R from RI.
-//
-// Main job is done in doBuildR(). It can be called several times if resulting
-// matrix evaluation is not zero. Each time doBuildR() starts from new
-// randomized initial R. If this doesn't lead to a matrix with zero evaluation
-// after fixed number of iterations, then the matrix which had the best
-// evaluation is returned.
-func BuildR(params VbmapParams, RI RI) (best R) {
-	bestEvaluation := (1 << 31) - 1
+func BuildR(params VbmapParams, RI RI) (R R, err error) {
+	for i := 0; i < 25; i++ {
+		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
-	for i := 0; i < 10; i++ {
-		R := doBuildR(params, RI)
-		if R.evaluation() < bestEvaluation {
-			best = R
-			bestEvaluation = R.evaluation()
-		}
-
-		if bestEvaluation == 0 {
+		g := buildRFlowGraph(params, RI, activeVbsPerNode)
+		feasible := g.MaximizeFlow()
+		if feasible {
 			diag.Printf("Found balanced map R after %d attempts", i)
-			break
+			R = graphToR(g, params)
+			return
 		}
 	}
 
-	if bestEvaluation != 0 {
-		diag.Printf("Failed to find balanced map R (best evaluation %d)",
-			bestEvaluation)
-	}
-
+	err = ErrorNoSolution
 	return
 }
