@@ -344,12 +344,12 @@ func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
 	return d
 }
 
-func (g *Graph) bfsUnsaturated(source GraphVertex) bool {
+func (g *Graph) bfsUnsaturated(source, sink GraphVertex) bool {
 	_ = g.bfsGeneric(source, func(edge *GraphEdge) bool {
 		return !edge.isSaturated()
 	})
 
-	return g.distances[demandSink] != -1
+	return g.distances[sink] != -1
 }
 
 func (g *Graph) bfsNetwork(source GraphVertex) int {
@@ -395,7 +395,7 @@ func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 		vertexData.reset()
 	}
 
-	if !g.bfsUnsaturated(source) {
+	if !g.bfsUnsaturated(source, sink) {
 		return false
 	}
 
