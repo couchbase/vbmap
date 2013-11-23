@@ -499,7 +499,10 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator) (vbmap Vbmap, err error)
 
 	diag.Printf("Generated topology:\n%s", RI.String())
 
-	R := BuildR(params, RI)
+	R, err := BuildR(params, RI)
+	if err != nil {
+		return
+	}
 	diag.Printf("Final map R:\n%s", R.String())
 
 	return buildVbmap(R), nil
