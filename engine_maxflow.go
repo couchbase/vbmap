@@ -128,20 +128,18 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 		outRepsCounts := make(nodeCountSlice, 0)
 
 		for _, edge := range g.EdgesFromVertex(tagV) {
-			if !edge.IsReverseEdge() {
-				// edge to node sink vertex
-				dstNode := Node(edge.Dst.(NodeSinkVertex))
+			// edge to node sink vertex
+			dstNode := Node(edge.Dst.(NodeSinkVertex))
 
-				count := nodeCount{dstNode, edge.Flow()}
-				inRepsCounts = append(inRepsCounts, count)
-			} else {
-				// reverse edge to node source vertex
-				redge := edge.MustREdge()
-				srcNode := Node(redge.Src.(NodeSourceVertex))
+			count := nodeCount{dstNode, edge.Flow()}
+			inRepsCounts = append(inRepsCounts, count)
+		}
 
-				count := nodeCount{srcNode, redge.Flow()}
-				outRepsCounts = append(outRepsCounts, count)
-			}
+		for _, edge := range g.EdgesToVertex(tagV) {
+			srcNode := Node(edge.Src.(NodeSourceVertex))
+
+			count := nodeCount{srcNode, edge.Flow()}
+			outRepsCounts = append(outRepsCounts, count)
 		}
 
 		sort.Sort(outRepsCounts)

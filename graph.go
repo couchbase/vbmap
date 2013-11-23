@@ -103,7 +103,7 @@ func (edge GraphEdge) residual() int {
 	return edge.capacity - edge.flow
 }
 
-func (edge GraphEdge) MustREdge() *GraphEdge {
+func (edge GraphEdge) mustREdge() *GraphEdge {
 	if edge.ReverseEdge == nil {
 		panic(fmt.Sprintf("Edge %s does not have a reverse edge", edge))
 	}
@@ -534,11 +534,19 @@ func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 
 func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
 	for _, edge := range g.vertices[v].edges() {
-		if edge.etype == edgeDemand {
-			continue
+		if edge.etype == edgeNormal {
+			edges = append(edges, edge)
 		}
+	}
 
-		edges = append(edges, edge)
+	return
+}
+
+func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
+	for _, edge := range g.vertices[v].edges() {
+		if edge.etype == edgeReverse {
+			edges = append(edges, edge.mustREdge())
+		}
 	}
 
 	return
