@@ -452,6 +452,11 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 	_, R, err := testBuildR(params, gen)
 	if err != nil {
+		if err == ErrorNoSolution {
+			diag.Printf("Couldn't find a solution for params %s", params)
+			return true
+		}
+
 		return false
 	}
 
