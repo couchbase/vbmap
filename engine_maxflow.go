@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 )
 
@@ -68,7 +69,9 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		maxReplicationsPerTag = params.NumSlaves / params.NumReplicas
 	}
 
-	for _, node := range params.Nodes() {
+	nodes := params.Nodes()
+	for _, nodeIx := range rand.Perm(len(nodes)) {
+		node := nodes[nodeIx]
 		nodeTag := params.Tags[node]
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
@@ -76,7 +79,9 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		g.AddEdge(Source, nodeSrcV, params.NumSlaves, params.NumSlaves)
 		g.AddEdge(nodeSinkV, Sink, params.NumSlaves, 0)
 
-		for _, tag := range tags {
+		for _, tagIx := range rand.Perm(len(tags)) {
+			tag := tags[tagIx]
+
 			if tag == nodeTag {
 				continue
 			}
@@ -89,7 +94,8 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		}
 	}
 
-	for _, tag := range tags {
+	for _, tagIx := range rand.Perm(len(tags)) {
+		tag := tags[tagIx]
 		tagNodes := tagsNodes[tag]
 		tagV := TagVertex(tag)
 
