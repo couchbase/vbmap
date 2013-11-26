@@ -70,8 +70,8 @@ func TestRReplicaBalance(t *testing.T) {
 					t.Errorf("Couldn't generate RI: %s", err.Error())
 				}
 
-				R := BuildR(params, RI)
-				if R.evaluation() > 10 {
+				R, err := BuildR(params, RI)
+				if err != nil || R.evaluation() > 10 {
 					t.Error("Generated map R has too large evaluation")
 				}
 			}
@@ -156,7 +156,11 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		return false
 	}
 
-	R := BuildR(params, RI)
+	R, err := BuildR(params, RI)
+	if err != nil {
+		return false
+	}
+
 	if params.NumReplicas == 0 {
 		// no replicas? R should obviously be empty
 		for _, row := range R.Matrix {
@@ -231,7 +235,11 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 		return false
 	}
 
-	R := BuildR(params, RI)
+	R, err := BuildR(params, RI)
+	if err != nil {
+		return false
+	}
+
 	vbmap := buildVbmap(R)
 
 	if len(vbmap) != params.NumVBuckets {
@@ -463,7 +471,10 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 		return false
 	}
 
-	R := BuildR(params, RI)
+	R, err := BuildR(params, RI)
+	if err != nil {
+		return false
+	}
 
 	for i, row := range R.Matrix {
 		counts := make(map[Tag]int)
