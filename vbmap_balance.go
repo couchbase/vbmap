@@ -525,14 +525,17 @@ func doBuildR(params VbmapParams, RI RI) (best R) {
 }
 
 // Build balanced matrix R from RI.
-func BuildR(params VbmapParams, RI RI) (R R, err error) {
-	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
+func BuildR(params VbmapParams, RI RI, numRetries int) (R R, err error) {
+	for i := 0; i < numRetries; i++ {
+		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
-	g := buildRFlowGraph(params, RI, activeVbsPerNode)
-	feasible := g.MaximizeFlow()
-	if feasible {
-		R = graphToR(g, params)
-		return
+		g := buildRFlowGraph(params, RI, activeVbsPerNode)
+		feasible := g.MaximizeFlow()
+		if feasible {
+			diag.Printf("Found feasible R after %d attempts", i+1)
+			R = graphToR(g, params)
+			return
+		}
 	}
 
 	err = ErrorNoSolution

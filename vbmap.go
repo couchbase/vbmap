@@ -500,21 +500,16 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator,
 			return nil, err
 		}
 
-		for j := 0; j < numRRetries; j++ {
-			R, err := BuildR(params, RI)
-			if err != nil {
-				if err == ErrorNoSolution {
-					continue
-				}
-
-				return nil, err
-			} else {
-				diag.Printf("Found feasible solution after "+
-					"trying %d RI(s) and %d R(s)", i+1, j+1)
-				diag.Printf("Generated topology:\n%s", RI.String())
-				diag.Printf("Final map R:\n%s", R.String())
-				return buildVbmap(R), nil
+		R, err := BuildR(params, RI, numRRetries)
+		if err != nil {
+			if err == ErrorNoSolution {
+				continue
 			}
+		} else {
+			diag.Printf("Found feasible R after trying %d RI(s)", i+1)
+			diag.Printf("Generated topology:\n%s", RI.String())
+			diag.Printf("Final map R:\n%s", R.String())
+			return buildVbmap(R), nil
 		}
 	}
 
