@@ -43,7 +43,7 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 func TestRReplicaBalance(t *testing.T) {
 	setup(t)
 
-	for nodes := 1; nodes <= 50; nodes++ {
+	for nodes := 1; nodes <= 100; nodes++ {
 		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
@@ -71,7 +71,7 @@ func TestRReplicaBalance(t *testing.T) {
 				}
 
 				R, err := BuildR(params, RI)
-				if err != nil || R.evaluation() > 10 {
+				if err != nil || R.evaluation() > 0 {
 					t.Error("Generated map R has too large evaluation")
 				}
 			}
