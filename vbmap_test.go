@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+func testBuildR(params VbmapParams, gen RIGenerator) (RI RI, R R, err error) {
+	return tryBuildR(params, gen, 10, 25)
+}
+
 type TestingWriter struct {
 	t *testing.T
 }
@@ -65,14 +69,9 @@ func TestRReplicaBalance(t *testing.T) {
 			normalizeParams(&params)
 
 			for _, gen := range allGenerators {
-				RI, err := gen.Generate(params)
-				if err != nil {
-					t.Errorf("Couldn't generate RI: %s", err.Error())
-				}
-
-				R, err := BuildR(params, RI)
+				_, R, err := testBuildR(params, gen)
 				if err != nil || R.evaluation() > 0 {
-					t.Error("Generated map R has too large evaluation")
+					t.Error("Can't build zero-evaluation R")
 				}
 			}
 		}
@@ -151,12 +150,7 @@ func TestRIProperties(t *testing.T) {
 func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	RI, err := gen.Generate(params)
-	if err != nil {
-		return false
-	}
-
-	R, err := BuildR(params, RI)
+	RI, R, err := testBuildR(params, gen)
 	if err != nil {
 		return false
 	}
@@ -230,12 +224,7 @@ type NodePair struct {
 func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	RI, err := gen.Generate(params)
-	if err != nil {
-		return false
-	}
-
-	R, err := BuildR(params, RI)
+	RI, R, err := testBuildR(params, gen)
 	if err != nil {
 		return false
 	}
@@ -461,17 +450,7 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 }
 
 func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
-	RI, err := gen.Generate(params)
-	if err != nil {
-		if err == ErrorNoSolution {
-			diag.Printf("Couldn't find a solution for params %s", params)
-			return true
-		}
-
-		return false
-	}
-
-	R, err := BuildR(params, RI)
+	_, R, err := testBuildR(params, gen)
 	if err != nil {
 		return false
 	}

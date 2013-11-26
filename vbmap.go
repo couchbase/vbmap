@@ -489,29 +489,42 @@ func buildVbmap(R R) (vbmap Vbmap) {
 	return
 }
 
-// Generate vbucket map given a generator for matrix RI and vbucket map
-// parameters.
-func VbmapGenerate(params VbmapParams, gen RIGenerator,
-	numRIRetries, numRRetries int) (vbmap Vbmap, err error) {
+func tryBuildR(params VbmapParams, gen RIGenerator,
+	numRIRetries, numRRetries int) (RI RI, R R, err error) {
 
 	for i := 0; i < numRIRetries; i++ {
-		RI, err := gen.Generate(params)
+		RI, err = gen.Generate(params)
 		if err != nil {
-			return nil, err
+			return
 		}
 
-		R, err := BuildR(params, RI, numRRetries)
+		R, err = BuildR(params, RI, numRRetries)
 		if err != nil {
 			if err == ErrorNoSolution {
 				continue
 			}
 		} else {
 			diag.Printf("Found feasible R after trying %d RI(s)", i+1)
-			diag.Printf("Generated topology:\n%s", RI.String())
-			diag.Printf("Final map R:\n%s", R.String())
-			return buildVbmap(R), nil
+			return
 		}
 	}
 
-	return nil, ErrorNoSolution
+	err = ErrorNoSolution
+	return
+}
+
+// Generate vbucket map given a generator for matrix RI and vbucket map
+// parameters.
+func VbmapGenerate(params VbmapParams, gen RIGenerator,
+	numRIRetries, numRRetries int) (vbmap Vbmap, err error) {
+
+	RI, R, err := tryBuildR(params, gen, numRIRetries, numRRetries)
+	if err != nil {
+		return nil, err
+	}
+
+	diag.Printf("Generated topology:\n%s", RI.String())
+	diag.Printf("Final map R:\n%s", R.String())
+
+	return buildVbmap(R), nil
 }
