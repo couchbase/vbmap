@@ -27,9 +27,9 @@ const (
 )
 
 var availableGenerators []RIGenerator = []RIGenerator{
+	makeMaxFlowRIGenerator(),
 	makeGlpkRIGenerator(),
 	makeDummyRIGenerator(),
-	makeMaxFlowRIGenerator(),
 }
 
 var diag *log.Logger
