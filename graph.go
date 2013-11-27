@@ -200,16 +200,6 @@ func (v *graphVertexData) reset() {
 	v.firstEdge = 0
 }
 
-func (v *graphVertexData) isSaturated() bool {
-	for _, edge := range v.edges() {
-		if !edge.isSaturated() {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (v *graphVertexData) flow() (result int) {
 	for _, edge := range v.edges() {
 		if edge.etype == edgeNormal {
@@ -487,22 +477,22 @@ func (g *Graph) edges() (result []*GraphEdge) {
 	return
 }
 
-func (g *Graph) hasFeasibleFlow() bool {
+func (g *Graph) hasFeasibleFlow() (result bool, violation int) {
 	_, haveDemands := g.vertices[supplySource]
 	if !haveDemands {
-		return true
+		return true, 0
 	}
 
-	if g.vertices[supplySource].isSaturated() {
-		return true
+	for _, edge := range g.vertices[supplySource].edges() {
+		violation += edge.residual()
 	}
 
-	return false
+	return violation == 0, violation
 }
 
-func (g *Graph) FindFeasibleFlow() bool {
-	if g.hasFeasibleFlow() {
-		return true
+func (g *Graph) FindFeasibleFlow() (bool, int) {
+	if feasible, _ := g.hasFeasibleFlow(); feasible {
+		return true, 0
 	}
 
 	g.doMaximizeFlow(supplySource, demandSink, "FindFeasibleFlow stats")
@@ -510,7 +500,7 @@ func (g *Graph) FindFeasibleFlow() bool {
 }
 
 func (g *Graph) MaximizeFlow() bool {
-	if !g.FindFeasibleFlow() {
+	if feasible, _ := g.FindFeasibleFlow(); !feasible {
 		return false
 	}
 
@@ -559,8 +549,10 @@ func (g *Graph) Dot(path string, verbose bool) (err error) {
 	fmt.Fprintf(buffer, "rankdir=LR;\n")
 	fmt.Fprintf(buffer, "labelloc=t; labeljust=l; ")
 
-	label := fmt.Sprintf(`%s\nflow = %d\nfeasible = %v`,
-		g.name, g.vertices[Source].flow(), g.hasFeasibleFlow())
+	feasible, violation := g.hasFeasibleFlow()
+
+	label := fmt.Sprintf(`%s\nflow = %d\nfeasible = %v, violation = %d`,
+		g.name, g.vertices[Source].flow(), feasible, violation)
 	fmt.Fprintf(buffer, "label=\"%s\";\n", label)
 
 	dist := g.bfsNetwork(Source)
