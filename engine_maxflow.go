@@ -40,7 +40,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
 	diag.Print("Constructed flow graph.\n")
 	diag.Print(g.graphStats)
 
-	feasible := g.MaximizeFlow()
+	feasible := g.FindFeasibleFlow()
 
 	if gen.dotPath != "" {
 		err := g.Dot(gen.dotPath, gen.dotVerbose)

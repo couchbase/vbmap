@@ -530,7 +530,7 @@ func BuildR(params VbmapParams, RI RI, numRetries int) (R R, err error) {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 		g := buildRFlowGraph(params, RI, activeVbsPerNode)
-		feasible := g.MaximizeFlow()
+		feasible := g.FindFeasibleFlow()
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			R = graphToR(g, params)
