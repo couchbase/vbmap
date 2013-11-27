@@ -35,6 +35,11 @@ type VbmapParams struct {
 	NumReplicas int
 }
 
+type SearchParams struct {
+	NumRIRetries int
+	NumRRetries  int
+}
+
 func (params VbmapParams) Nodes() (nodes []Node) {
 	for n := 0; n < params.NumNodes; n++ {
 		nodes = append(nodes, Node(n))

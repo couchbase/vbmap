@@ -525,8 +525,8 @@ func doBuildR(params VbmapParams, RI RI) (best R) {
 }
 
 // Build balanced matrix R from RI.
-func BuildR(params VbmapParams, RI RI, numRetries int) (R R, err error) {
-	for i := 0; i < numRetries; i++ {
+func BuildR(params VbmapParams, RI RI, searchParams SearchParams) (R R, err error) {
+	for i := 0; i < searchParams.NumRRetries; i++ {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 		g := buildRFlowGraph(params, RI, activeVbsPerNode)

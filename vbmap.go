@@ -490,15 +490,15 @@ func buildVbmap(R R) (vbmap Vbmap) {
 }
 
 func tryBuildR(params VbmapParams, gen RIGenerator,
-	numRIRetries, numRRetries int) (RI RI, R R, err error) {
+	searchParams SearchParams) (RI RI, R R, err error) {
 
-	for i := 0; i < numRIRetries; i++ {
+	for i := 0; i < searchParams.NumRIRetries; i++ {
 		RI, err = gen.Generate(params)
 		if err != nil {
 			return
 		}
 
-		R, err = BuildR(params, RI, numRRetries)
+		R, err = BuildR(params, RI, searchParams)
 		if err != nil {
 			if err == ErrorNoSolution {
 				continue
@@ -516,9 +516,9 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 // Generate vbucket map given a generator for matrix RI and vbucket map
 // parameters.
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
-	numRIRetries, numRRetries int) (vbmap Vbmap, err error) {
+	searchParams SearchParams) (vbmap Vbmap, err error) {
 
-	RI, R, err := tryBuildR(params, gen, numRIRetries, numRRetries)
+	RI, R, err := tryBuildR(params, gen, searchParams)
 	if err != nil {
 		return nil, err
 	}

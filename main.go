@@ -43,12 +43,14 @@ var (
 	engine       Engine = Engine{availableGenerators[0]}
 	engineParams string = ""
 
+	searchParams SearchParams = SearchParams{
+		NumRIRetries: 10,
+		NumRRetries:  25,
+	}
+
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
 	profTo       string       = ""
-
-	numRIRetries int
-	numRRetries  int
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -248,9 +250,9 @@ func main() {
 	flag.Var(&outputFormat, "output-format", "output format")
 	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
 	flag.StringVar(&profTo, "cpuprofile", "", "write cpuprofile to path")
-	flag.IntVar(&numRIRetries, "num-ri-retries", 10,
+	flag.IntVar(&searchParams.NumRIRetries, "num-ri-retries", 10,
 		"number of attempts to generate matrix RI")
-	flag.IntVar(&numRRetries, "num-r-retries", 25,
+	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
@@ -312,8 +314,7 @@ func main() {
 
 	start := time.Now()
 
-	solution, err :=
-		VbmapGenerate(params, engine.generator, numRIRetries, numRRetries)
+	solution, err := VbmapGenerate(params, engine.generator, searchParams)
 	if err != nil {
 		switch err {
 		case ErrorNoSolution:
