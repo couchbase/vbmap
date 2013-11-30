@@ -133,6 +133,14 @@ func (edge GraphEdge) isSaturated() bool {
 	return edge.residual() == 0
 }
 
+func (edge *GraphEdge) IncreaseCapacity(capacity int) {
+	if capacity < edge.Capacity() {
+		panic("new capacity is less than the old one")
+	}
+
+	edge.capacity = capacity - edge.Demand
+}
+
 type augPath []*GraphEdge
 
 func (path *augPath) addEdge(edge *GraphEdge) {
@@ -537,6 +545,14 @@ func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
 		if edge.etype == edgeReverse {
 			edges = append(edges, edge.mustREdge())
 		}
+	}
+
+	return
+}
+
+func (g *Graph) Vertices() (vertices []GraphVertex) {
+	for v, _ := range g.vertices {
+		vertices = append(vertices, v)
 	}
 
 	return

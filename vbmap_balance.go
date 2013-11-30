@@ -138,6 +138,16 @@ func buildRFlowGraph(params VbmapParams, RI RI, activeVbs []int) (g *Graph) {
 	return
 }
 
+func relaxMaxVbsPerTag(g *Graph) {
+	for _, vertex := range g.Vertices() {
+		if tagV, ok := vertex.(TagNodeVertex); ok {
+			for _, edge := range g.EdgesToVertex(tagV) {
+				edge.IncreaseCapacity(MaxInt)
+			}
+		}
+	}
+}
+
 func graphToR(g *Graph, params VbmapParams) (R R) {
 	matrix := make([][]int, params.NumNodes)
 
