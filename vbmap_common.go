@@ -40,6 +40,7 @@ type SearchParams struct {
 	NumRRetries  int
 
 	RelaxMaxVbucketsPerTag bool
+	RelaxNumSlaves         bool
 }
 
 func (params VbmapParams) Nodes() (nodes []Node) {

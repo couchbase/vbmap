@@ -47,6 +47,7 @@ var (
 		NumRIRetries:           10,
 		NumRRetries:            25,
 		RelaxMaxVbucketsPerTag: false,
+		RelaxNumSlaves:         false,
 	}
 
 	outputFormat OutputFormat = "text"
@@ -260,6 +261,9 @@ func main() {
 		"relax-max-vbuckets-per-tag", false,
 		"allow relaxing maximum number of vbuckets each node "+
 			"replicates to each tag")
+	flag.BoolVar(&searchParams.RelaxNumSlaves,
+		"relax-num-slaves", false,
+		"allow relaxing number of slaves")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 

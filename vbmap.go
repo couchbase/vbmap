@@ -489,6 +489,47 @@ func buildVbmap(r R) (vbmap Vbmap) {
 	return
 }
 
+func tryBuildRI(params *VbmapParams, gen RIGenerator,
+	searchParams SearchParams) (ri RI, err error) {
+
+	ri, err = gen.Generate(*params)
+	if err != ErrorNoSolution {
+		// this covers both success and any error except ErrorNoSolution
+		return
+	}
+
+	if searchParams.RelaxNumSlaves {
+		numSlaves := params.NumSlaves
+		numReplicas := params.NumReplicas
+
+		low := (numSlaves / numReplicas) * numReplicas
+		high := (1 + numSlaves/numReplicas) * numReplicas
+
+		numSlavesCandidates := []int(nil)
+		for i := params.NumSlaves - 1; i >= low; i-- {
+			numSlavesCandidates = append(numSlavesCandidates, i)
+		}
+
+		for i := params.NumSlaves + 1; i <= high; i++ {
+			numSlavesCandidates = append(numSlavesCandidates, i)
+		}
+
+		for _, numSlavesCandidate := range numSlavesCandidates {
+			diag.Printf("Trying to generate RI with relaxed "+
+				"number of slaves (%d)", numSlavesCandidate)
+
+			params.NumSlaves = numSlavesCandidate
+
+			ri, err = gen.Generate(*params)
+			if err != ErrorNoSolution {
+				return
+			}
+		}
+	}
+
+	return nil, ErrorNoSolution
+}
+
 func tryBuildR(params VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, r R, err error) {
 
@@ -496,7 +537,7 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 	var nonstrictR R
 
 	for i := 0; i < searchParams.NumRIRetries; i++ {
-		ri, err = gen.Generate(params)
+		ri, err = tryBuildRI(&params, gen, searchParams)
 		if err != nil {
 			return
 		}
