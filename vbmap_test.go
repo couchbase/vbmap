@@ -33,6 +33,7 @@ func (w TestingWriter) Write(p []byte) (n int, err error) {
 
 func setup(t *testing.T) {
 	diag = log.New(TestingWriter{t}, "", 0)
+	t.Parallel()
 }
 
 func trivialTags(nodes int) (tags map[Node]Tag) {
