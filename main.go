@@ -44,8 +44,9 @@ var (
 	engineParams string = ""
 
 	searchParams SearchParams = SearchParams{
-		NumRIRetries: 10,
-		NumRRetries:  25,
+		NumRIRetries:           10,
+		NumRRetries:            25,
+		RelaxMaxVbucketsPerTag: false,
 	}
 
 	outputFormat OutputFormat = "text"
@@ -250,10 +251,15 @@ func main() {
 	flag.Var(&outputFormat, "output-format", "output format")
 	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
 	flag.StringVar(&profTo, "cpuprofile", "", "write cpuprofile to path")
+
 	flag.IntVar(&searchParams.NumRIRetries, "num-ri-retries", 10,
 		"number of attempts to generate matrix RI")
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
+	flag.BoolVar(&searchParams.RelaxMaxVbucketsPerTag,
+		"relax-max-vbuckets-per-tag", false,
+		"allow relaxing maximum number of vbuckets each node "+
+			"replicates to each tag")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 

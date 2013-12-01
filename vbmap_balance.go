@@ -7,9 +7,10 @@ import (
 
 // Matrix R with some meta-information.
 type R struct {
-	Matrix  [][]int // actual matrix
-	RowSums []int   // row sums for the matrix
-	ColSums []int   // column sums for the matrix
+	Matrix            [][]int // actual matrix
+	RowSums           []int   // row sums for the matrix
+	ColSums           []int   // column sums for the matrix
+	StrictlyRackAware bool
 
 	params           VbmapParams // corresponding vbucket map params
 	expectedColSum   int         // expected column sum
@@ -321,6 +322,8 @@ func (cand R) copy() (result R) {
 
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, RI RI, searchParams SearchParams) (R R, err error) {
+	var nonstrictGraph *Graph
+
 	for i := 0; i < searchParams.NumRRetries; i++ {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
@@ -329,8 +332,24 @@ func BuildR(params VbmapParams, RI RI, searchParams SearchParams) (R R, err erro
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			R = graphToR(g, params)
+			R.StrictlyRackAware = true
 			return
 		}
+
+		if searchParams.RelaxMaxVbucketsPerTag && nonstrictGraph == nil {
+			relaxMaxVbsPerTag(g)
+			feasible, _ := g.FindFeasibleFlow()
+			if feasible {
+				nonstrictGraph = g
+			}
+		}
+	}
+
+	if nonstrictGraph != nil {
+		diag.Printf("Managed to find only non-strictly rack aware R")
+		R = graphToR(nonstrictGraph, params)
+		R.StrictlyRackAware = false
+		return
 	}
 
 	err = ErrorNoSolution

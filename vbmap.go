@@ -490,23 +490,39 @@ func buildVbmap(R R) (vbmap Vbmap) {
 }
 
 func tryBuildR(params VbmapParams, gen RIGenerator,
-	searchParams SearchParams) (RI RI, R R, err error) {
+	searchParams SearchParams) (ri RI, r R, err error) {
+
+	var nonstrictRI RI
+	var nonstrictR R
 
 	for i := 0; i < searchParams.NumRIRetries; i++ {
-		RI, err = gen.Generate(params)
+		ri, err = gen.Generate(params)
 		if err != nil {
 			return
 		}
 
-		R, err = BuildR(params, RI, searchParams)
+		r, err = BuildR(params, ri, searchParams)
 		if err != nil {
 			if err == ErrorNoSolution {
 				continue
 			}
-		} else {
+
+			return
+		}
+
+		if r.StrictlyRackAware {
 			diag.Printf("Found feasible R after trying %d RI(s)", i+1)
 			return
 		}
+
+		if nonstrictRI == nil {
+			nonstrictRI = ri
+			nonstrictR = r
+		}
+	}
+
+	if nonstrictRI != nil {
+		return nonstrictRI, nonstrictR, nil
 	}
 
 	err = ErrorNoSolution

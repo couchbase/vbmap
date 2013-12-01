@@ -10,7 +10,7 @@ import (
 )
 
 func testBuildR(params VbmapParams, gen RIGenerator) (RI RI, R R, err error) {
-	return tryBuildR(params, gen, SearchParams{10, 25})
+	return tryBuildR(params, gen, SearchParams{10, 25, false})
 }
 
 type TestingWriter struct {
