@@ -70,24 +70,24 @@ func (cand R) String() string {
 //
 // It just spreads active vbuckets uniformly between the nodes. And then for
 // each node spreads replica vbuckets among the slaves of this node.
-func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
+func buildInitialR(params VbmapParams, ri RI) (r [][]int) {
 	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
-	R = make([][]int, len(RI))
+	r = make([][]int, len(ri))
 	if params.NumSlaves == 0 {
 		return
 	}
 
-	for i, row := range RI {
+	for i, row := range ri {
 		rowSum := activeVbsPerNode[i] * params.NumReplicas
 		slaveVbs := SpreadSum(rowSum, params.NumSlaves)
 
-		R[i] = make([]int, len(row))
+		r[i] = make([]int, len(row))
 
 		slave := 0
 		for j, elem := range row {
 			if elem {
-				R[i][j] = slaveVbs[slave]
+				r[i][j] = slaveVbs[slave]
 				slave += 1
 			}
 		}
@@ -96,13 +96,13 @@ func buildInitialR(params VbmapParams, RI RI) (R [][]int) {
 	return
 }
 
-func buildRFlowGraph(params VbmapParams, RI RI, activeVbs []int) (g *Graph) {
+func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
 	g = NewGraph(graphName)
 
 	colSum := params.NumVBuckets * params.NumReplicas / params.NumNodes
 
-	for i, row := range RI {
+	for i, row := range ri {
 		node := Node(i)
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
@@ -149,7 +149,7 @@ func relaxMaxVbsPerTag(g *Graph) {
 	}
 }
 
-func graphToR(g *Graph, params VbmapParams) (R R) {
+func graphToR(g *Graph, params VbmapParams) (r R) {
 	matrix := make([][]int, params.NumNodes)
 
 	for i := range matrix {
@@ -172,8 +172,8 @@ func graphToR(g *Graph, params VbmapParams) (R R) {
 // Construct initial matrix R from RI.
 //
 // Uses buildInitialR to construct R.
-func makeR(params VbmapParams, RI RI) (result R) {
-	matrix := buildInitialR(params, RI)
+func makeR(params VbmapParams, ri RI) (result R) {
+	matrix := buildInitialR(params, ri)
 	return makeRFromMatrix(params, matrix)
 }
 
@@ -321,18 +321,18 @@ func (cand R) copy() (result R) {
 }
 
 // Build balanced matrix R from RI.
-func BuildR(params VbmapParams, RI RI, searchParams SearchParams) (R R, err error) {
+func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err error) {
 	var nonstrictGraph *Graph
 
 	for i := 0; i < searchParams.NumRRetries; i++ {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
-		g := buildRFlowGraph(params, RI, activeVbsPerNode)
+		g := buildRFlowGraph(params, ri, activeVbsPerNode)
 		feasible, _ := g.FindFeasibleFlow()
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
-			R = graphToR(g, params)
-			R.StrictlyRackAware = true
+			r = graphToR(g, params)
+			r.StrictlyRackAware = true
 			return
 		}
 
@@ -347,8 +347,8 @@ func BuildR(params VbmapParams, RI RI, searchParams SearchParams) (R R, err erro
 
 	if nonstrictGraph != nil {
 		diag.Printf("Managed to find only non-strictly rack aware R")
-		R = graphToR(nonstrictGraph, params)
-		R.StrictlyRackAware = false
+		r = graphToR(nonstrictGraph, params)
+		r.StrictlyRackAware = false
 		return
 	}
 

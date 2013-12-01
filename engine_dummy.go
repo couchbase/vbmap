@@ -18,23 +18,23 @@ func (_ DummyRIGenerator) String() string {
 	return "dummy"
 }
 
-func (_ DummyRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
+func (_ DummyRIGenerator) Generate(params VbmapParams) (ri RI, err error) {
 	if params.Tags.TagsCount() != params.NumNodes {
 		err = fmt.Errorf("Dummy RI generator is rack unaware and " +
 			"doesn't support more than one node on the same tag")
 		return
 	}
 
-	RI = make([][]bool, params.NumNodes)
-	for i := range RI {
-		RI[i] = make([]bool, params.NumNodes)
+	ri = make([][]bool, params.NumNodes)
+	for i := range ri {
+		ri[i] = make([]bool, params.NumNodes)
 	}
 
-	for i, row := range RI {
+	for i, row := range ri {
 		for j := range row {
 			k := (j - i + params.NumNodes - 1) % params.NumNodes
 			if k < params.NumSlaves {
-				RI[i][j] = true
+				ri[i][j] = true
 			}
 		}
 	}

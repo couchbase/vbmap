@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func testBuildR(params VbmapParams, gen RIGenerator) (RI RI, R R, err error) {
+func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
 	return tryBuildR(params, gen, SearchParams{10, 25, false})
 }
 
@@ -69,8 +69,8 @@ func TestRReplicaBalance(t *testing.T) {
 			normalizeParams(&params)
 
 			for _, gen := range allGenerators {
-				_, R, err := testBuildR(params, gen)
-				if err != nil || R.evaluation() > 0 {
+				_, r, err := testBuildR(params, gen)
+				if err != nil || r.evaluation() > 0 {
 					t.Error("Can't build zero-evaluation R")
 				}
 			}
@@ -95,16 +95,16 @@ func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
-	RI, err := gen.Generate(params)
+	ri, err := gen.Generate(params)
 	if err != nil {
 		return false
 	}
 
-	if len(RI) != params.NumNodes {
+	if len(ri) != params.NumNodes {
 		return false
 	}
 
-	if len(RI[0]) != params.NumNodes {
+	if len(ri[0]) != params.NumNodes {
 		return false
 	}
 
@@ -112,7 +112,7 @@ func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
 	rowSums := make([]int, params.NumNodes)
 
 	b2i := map[bool]int{false: 0, true: 1}
-	for i, row := range RI {
+	for i, row := range ri {
 		for j, elem := range row {
 			colSums[j] += b2i[elem]
 			rowSums[i] += b2i[elem]
@@ -150,14 +150,14 @@ func TestRIProperties(t *testing.T) {
 func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	RI, R, err := testBuildR(params, gen)
+	ri, r, err := testBuildR(params, gen)
 	if err != nil {
 		return false
 	}
 
 	if params.NumReplicas == 0 {
 		// no replicas? R should obviously be empty
-		for _, row := range R.Matrix {
+		for _, row := range r.Matrix {
 			for _, elem := range row {
 				if elem != 0 {
 					return false
@@ -166,10 +166,10 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		}
 	} else {
 		// check that we follow RI topology
-		for i, row := range RI {
+		for i, row := range ri {
 			for j, elem := range row {
-				if !elem && R.Matrix[i][j] != 0 ||
-					elem && R.Matrix[i][j] == 0 {
+				if !elem && r.Matrix[i][j] != 0 ||
+					elem && r.Matrix[i][j] == 0 {
 					return false
 				}
 			}
@@ -178,7 +178,7 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		totalVBuckets := 0
 
 		// check active vbuckets balance
-		for _, sum := range R.RowSums {
+		for _, sum := range r.RowSums {
 			if sum%params.NumReplicas != 0 {
 				return false
 			}
@@ -224,12 +224,12 @@ type NodePair struct {
 func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	RI, R, err := testBuildR(params, gen)
+	ri, r, err := testBuildR(params, gen)
 	if err != nil {
 		return false
 	}
 
-	vbmap := buildVbmap(R)
+	vbmap := buildVbmap(r)
 
 	if len(vbmap) != params.NumVBuckets {
 		return false
@@ -251,7 +251,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 		for _, replica := range chain[1:] {
 			// all the replications correspond to ones
 			// defined by R
-			if !RI[int(master)][int(replica)] {
+			if !ri[int(master)][int(replica)] {
 				return false
 			}
 
@@ -267,7 +267,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 	}
 
 	// number of replications should correspond to one defined by R
-	for i, row := range R.Matrix {
+	for i, row := range r.Matrix {
 		for j, elem := range row {
 			if elem != 0 {
 				pair := NodePair{Node(i), Node(j)}
@@ -282,7 +282,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 
 	// number of active vbuckets should correspond to one defined
 	// by matrix R
-	for n, sum := range R.RowSums {
+	for n, sum := range r.RowSums {
 		if params.NumReplicas != 0 {
 			// if we have at least one replica then number
 			// of active vbuckets is defined by matrix R
@@ -303,7 +303,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 
 	// number of replica vbuckets should correspond to one defined
 	// by R
-	for n, sum := range R.ColSums {
+	for n, sum := range r.ColSums {
 		if sum != replicaVBuckets[n] {
 			return false
 		}
@@ -377,7 +377,7 @@ func (_ EqualTagsR1VbmapParams) Generate(rand *rand.Rand, size int) reflect.Valu
 }
 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
-	RI, err := gen.Generate(params)
+	ri, err := gen.Generate(params)
 	if err != nil {
 		switch err {
 		case ErrorNoSolution:
@@ -398,7 +398,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 		}
 	}
 
-	for i, row := range RI {
+	for i, row := range ri {
 		for j, elem := range row {
 			if elem {
 				if params.Tags[Node(i)] == params.Tags[Node(j)] {
@@ -450,7 +450,7 @@ func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value 
 }
 
 func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
-	_, R, err := testBuildR(params, gen)
+	_, r, err := testBuildR(params, gen)
 	if err != nil {
 		if err == ErrorNoSolution {
 			diag.Printf("Couldn't find a solution for params %s", params)
@@ -460,7 +460,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 		return false
 	}
 
-	for i, row := range R.Matrix {
+	for i, row := range r.Matrix {
 		counts := make(map[Tag]int)
 
 		for j, vbs := range row {
@@ -473,7 +473,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 			counts[tag] = count + vbs
 		}
 
-		vbuckets := R.RowSums[i] / params.NumReplicas
+		vbuckets := r.RowSums[i] / params.NumReplicas
 
 		for _, count := range counts {
 			if count > vbuckets {
@@ -484,7 +484,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 		}
 	}
 
-	vbmap := buildVbmap(R)
+	vbmap := buildVbmap(r)
 	for _, chain := range vbmap {
 		tags := make(map[Tag]bool)
 

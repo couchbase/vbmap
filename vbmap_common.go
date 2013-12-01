@@ -112,10 +112,10 @@ func (_ DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
 	return nil
 }
 
-func (RI RI) String() string {
+func (ri RI) String() string {
 	buffer := &bytes.Buffer{}
 
-	for _, row := range RI {
+	for _, row := range ri {
 		for _, elem := range row {
 			fmt.Fprintf(buffer, "%2d ", B2i(elem))
 		}

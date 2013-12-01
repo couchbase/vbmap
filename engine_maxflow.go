@@ -120,11 +120,11 @@ func (a nodeCountSlice) Len() int           { return len(a) }
 func (a nodeCountSlice) Less(i, j int) bool { return a[i].count > a[j].count }
 func (a nodeCountSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func graphToRI(g *Graph, params VbmapParams) (RI RI) {
-	RI = make([][]bool, params.NumNodes)
+func graphToRI(g *Graph, params VbmapParams) (ri RI) {
+	ri = make([][]bool, params.NumNodes)
 
 	for i := range params.Nodes() {
-		RI[i] = make([]bool, params.NumNodes)
+		ri[i] = make([]bool, params.NumNodes)
 	}
 
 	for _, tag := range params.Tags.TagsList() {
@@ -169,13 +169,13 @@ func graphToRI(g *Graph, params VbmapParams) (RI RI) {
 
 				dstNode := int(inRepsCounts[slaveIx].node)
 
-				if RI[srcNode][dstNode] {
+				if ri[srcNode][dstNode] {
 					panic(fmt.Sprintf("Forced to use the "+
 						"same slave %d twice (tag %v)",
 						dstNode, tag))
 				}
 
-				RI[srcNode][dstNode] = true
+				ri[srcNode][dstNode] = true
 				count -= 1
 
 				inRepsCounts[slaveIx].count -= 1

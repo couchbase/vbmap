@@ -420,8 +420,8 @@ func (ctx *selectionCtx) nextBestChain() (result []Node) {
 }
 
 // Construct vbucket map from a matrix R.
-func buildVbmap(R R) (vbmap Vbmap) {
-	params := R.params
+func buildVbmap(r R) (vbmap Vbmap) {
+	params := r.params
 	vbmap = makeVbmap(params)
 
 	// determines how many active vbuckets each node has
@@ -435,7 +435,7 @@ func buildVbmap(R R) (vbmap Vbmap) {
 		// Otherwise matrix R defines the amount of active vbuckets
 		// each node has.
 		nodeVbs = make([]int, params.NumNodes)
-		for i, sum := range R.RowSums {
+		for i, sum := range r.RowSums {
 			vbs := sum / params.NumReplicas
 			if sum%params.NumReplicas != 0 {
 				panic("row sum is not multiple of NumReplicas")
@@ -446,7 +446,7 @@ func buildVbmap(R R) (vbmap Vbmap) {
 	}
 
 	vbucket := 0
-	for i, row := range R.Matrix {
+	for i, row := range r.Matrix {
 		vbs := nodeVbs[i]
 		ctx := makeSelectionCtx(params, Node(i), vbs)
 
@@ -534,13 +534,13 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (vbmap Vbmap, err error) {
 
-	RI, R, err := tryBuildR(params, gen, searchParams)
+	ri, r, err := tryBuildR(params, gen, searchParams)
 	if err != nil {
 		return nil, err
 	}
 
-	diag.Printf("Generated topology:\n%s", RI.String())
-	diag.Printf("Final map R:\n%s", R.String())
+	diag.Printf("Generated topology:\n%s", ri.String())
+	diag.Printf("Final map R:\n%s", r.String())
 
-	return buildVbmap(R), nil
+	return buildVbmap(r), nil
 }
