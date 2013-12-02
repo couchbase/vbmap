@@ -523,7 +523,7 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 
 			params.NumSlaves = numSlavesCandidate
 
-			ri, err = gen.Generate(*params, strictSearchParams)
+			ri, err = gen.Generate(*params, searchParams)
 			if err != ErrorNoSolution {
 				return
 			}

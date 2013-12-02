@@ -44,6 +44,15 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 
 	feasible, _ := g.FindFeasibleFlow()
 
+	if !feasible && searchParams.RelaxMaxVbucketsPerTag {
+		relaxMaxSlavesPerTag(g, params)
+		feasible, _ = g.FindFeasibleFlow()
+		if feasible {
+			diag.Printf("Managed to generate RI with relaxed " +
+				"number of slaves per tag")
+		}
+	}
+
 	if gen.dotPath != "" {
 		err := g.Dot(gen.dotPath, gen.dotVerbose)
 		if err != nil {
@@ -109,6 +118,19 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 	}
 
 	return
+}
+
+func relaxMaxSlavesPerTag(g *Graph, params VbmapParams) {
+	tagsNodes := params.Tags.TagsNodesMap()
+
+	for _, vertex := range g.Vertices() {
+		if tagV, ok := vertex.(TagVertex); ok {
+			for _, edge := range g.EdgesToVertex(tagV) {
+				tagNodesCount := len(tagsNodes[Tag(tagV)])
+				edge.IncreaseCapacity(tagNodesCount)
+			}
+		}
+	}
 }
 
 type nodeCount struct {
