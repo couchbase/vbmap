@@ -35,16 +35,18 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 }
 
 func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
-	searchParams SearchParams) (RI RI, err error) {
+	searchParams SearchParams) (ri RI, err error) {
 
 	g := buildFlowGraph(params)
 
 	diag.Print("Constructed flow graph.\n")
 	diag.Print(g.graphStats)
 
+	strict := true
 	feasible, _ := g.FindFeasibleFlow()
 
 	if !feasible && searchParams.RelaxMaxVbucketsPerTag {
+		strict = false
 		relaxMaxSlavesPerTag(g, params)
 		feasible, _ = g.FindFeasibleFlow()
 		if feasible {
@@ -66,7 +68,9 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 		return
 	}
 
-	return graphToRI(g, params), nil
+	ri = graphToRI(g, params)
+	ri.Strict = strict
+	return
 }
 
 func buildFlowGraph(params VbmapParams) (g *Graph) {

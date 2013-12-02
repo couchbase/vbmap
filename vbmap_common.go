@@ -97,6 +97,7 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 
 type RI struct {
 	Matrix [][]bool
+	Strict bool
 }
 
 type RIGenerator interface {
