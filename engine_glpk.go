@@ -104,7 +104,7 @@ func readSolution(params VbmapParams, outPath string) (RI, error) {
 	return result, nil
 }
 
-func (_ GlpkRIGenerator) Generate(params VbmapParams) (RI, error) {
+func (_ GlpkRIGenerator) Generate(params VbmapParams, _ SearchParams) (RI, error) {
 	dataFile, err := ioutil.TempFile("", "vbmap_glpk_data")
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create data file: %s", err.Error())

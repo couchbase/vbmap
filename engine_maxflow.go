@@ -34,7 +34,9 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 	return nil
 }
 
-func (gen MaxFlowRIGenerator) Generate(params VbmapParams) (RI RI, err error) {
+func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
+	searchParams SearchParams) (RI RI, err error) {
+
 	g := buildFlowGraph(params)
 
 	diag.Print("Constructed flow graph.\n")

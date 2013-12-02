@@ -18,7 +18,7 @@ func (_ DummyRIGenerator) String() string {
 	return "dummy"
 }
 
-func (_ DummyRIGenerator) Generate(params VbmapParams) (ri RI, err error) {
+func (_ DummyRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, err error) {
 	if params.Tags.TagsCount() != params.NumNodes {
 		err = fmt.Errorf("Dummy RI generator is rack unaware and " +
 			"doesn't support more than one node on the same tag")

@@ -492,7 +492,10 @@ func buildVbmap(r R) (vbmap Vbmap) {
 func tryBuildRI(params *VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, err error) {
 
-	ri, err = gen.Generate(*params)
+	strictSearchParams := searchParams
+	strictSearchParams.RelaxMaxVbucketsPerTag = false
+
+	ri, err = gen.Generate(*params, strictSearchParams)
 	if err != ErrorNoSolution {
 		// this covers both success and any error except ErrorNoSolution
 		return
@@ -520,14 +523,14 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 
 			params.NumSlaves = numSlavesCandidate
 
-			ri, err = gen.Generate(*params)
+			ri, err = gen.Generate(*params, strictSearchParams)
 			if err != ErrorNoSolution {
 				return
 			}
 		}
 	}
 
-	return nil, ErrorNoSolution
+	return gen.Generate(*params, searchParams)
 }
 
 func tryBuildR(params VbmapParams, gen RIGenerator,

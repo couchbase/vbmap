@@ -99,7 +99,7 @@ type RI [][]bool
 
 type RIGenerator interface {
 	SetParams(params map[string]string) error
-	Generate(params VbmapParams) (RI, error)
+	Generate(params VbmapParams, searchParams SearchParams) (RI, error)
 	fmt.Stringer
 }
 

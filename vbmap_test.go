@@ -9,8 +9,16 @@ import (
 	"time"
 )
 
+var (
+	testSearchParams = SearchParams{10, 25, false, false}
+)
+
+func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
+	return gen.Generate(params, testSearchParams)
+}
+
 func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
-	return tryBuildR(params, gen, SearchParams{10, 25, false, false})
+	return tryBuildR(params, gen, testSearchParams)
 }
 
 type TestingWriter struct {
@@ -96,7 +104,7 @@ func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
-	ri, err := gen.Generate(params)
+	ri, err := testBuildRI(params, gen)
 	if err != nil {
 		return false
 	}
@@ -378,7 +386,7 @@ func (_ EqualTagsR1VbmapParams) Generate(rand *rand.Rand, size int) reflect.Valu
 }
 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
-	ri, err := gen.Generate(params)
+	ri, err := testBuildRI(params, gen)
 	if err != nil {
 		switch err {
 		case ErrorNoSolution:
@@ -388,7 +396,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 			gen := makeGlpkRIGenerator()
 
 			// if glpk can find a solution then report an error
-			_, err = gen.Generate(params)
+			_, err := testBuildRI(params, gen)
 			if err == nil {
 				return false
 			}
