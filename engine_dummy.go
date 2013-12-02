@@ -25,16 +25,16 @@ func (_ DummyRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, e
 		return
 	}
 
-	ri = make([][]bool, params.NumNodes)
-	for i := range ri {
-		ri[i] = make([]bool, params.NumNodes)
+	ri.Matrix = make([][]bool, params.NumNodes)
+	for i := range ri.Matrix {
+		ri.Matrix[i] = make([]bool, params.NumNodes)
 	}
 
-	for i, row := range ri {
+	for i, row := range ri.Matrix {
 		for j := range row {
 			k := (j - i + params.NumNodes - 1) % params.NumNodes
 			if k < params.NumSlaves {
-				ri[i][j] = true
+				ri.Matrix[i][j] = true
 			}
 		}
 	}

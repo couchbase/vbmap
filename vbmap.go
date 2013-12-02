@@ -538,6 +538,7 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 
 	var nonstrictRI RI
 	var nonstrictR R
+	foundNonstrict := false
 
 	for i := 0; i < searchParams.NumRIRetries; i++ {
 		ri, err = tryBuildRI(&params, gen, searchParams)
@@ -559,13 +560,14 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			return
 		}
 
-		if nonstrictRI == nil {
+		if !foundNonstrict {
 			nonstrictRI = ri
 			nonstrictR = r
+			foundNonstrict = true
 		}
 	}
 
-	if nonstrictRI != nil {
+	if foundNonstrict {
 		return nonstrictRI, nonstrictR, nil
 	}
 

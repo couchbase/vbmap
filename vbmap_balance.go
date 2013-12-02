@@ -73,12 +73,12 @@ func (cand R) String() string {
 func buildInitialR(params VbmapParams, ri RI) (r [][]int) {
 	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
-	r = make([][]int, len(ri))
+	r = make([][]int, len(ri.Matrix))
 	if params.NumSlaves == 0 {
 		return
 	}
 
-	for i, row := range ri {
+	for i, row := range ri.Matrix {
 		rowSum := activeVbsPerNode[i] * params.NumReplicas
 		slaveVbs := SpreadSum(rowSum, params.NumSlaves)
 
@@ -102,7 +102,7 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 
 	colSum := params.NumVBuckets * params.NumReplicas / params.NumNodes
 
-	for i, row := range ri {
+	for i, row := range ri.Matrix {
 		node := Node(i)
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)

@@ -62,7 +62,8 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	}
 
 	if !feasible {
-		return nil, ErrorNoSolution
+		err = ErrorNoSolution
+		return
 	}
 
 	return graphToRI(g, params), nil
@@ -145,10 +146,10 @@ func (a nodeCountSlice) Less(i, j int) bool { return a[i].count > a[j].count }
 func (a nodeCountSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func graphToRI(g *Graph, params VbmapParams) (ri RI) {
-	ri = make([][]bool, params.NumNodes)
+	ri.Matrix = make([][]bool, params.NumNodes)
 
 	for i := range params.Nodes() {
-		ri[i] = make([]bool, params.NumNodes)
+		ri.Matrix[i] = make([]bool, params.NumNodes)
 	}
 
 	for _, tag := range params.Tags.TagsList() {
@@ -193,13 +194,13 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 
 				dstNode := int(inRepsCounts[slaveIx].node)
 
-				if ri[srcNode][dstNode] {
+				if ri.Matrix[srcNode][dstNode] {
 					panic(fmt.Sprintf("Forced to use the "+
 						"same slave %d twice (tag %v)",
 						dstNode, tag))
 				}
 
-				ri[srcNode][dstNode] = true
+				ri.Matrix[srcNode][dstNode] = true
 				count -= 1
 
 				inRepsCounts[slaveIx].count -= 1

@@ -109,11 +109,11 @@ func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
 		return false
 	}
 
-	if len(ri) != params.NumNodes {
+	if len(ri.Matrix) != params.NumNodes {
 		return false
 	}
 
-	if len(ri[0]) != params.NumNodes {
+	if len(ri.Matrix[0]) != params.NumNodes {
 		return false
 	}
 
@@ -121,7 +121,7 @@ func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
 	rowSums := make([]int, params.NumNodes)
 
 	b2i := map[bool]int{false: 0, true: 1}
-	for i, row := range ri {
+	for i, row := range ri.Matrix {
 		for j, elem := range row {
 			colSums[j] += b2i[elem]
 			rowSums[i] += b2i[elem]
@@ -175,7 +175,7 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 		}
 	} else {
 		// check that we follow RI topology
-		for i, row := range ri {
+		for i, row := range ri.Matrix {
 			for j, elem := range row {
 				if !elem && r.Matrix[i][j] != 0 ||
 					elem && r.Matrix[i][j] == 0 {
@@ -260,7 +260,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 		for _, replica := range chain[1:] {
 			// all the replications correspond to ones
 			// defined by R
-			if !ri[int(master)][int(replica)] {
+			if !ri.Matrix[int(master)][int(replica)] {
 				return false
 			}
 
@@ -407,7 +407,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 		}
 	}
 
-	for i, row := range ri {
+	for i, row := range ri.Matrix {
 		for j, elem := range row {
 			if elem {
 				if params.Tags[Node(i)] == params.Tags[Node(j)] {

@@ -95,7 +95,9 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 	return
 }
 
-type RI [][]bool
+type RI struct {
+	Matrix [][]bool
+}
 
 type RIGenerator interface {
 	SetParams(params map[string]string) error
@@ -116,7 +118,7 @@ func (_ DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
 func (ri RI) String() string {
 	buffer := &bytes.Buffer{}
 
-	for _, row := range ri {
+	for _, row := range ri.Matrix {
 		for _, elem := range row {
 			fmt.Fprintf(buffer, "%2d ", B2i(elem))
 		}
