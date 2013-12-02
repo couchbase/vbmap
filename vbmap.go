@@ -492,14 +492,7 @@ func buildVbmap(r R) (vbmap Vbmap) {
 func tryBuildRI(params *VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, err error) {
 
-	strictSearchParams := searchParams
-	strictSearchParams.RelaxMaxVbucketsPerTag = false
-
-	ri, err = gen.Generate(*params, strictSearchParams)
-	if err != ErrorNoSolution {
-		// this covers both success and any error except ErrorNoSolution
-		return
-	}
+	numSlavesCandidates := []int{params.NumSlaves}
 
 	if searchParams.RelaxNumSlaves {
 		numSlaves := params.NumSlaves
@@ -508,7 +501,6 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 		low := (numSlaves / numReplicas) * numReplicas
 		high := (1 + numSlaves/numReplicas) * numReplicas
 
-		numSlavesCandidates := []int(nil)
 		for i := params.NumSlaves - 1; i >= low; i-- {
 			numSlavesCandidates = append(numSlavesCandidates, i)
 		}
@@ -516,21 +508,40 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 		for i := params.NumSlaves + 1; i <= high; i++ {
 			numSlavesCandidates = append(numSlavesCandidates, i)
 		}
+	}
 
-		for _, numSlavesCandidate := range numSlavesCandidates {
-			diag.Printf("Trying to generate RI with relaxed "+
-				"number of slaves (%d)", numSlavesCandidate)
+	var nonstrictRI RI
+	nonstrictNumSlaves := -1
 
-			params.NumSlaves = numSlavesCandidate
+	for _, numSlaves := range numSlavesCandidates {
+		diag.Printf("Trying to generate RI with NumSlaves=%d", numSlaves)
 
-			ri, err = gen.Generate(*params, searchParams)
-			if err != ErrorNoSolution {
+		params.NumSlaves = numSlaves
+
+		ri, err = gen.Generate(*params, searchParams)
+		if err != nil && err != ErrorNoSolution {
+			return
+		}
+
+		if err == nil {
+			if ri.Strict {
 				return
+			}
+
+			if nonstrictNumSlaves == -1 {
+				nonstrictRI = ri
+				nonstrictNumSlaves = numSlaves
 			}
 		}
 	}
 
-	return gen.Generate(*params, searchParams)
+	if nonstrictNumSlaves != -1 {
+		params.NumSlaves = nonstrictNumSlaves
+		return nonstrictRI, nil
+	}
+
+	err = ErrorNoSolution
+	return
 }
 
 func tryBuildR(params VbmapParams, gen RIGenerator,
