@@ -336,7 +336,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err erro
 			return
 		}
 
-		if searchParams.RelaxMaxVbucketsPerTag && nonstrictGraph == nil {
+		if searchParams.RelaxTagConstraints && nonstrictGraph == nil {
 			relaxMaxVbsPerTag(g)
 			feasible, _ := g.FindFeasibleFlow()
 			if feasible {

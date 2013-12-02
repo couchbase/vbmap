@@ -39,8 +39,8 @@ type SearchParams struct {
 	NumRIRetries int
 	NumRRetries  int
 
-	RelaxMaxVbucketsPerTag bool
-	RelaxNumSlaves         bool
+	RelaxTagConstraints bool
+	RelaxNumSlaves      bool
 }
 
 func (params VbmapParams) Nodes() (nodes []Node) {

@@ -44,10 +44,10 @@ var (
 	engineParams string = ""
 
 	searchParams SearchParams = SearchParams{
-		NumRIRetries:           10,
-		NumRRetries:            25,
-		RelaxMaxVbucketsPerTag: false,
-		RelaxNumSlaves:         false,
+		NumRIRetries:        10,
+		NumRRetries:         25,
+		RelaxTagConstraints: false,
+		RelaxNumSlaves:      false,
 	}
 
 	outputFormat OutputFormat = "text"
@@ -257,10 +257,9 @@ func main() {
 		"number of attempts to generate matrix RI")
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
-	flag.BoolVar(&searchParams.RelaxMaxVbucketsPerTag,
-		"relax-max-vbuckets-per-tag", false,
-		"allow relaxing maximum number of vbuckets each node "+
-			"replicates to each tag")
+	flag.BoolVar(&searchParams.RelaxTagConstraints,
+		"relax-tag-constraints", false,
+		"allow relaxing tag constraints")
 	flag.BoolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")

@@ -45,7 +45,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	strict := true
 	feasible, _ := g.FindFeasibleFlow()
 
-	if !feasible && searchParams.RelaxMaxVbucketsPerTag {
+	if !feasible && searchParams.RelaxTagConstraints {
 		strict = false
 		relaxMaxSlavesPerTag(g, params)
 		feasible, _ = g.FindFeasibleFlow()
