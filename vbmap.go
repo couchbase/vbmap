@@ -575,6 +575,10 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			nonstrictRI = ri
 			nonstrictR = r
 			foundNonstrict = true
+
+			if !ri.Strict {
+				break
+			}
 		}
 	}
 
