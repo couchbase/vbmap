@@ -555,7 +555,7 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			return
 		}
 
-		if r.StrictlyRackAware {
+		if r.Strict {
 			diag.Printf("Found feasible R after trying %d RI(s)", i+1)
 			return
 		}

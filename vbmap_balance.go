@@ -7,10 +7,10 @@ import (
 
 // Matrix R with some meta-information.
 type R struct {
-	Matrix            [][]int // actual matrix
-	RowSums           []int   // row sums for the matrix
-	ColSums           []int   // column sums for the matrix
-	StrictlyRackAware bool
+	Matrix  [][]int // actual matrix
+	RowSums []int   // row sums for the matrix
+	ColSums []int   // column sums for the matrix
+	Strict  bool
 
 	params           VbmapParams // corresponding vbucket map params
 	expectedColSum   int         // expected column sum
@@ -332,7 +332,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err erro
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			r = graphToR(g, params)
-			r.StrictlyRackAware = true
+			r.Strict = true
 			return
 		}
 
@@ -348,7 +348,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err erro
 	if nonstrictGraph != nil {
 		diag.Printf("Managed to find only non-strictly rack aware R")
 		r = graphToR(nonstrictGraph, params)
-		r.StrictlyRackAware = false
+		r.Strict = false
 		return
 	}
 
