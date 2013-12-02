@@ -499,13 +499,7 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 		numReplicas := params.NumReplicas
 
 		low := (numSlaves / numReplicas) * numReplicas
-		high := (1 + numSlaves/numReplicas) * numReplicas
-
 		for i := params.NumSlaves - 1; i >= low; i-- {
-			numSlavesCandidates = append(numSlavesCandidates, i)
-		}
-
-		for i := params.NumSlaves + 1; i <= high; i++ {
 			numSlavesCandidates = append(numSlavesCandidates, i)
 		}
 	}
