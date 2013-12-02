@@ -52,6 +52,15 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 		if feasible {
 			diag.Printf("Managed to generate RI with relaxed " +
 				"number of slaves per tag")
+		} else {
+			params.Tags = TrivialTags(params.NumNodes)
+			g = buildFlowGraph(params)
+
+			feasible, _ = g.FindFeasibleFlow()
+			if feasible {
+				diag.Printf("Managed to generate RI after " +
+					"abandoning tag constraints")
+			}
 		}
 	}
 
