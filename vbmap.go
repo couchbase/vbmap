@@ -566,7 +566,9 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			return
 		}
 
-		if !foundNonstrict {
+		if !foundNonstrict ||
+			nonstrictR.Evaluation() > r.Evaluation() {
+
 			nonstrictRI = ri
 			nonstrictR = r
 			foundNonstrict = true
