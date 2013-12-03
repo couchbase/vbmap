@@ -298,29 +298,6 @@ func (cand *R) swapElems(row int, j int, k int) {
 	cand.Matrix[row][j], cand.Matrix[row][k] = b, a
 }
 
-// Make a copy of R.
-func (cand R) copy() (result R) {
-	result.params = cand.params
-	result.expectedColSum = cand.expectedColSum
-	result.expectedOutliers = cand.expectedOutliers
-	result.outliers = cand.outliers
-	result.rawEvaluation = cand.rawEvaluation
-
-	result.Matrix = make([][]int, cand.params.NumNodes)
-	for i, row := range cand.Matrix {
-		result.Matrix[i] = make([]int, cand.params.NumNodes)
-		copy(result.Matrix[i], row)
-	}
-
-	result.RowSums = make([]int, cand.params.NumNodes)
-	copy(result.RowSums, cand.RowSums)
-
-	result.ColSums = make([]int, cand.params.NumNodes)
-	copy(result.ColSums, cand.ColSums)
-
-	return
-}
-
 func buildRandomizedR(params VbmapParams, ri RI, activeVbsPerNode []int) (r R) {
 	matrix := make([][]int, len(ri.Matrix))
 	if params.NumSlaves == 0 {
