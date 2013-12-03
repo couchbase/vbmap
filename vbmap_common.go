@@ -95,9 +95,17 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 	return
 }
 
+type TagAwarenessRank int
+
+const (
+	StrictlyTagAware TagAwarenessRank = iota
+	WeaklyTagAware
+	NonTagAware
+)
+
 type RI struct {
-	Matrix [][]bool
-	Strict bool
+	Matrix           [][]bool
+	TagAwarenessRank TagAwarenessRank
 }
 
 type RIGenerator interface {

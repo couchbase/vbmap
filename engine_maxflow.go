@@ -42,17 +42,18 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	diag.Print("Constructed flow graph.\n")
 	diag.Print(g.graphStats)
 
-	strict := true
+	rank := StrictlyTagAware
 	feasible, _ := g.FindFeasibleFlow()
 
 	if !feasible && searchParams.RelaxTagConstraints {
-		strict = false
+		rank = WeaklyTagAware
 		relaxMaxSlavesPerTag(g, params)
 		feasible, _ = g.FindFeasibleFlow()
 		if feasible {
 			diag.Printf("Managed to generate RI with relaxed " +
 				"number of slaves per tag")
 		} else {
+			rank = NonTagAware
 			params.Tags = TrivialTags(params.NumNodes)
 			g = buildFlowGraph(params)
 
@@ -78,7 +79,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	}
 
 	ri = graphToRI(g, params)
-	ri.Strict = strict
+	ri.TagAwarenessRank = rank
 	return
 }
 

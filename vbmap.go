@@ -518,11 +518,13 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 		}
 
 		if err == nil {
-			if ri.Strict {
+			if ri.TagAwarenessRank == StrictlyTagAware {
 				return
 			}
 
-			if nonstrictNumSlaves == -1 {
+			if nonstrictNumSlaves == -1 ||
+				nonstrictRI.TagAwarenessRank > ri.TagAwarenessRank {
+
 				nonstrictRI = ri
 				nonstrictNumSlaves = numSlaves
 			}
@@ -570,7 +572,7 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			nonstrictR = r
 			foundNonstrict = true
 
-			if !ri.Strict {
+			if ri.TagAwarenessRank != StrictlyTagAware {
 				break
 			}
 		}
