@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	testSearchParams = SearchParams{10, 25, false, false}
+	testSearchParams = SearchParams{5, 25, false, false, false}
 )
 
 func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {

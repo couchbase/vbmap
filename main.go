@@ -257,7 +257,7 @@ func main() {
 	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
 	flag.StringVar(&profTo, "cpuprofile", "", "write cpuprofile to path")
 
-	flag.IntVar(&searchParams.NumRIRetries, "num-ri-retries", 10,
+	flag.IntVar(&searchParams.NumRIRetries, "num-ri-retries", 5,
 		"number of attempts to generate matrix RI")
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
