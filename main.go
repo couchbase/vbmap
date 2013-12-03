@@ -243,6 +243,12 @@ func parseEngineParams(str string) (params map[string]string) {
 	return
 }
 
+func normalizeSearchParams(params *SearchParams) {
+	if params.RelaxBalance {
+		params.RelaxTagConstraints = true
+	}
+}
+
 func main() {
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
@@ -327,6 +333,8 @@ func main() {
 	for _, node := range params.Nodes() {
 		diag.Printf("    %v -> %v", node, params.Tags[node])
 	}
+
+	normalizeSearchParams(&searchParams)
 
 	start := time.Now()
 
