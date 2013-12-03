@@ -61,7 +61,7 @@ func (cand R) String() string {
 		fmt.Fprintf(buffer, "%3d ", cand.ColSums[i])
 	}
 	fmt.Fprintf(buffer, "|\n")
-	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.evaluation())
+	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.Evaluation())
 
 	return buffer.String()
 }
@@ -223,7 +223,7 @@ func (cand R) computeEvaluation(rawEval int, outliers int) (eval int) {
 }
 
 // Compute adjusted evaluation of matrix R.
-func (cand R) evaluation() int {
+func (cand R) Evaluation() int {
 	return cand.computeEvaluation(cand.rawEvaluation, cand.outliers)
 }
 
@@ -271,7 +271,7 @@ func (cand R) swapRawEvaluationChange(row int, j int, k int) (change int) {
 // Compute a potential change in evaluation after swapping element j and k in
 // certain row.
 func (cand R) swapBenefit(row int, j int, k int) int {
-	eval := cand.evaluation()
+	eval := cand.Evaluation()
 
 	swapOutliers := cand.outliers + cand.swapOutliersChange(row, j, k)
 	swapRawEval := cand.rawEvaluation + cand.swapRawEvaluationChange(row, j, k)

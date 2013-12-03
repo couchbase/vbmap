@@ -70,7 +70,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 			for _, gen := range allGenerators {
 				_, r, err := testBuildR(params, gen)
-				if err != nil || r.evaluation() > 0 {
+				if err != nil || r.Evaluation() > 0 {
 					t.Error("Can't build zero-evaluation R")
 				}
 			}
