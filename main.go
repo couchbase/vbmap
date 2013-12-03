@@ -43,6 +43,7 @@ var (
 	engine       Engine = Engine{availableGenerators[0]}
 	engineParams string = ""
 	searchParams SearchParams
+	relaxAll     bool
 
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
@@ -276,6 +277,7 @@ func main() {
 	flag.BoolVar(&searchParams.RelaxBalance,
 		"relax-balance", false,
 		"allow relaxing balance")
+	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
@@ -334,6 +336,11 @@ func main() {
 		diag.Printf("    %v -> %v", node, params.Tags[node])
 	}
 
+	if relaxAll {
+		searchParams.RelaxNumSlaves = true
+		searchParams.RelaxTagConstraints = true
+		searchParams.RelaxBalance = true
+	}
 	normalizeSearchParams(&searchParams)
 
 	start := time.Now()
