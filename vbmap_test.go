@@ -434,6 +434,10 @@ type EqualTagsVbmapParams struct {
 func (_ EqualTagsVbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 	numNodes := rand.Int()%100 + 2
 	numReplicas := rand.Int()%3 + 1
+	if numReplicas >= numNodes {
+		numReplicas = numNodes - 1
+	}
+
 	// number of tags is in range [numReplicas+1, numNodes]
 	numTags := rand.Int()%(numNodes-numReplicas) + numReplicas + 1
 
