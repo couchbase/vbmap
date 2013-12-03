@@ -492,12 +492,11 @@ func buildVbmap(r R) (vbmap Vbmap) {
 func tryBuildRI(params *VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, err error) {
 
-	numSlavesCandidates := []int{params.NumSlaves}
+	numSlaves := params.NumSlaves
+	numReplicas := params.NumReplicas
 
-	if searchParams.RelaxNumSlaves {
-		numSlaves := params.NumSlaves
-		numReplicas := params.NumReplicas
-
+	numSlavesCandidates := []int{numSlaves}
+	if searchParams.RelaxNumSlaves && numSlaves > 0 {
 		low := (numSlaves / numReplicas) * numReplicas
 		for i := params.NumSlaves - 1; i >= low; i-- {
 			numSlavesCandidates = append(numSlavesCandidates, i)
