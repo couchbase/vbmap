@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrorNoSolution = errors.New("The problem has no solution")
+	ErrorNoSolution = errors.New("Couldn't find a solution")
 )
 
 type Node int
