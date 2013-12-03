@@ -42,13 +42,7 @@ var (
 	}
 	engine       Engine = Engine{availableGenerators[0]}
 	engineParams string = ""
-
-	searchParams SearchParams = SearchParams{
-		NumRIRetries:        10,
-		NumRRetries:         25,
-		RelaxTagConstraints: false,
-		RelaxNumSlaves:      false,
-	}
+	searchParams SearchParams
 
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
