@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 )
 
 // Matrix R with some meta-information.
@@ -341,7 +342,100 @@ func buildRandomizedR(params VbmapParams, ri RI, activeVbsPerNode []int) (r R) {
 		}
 	}
 
-	return makeRFromMatrix(params, matrix)
+	r = makeRFromMatrix(params, matrix)
+	greedyMinimizeR(params, &r)
+
+	return
+}
+
+func greedyMinimizeR(params VbmapParams, r *R) {
+	if params.NumSlaves <= 1 || params.NumReplicas == 0 {
+		// nothing to optimize here; just return
+		return
+	}
+
+	attempts := params.NumNodes * params.NumNodes
+	noImprovementLimit := params.NumNodes * params.NumNodes / 4
+
+	noCandidate := 0
+	swapIndifferent := 0
+	swapDecreased := 0
+
+	t := 0
+	noImprovementIters := 0
+
+	for t = 0; t < attempts; t++ {
+		if noImprovementIters >= noImprovementLimit {
+			break
+		}
+
+		noImprovementIters++
+
+		// indexes of columns that have sums higher than expected
+		highElems := []int{}
+		// indexes of columns that have sums lower or equal to expected
+		lowElems := []int{}
+
+		for i, elem := range r.ColSums {
+			switch {
+			case elem <= r.expectedColSum:
+				lowElems = append(lowElems, i)
+			case elem > r.expectedColSum:
+				highElems = append(highElems, i)
+			}
+		}
+
+		// indexes of columns that we're planning to adjust
+		lowIx := lowElems[rand.Intn(len(lowElems))]
+		highIx := highElems[rand.Intn(len(highElems))]
+
+		// indexes of rows where the elements in lowIx and highIx
+		// columns can be swapped with some benefit
+		candidateRows := []int{}
+
+		for row := 0; row < params.NumNodes; row++ {
+			lowElem := r.Matrix[row][lowIx]
+			highElem := r.Matrix[row][highIx]
+
+			if lowElem != 0 && highElem != 0 && highElem != lowElem {
+				benefit := r.swapBenefit(row, lowIx, highIx)
+
+				if benefit > 0 {
+					continue
+				}
+
+				candidateRows = append(candidateRows, row)
+			}
+		}
+
+		if len(candidateRows) == 0 {
+			noCandidate++
+			continue
+		}
+
+		row := candidateRows[rand.Intn(len(candidateRows))]
+		old := r.Evaluation()
+		r.swapElems(row, lowIx, highIx)
+
+		if old == r.Evaluation() {
+			swapIndifferent++
+		} else {
+			noImprovementIters = 0
+			swapDecreased++
+		}
+	}
+
+	diag.Printf("Search stats")
+	diag.Printf("  final evaluation -> %d", r.Evaluation())
+	diag.Printf("  iters -> %d", t)
+	diag.Printf("  no improvement termination? -> %v",
+		noImprovementIters >= noImprovementLimit)
+	diag.Printf("  noCandidate -> %d", noCandidate)
+	diag.Printf("  swapDecreased -> %d", swapDecreased)
+	diag.Printf("  swapIndifferent -> %d", swapIndifferent)
+	diag.Printf("")
+
+	return
 }
 
 // Build balanced matrix R from RI.
