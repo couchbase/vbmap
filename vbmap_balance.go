@@ -320,20 +320,52 @@ func (cand R) copy() (result R) {
 	return
 }
 
+func buildRandomizedR(params VbmapParams, ri RI, activeVbsPerNode []int) (r R) {
+	matrix := make([][]int, len(ri.Matrix))
+	if params.NumSlaves == 0 {
+		return makeRFromMatrix(params, matrix)
+	}
+
+	for i, row := range ri.Matrix {
+		rowSum := activeVbsPerNode[i] * params.NumReplicas
+		slaveVbs := SpreadSum(rowSum, params.NumSlaves)
+
+		matrix[i] = make([]int, len(row))
+
+		slave := 0
+		for j, elem := range row {
+			if elem {
+				matrix[i][j] = slaveVbs[slave]
+				slave += 1
+			}
+		}
+	}
+
+	return makeRFromMatrix(params, matrix)
+}
+
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err error) {
 	var nonstrictGraph *Graph
+
+	bestViolation := MaxInt
+	bestVbsPerNode := []int(nil)
 
 	for i := 0; i < searchParams.NumRRetries; i++ {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 		g := buildRFlowGraph(params, ri, activeVbsPerNode)
-		feasible, _ := g.FindFeasibleFlow()
+		feasible, violation := g.FindFeasibleFlow()
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			r = graphToR(g, params)
 			r.Strict = true
 			return
+		}
+
+		if violation < bestViolation {
+			bestViolation = violation
+			bestVbsPerNode = activeVbsPerNode
 		}
 
 		if searchParams.RelaxTagConstraints && nonstrictGraph == nil {
@@ -348,6 +380,16 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (r R, err erro
 	if nonstrictGraph != nil {
 		diag.Printf("Managed to find only non-strictly rack aware R")
 		r = graphToR(nonstrictGraph, params)
+		r.Strict = false
+		return
+	}
+
+	if searchParams.RelaxBalance {
+		if bestVbsPerNode == nil {
+			panic("cannot happen")
+		}
+
+		r = buildRandomizedR(params, ri, bestVbsPerNode)
 		r.Strict = false
 		return
 	}

@@ -267,6 +267,9 @@ func main() {
 	flag.BoolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
+	flag.BoolVar(&searchParams.RelaxBalance,
+		"relax-balance", false,
+		"allow relaxing balance")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 

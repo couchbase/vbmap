@@ -41,6 +41,7 @@ type SearchParams struct {
 
 	RelaxTagConstraints bool
 	RelaxNumSlaves      bool
+	RelaxBalance        bool
 }
 
 func (params VbmapParams) Nodes() (nodes []Node) {
