@@ -214,13 +214,6 @@ func (ctx *selectionCtx) pairCost(x, y Node, distance int) chainCost {
 	return chainCost{raw, viol}
 }
 
-func (ctx *selectionCtx) tripleCost(x, y, z Node) chainCost {
-	xzCost := ctx.pairCost(x, z, 1)
-	yzCost := ctx.pairCost(y, z, 0)
-
-	return yzCost.plus(xzCost.div(2))
-}
-
 func (ctx *selectionCtx) requiredTags() (result []Tag) {
 	result = make([]Tag, 0)
 	for tag, count := range ctx.tagCounts {
@@ -256,14 +249,14 @@ func (ctx *selectionCtx) availableSlaves() (result []Node) {
 	return
 }
 
-func (_ *selectionCtx) restoreChain(parent [][][]int,
-	nodes []Node, t, i, j int) (chain []Node) {
+func (_ *selectionCtx) restoreChain(parent [][]int,
+	nodes []Node, t, i int) (chain []Node) {
 
 	chain = make([]Node, t+1)
 
 	for t >= 0 {
-		chain[t] = nodes[j]
-		i, j = parent[t][i][j], i
+		chain[t] = nodes[i]
+		i = parent[t][i]
 		t--
 	}
 
@@ -334,88 +327,82 @@ func (ctx *selectionCtx) nextBestChain() (result []Node) {
 	candidates = append(candidates, ctx.master)
 	numCandidates := len(candidates)
 
-	cost := make([][][]chainCost, ctx.params.NumReplicas)
-	parent := make([][][]int, ctx.params.NumReplicas)
+	cost := make([][]chainCost, ctx.params.NumReplicas)
+	parent := make([][]int, ctx.params.NumReplicas)
 
 	for i := range cost {
-		cost[i] = make([][]chainCost, numCandidates)
-		parent[i] = make([][]int, numCandidates)
-
-		for j := range cost[i] {
-			cost[i][j] = make([]chainCost, numCandidates)
-			parent[i][j] = make([]int, numCandidates)
-		}
+		cost[i] = make([]chainCost, numCandidates)
+		parent[i] = make([]int, numCandidates)
 	}
 
 	for i, node := range candidates {
-		for j, otherNode := range candidates {
-			if node == ctx.master && otherNode != ctx.master {
-				cost[0][i][j] = ctx.pairCost(ctx.master, otherNode, 0)
-			} else {
-				cost[0][i][j] = inf
-			}
-		}
+		cost[0][i] = ctx.pairCost(ctx.master, node, 0)
 	}
 
-	isFeasible := func(t, i, j, k int) bool {
-		chain := ctx.restoreChain(parent, candidates, t-1, k, i)
-		chain = append(chain, candidates[j])
-
+	isFeasible := func(chain []Node) bool {
 		return ctx.isFeasibleChain(requiredTags, requiredNodes, chain)
 	}
 
 	for t := 1; t < ctx.params.NumReplicas; t++ {
-		for i, iNode := range candidates {
-			for j, jNode := range candidates {
-				min := inf
-				var minCount int
+		for i, node := range candidates {
+			min := inf
+			var minCount int
 
-				for k, kNode := range candidates {
-					if cost[t-1][k][i] == inf || !isFeasible(t, i, j, k) {
-						continue
-					}
+			for j, _ := range candidates {
+				c := cost[t-1][j]
 
-					c := cost[t-1][k][i]
-					c = c.plus(ctx.tripleCost(kNode, iNode, jNode))
-
-					if c.less(min) {
-						min = c
-						minCount = 1
-
-						parent[t][i][j] = k
-					} else if c == min {
-						minCount++
-
-						if rand.Intn(minCount) == 0 {
-							parent[t][i][j] = k
-						}
-					}
+				if c == inf {
+					continue
 				}
 
-				cost[t][i][j] = min
+				chain := ctx.restoreChain(parent, candidates, t-1, j)
+				chain = append(chain, candidates[i])
+				if !isFeasible(chain) {
+					continue
+				}
+
+				for d := 0; d < t; d++ {
+					other := chain[t-d-1]
+					c = c.plus(ctx.pairCost(other, node, d))
+				}
+				c = c.plus(ctx.pairCost(ctx.master, node, t))
+
+				if c.less(min) {
+					min = c
+					minCount = 1
+
+					parent[t][i] = j
+				} else if c == min {
+					minCount++
+
+					if rand.Intn(minCount) == 0 {
+						parent[t][i] = j
+					}
+				}
 			}
+
+			cost[t][i] = min
 		}
 	}
 
 	t := ctx.params.NumReplicas - 1
 	min := inf
-	iMin, jMin := -1, -1
+	iMin := -1
 
 	for i := range candidates {
-		for j := range candidates {
-			c := cost[t][i][j]
-			if c.less(min) {
-				min = c
-				iMin, jMin = i, j
-			}
+		c := cost[t][i]
+		if c.less(min) {
+			min = c
+			iMin = i
 		}
 	}
 
-	if iMin == -1 || jMin == -1 {
+	if iMin == -1 {
 		panic("cannot happen")
 	}
 
-	result = ctx.restoreChain(parent, candidates, t, iMin, jMin)
+	result = ctx.restoreChain(parent, candidates, t, iMin)
+
 	return
 }
 
