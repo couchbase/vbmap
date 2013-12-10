@@ -102,6 +102,44 @@ type tagPair struct {
 	distance int
 }
 
+type pairStats struct {
+	slaveStats map[slavePair]int
+	tagStats   map[tagPair]int
+}
+
+func makePairStats() (stats *pairStats) {
+	stats = new(pairStats)
+	stats.slaveStats = make(map[slavePair]int)
+	stats.tagStats = make(map[tagPair]int)
+
+	return
+}
+
+func (s *pairStats) getSlaveStat(x, y Node, distance int) int {
+	pair := slavePair{x, y, distance}
+	stat, _ := s.slaveStats[pair]
+
+	return stat
+}
+
+func (s *pairStats) getTagStat(x, y Tag, distance int) int {
+	tagPair := tagPair{x, y, distance}
+	stat, _ := s.tagStats[tagPair]
+
+	return stat
+}
+
+func (s *pairStats) notePair(x, y Node, xTag, yTag Tag, distance int) {
+	pair := slavePair{x, y, distance}
+
+	count, _ := s.slaveStats[pair]
+	s.slaveStats[pair] = count + 1
+
+	tagPair := tagPair{xTag, yTag, distance}
+	tagCount, _ := s.tagStats[tagPair]
+	s.tagStats[tagPair] = tagCount + 1
+}
+
 type selectionCtx struct {
 	params VbmapParams
 
@@ -112,38 +150,33 @@ type selectionCtx struct {
 	slaveCounts map[Node]int
 	tagCounts   map[Tag]int
 
-	stats    map[slavePair]int
-	tagStats map[tagPair]int
+	stats *pairStats
 }
 
-func makeSelectionCtx(params VbmapParams, master Node, vbuckets int) (ctx *selectionCtx) {
+func makeSelectionCtx(params VbmapParams, master Node,
+	vbuckets int, stats *pairStats) (ctx *selectionCtx) {
+
 	ctx = &selectionCtx{}
 
 	ctx.params = params
 	ctx.slaveCounts = make(map[Node]int)
 	ctx.tagCounts = make(map[Tag]int)
-	ctx.stats = make(map[slavePair]int)
-	ctx.tagStats = make(map[tagPair]int)
 	ctx.master = master
 	ctx.vbuckets = vbuckets
+	ctx.stats = stats
 
 	return
 }
 
-func (ctx *selectionCtx) getStat(x, y Node, distance int) int {
-	pair := slavePair{x, y, distance}
-	stat, _ := ctx.stats[pair]
-
-	return stat
+func (ctx *selectionCtx) getSlaveStat(x, y Node, distance int) int {
+	return ctx.stats.getSlaveStat(x, y, distance)
 }
 
 func (ctx *selectionCtx) getTagStat(x, y Node, distance int) int {
 	xTag := ctx.params.Tags[x]
 	yTag := ctx.params.Tags[y]
-	tagPair := tagPair{xTag, yTag, distance}
 
-	stat, _ := ctx.tagStats[tagPair]
-	return stat
+	return ctx.stats.getTagStat(xTag, yTag, distance)
 }
 
 func (ctx *selectionCtx) addSlave(node Node, count int) {
@@ -160,17 +193,10 @@ func (ctx *selectionCtx) addSlave(node Node, count int) {
 }
 
 func (ctx *selectionCtx) notePair(x, y Node, distance int) {
-	pair := slavePair{x, y, distance}
-
-	count, _ := ctx.stats[pair]
-	ctx.stats[pair] = count + 1
-
 	xTag := ctx.params.Tags[x]
 	yTag := ctx.params.Tags[y]
 
-	tagPair := tagPair{xTag, yTag, distance}
-	tagCount, _ := ctx.tagStats[tagPair]
-	ctx.tagStats[tagPair] = tagCount + 1
+	ctx.stats.notePair(x, y, xTag, yTag, distance)
 }
 
 func (ctx *selectionCtx) noteChain(chain []Node) {
@@ -202,7 +228,7 @@ func (ctx *selectionCtx) hasSlaves() bool {
 }
 
 func (ctx *selectionCtx) pairCost(x, y Node, distance int) chainCost {
-	stat := ctx.getStat(x, y, distance)
+	stat := ctx.getSlaveStat(x, y, distance)
 	tagStat := ctx.getTagStat(x, y, distance)
 
 	xTag := ctx.params.Tags[x]
@@ -435,7 +461,7 @@ func buildVbmap(r R) (vbmap Vbmap) {
 	vbucket := 0
 	for i, row := range r.Matrix {
 		vbs := nodeVbs[i]
-		ctx := makeSelectionCtx(params, Node(i), vbs)
+		ctx := makeSelectionCtx(params, Node(i), vbs, makePairStats())
 
 		for s, count := range row {
 			if count != 0 {
