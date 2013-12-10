@@ -458,10 +458,12 @@ func buildVbmap(r R) (vbmap Vbmap) {
 		}
 	}
 
+	stats := makePairStats()
+
 	vbucket := 0
 	for i, row := range r.Matrix {
 		vbs := nodeVbs[i]
-		ctx := makeSelectionCtx(params, Node(i), vbs, makePairStats())
+		ctx := makeSelectionCtx(params, Node(i), vbs, stats)
 
 		for s, count := range row {
 			if count != 0 {
