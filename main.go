@@ -12,7 +12,6 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type TagHist []uint
@@ -343,8 +342,6 @@ func main() {
 	}
 	normalizeSearchParams(&searchParams)
 
-	start := time.Now()
-
 	solution, err := VbmapGenerate(params, engine.generator, searchParams)
 	if err != nil {
 		switch err {
@@ -354,9 +351,6 @@ func main() {
 			fatal("%s", err.Error())
 		}
 	}
-
-	duration := time.Since(start)
-	diag.Printf("Generated vbucket map in %s (wall clock)", duration.String())
 
 	switch outputFormat {
 	case "text":

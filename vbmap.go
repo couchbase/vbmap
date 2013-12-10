@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 type Vbmap [][]Node
@@ -607,13 +608,28 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (vbmap Vbmap, err error) {
 
+	start := time.Now()
+
 	ri, r, err := tryBuildR(params, gen, searchParams)
 	if err != nil {
 		return nil, err
 	}
 
+	dt := time.Since(start)
+	diag.Printf("Generated matrix R in %s (wall clock)", dt)
+
 	diag.Printf("Generated topology:\n%s", ri.String())
 	diag.Printf("Final map R:\n%s", r.String())
 
-	return buildVbmap(r), nil
+	vbmap_start := time.Now()
+
+	vbmap = buildVbmap(r)
+
+	dt = time.Since(vbmap_start)
+	diag.Printf("Built vbucket map from R in %s (wall clock)", dt)
+
+	dt = time.Since(start)
+	diag.Printf("Spent %s overall on vbucket map generation (wall clock)", dt)
+
+	return
 }
