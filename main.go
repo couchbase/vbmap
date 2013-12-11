@@ -48,6 +48,8 @@ var (
 	outputFormat OutputFormat = "text"
 	diagTo       string       = "stderr"
 	profTo       string       = ""
+
+	currentMapPath string
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -250,6 +252,33 @@ func normalizeSearchParams(params *SearchParams) {
 	}
 }
 
+func readVbmap(path string) (vbmap Vbmap, err error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&vbmap)
+
+	if err == nil {
+		diag.Printf("Succesfully read current vbucket map:\n[")
+		n := len(vbmap)
+		for i, row := range vbmap {
+			sep := ","
+			if i == n-1 {
+				sep = ""
+			}
+
+			diag.Printf("  %v%s", row, sep)
+		}
+		diag.Printf("]")
+	}
+
+	return
+}
+
 func main() {
 	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
@@ -278,6 +307,9 @@ func main() {
 		"relax-balance", false,
 		"allow relaxing balance")
 	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
+
+	flag.StringVar(&currentMapPath, "current-map", "",
+		"a path to current vbucket map")
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
@@ -343,7 +375,17 @@ func main() {
 	}
 	normalizeSearchParams(&searchParams)
 
-	solution, err := VbmapGenerate(params, engine.generator, searchParams)
+	currentMap := Vbmap(nil)
+	if currentMapPath != "" {
+		var err error
+		currentMap, err = readVbmap(currentMapPath)
+		if err != nil {
+			fatal("Could not read current vbucket map: %s", err.Error())
+		}
+	}
+
+	solution, err :=
+		VbmapGenerate(params, engine.generator, searchParams, currentMap)
 	if err != nil {
 		switch err {
 		case ErrorNoSolution:
