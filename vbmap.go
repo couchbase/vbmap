@@ -606,7 +606,7 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 // Generate vbucket map given a generator for matrix RI and vbucket map
 // parameters.
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
-	searchParams SearchParams, _ Vbmap) (vbmap Vbmap, err error) {
+	searchParams SearchParams) (vbmap Vbmap, err error) {
 
 	start := time.Now()
 
