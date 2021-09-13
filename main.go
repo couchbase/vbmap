@@ -116,7 +116,11 @@ func (engine *Engine) Set(s string) error {
 }
 
 func (engine Engine) String() string {
-	return engine.generator.String()
+	if engine.generator != nil {
+		return engine.generator.String()
+	} else {
+		return "no-engine"
+	}
 }
 
 func (format *OutputFormat) Set(s string) error {
