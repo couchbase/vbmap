@@ -75,36 +75,6 @@ func (cand R) String() string {
 	return buffer.String()
 }
 
-// Build initial matrix R from RI.
-//
-// It just spreads active vbuckets uniformly between the nodes. And then for
-// each node spreads replica vbuckets among the slaves of this node.
-func buildInitialR(params VbmapParams, ri RI) (r [][]int) {
-	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
-
-	r = make([][]int, len(ri.Matrix))
-	if params.NumSlaves == 0 {
-		return
-	}
-
-	for i, row := range ri.Matrix {
-		rowSum := activeVbsPerNode[i] * params.NumReplicas
-		slaveVbs := SpreadSum(rowSum, params.NumSlaves)
-
-		r[i] = make([]int, len(row))
-
-		slave := 0
-		for j, elem := range row {
-			if elem {
-				r[i][j] = slaveVbs[slave]
-				slave += 1
-			}
-		}
-	}
-
-	return
-}
-
 func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
 	g = NewGraph(graphName)
@@ -175,14 +145,6 @@ func graphToR(g *Graph, params VbmapParams) (r R) {
 		}
 	}
 
-	return makeRFromMatrix(params, matrix)
-}
-
-// Construct initial matrix R from RI.
-//
-// Uses buildInitialR to construct R.
-func makeR(params VbmapParams, ri RI) (result R) {
-	matrix := buildInitialR(params, ri)
 	return makeRFromMatrix(params, matrix)
 }
 
