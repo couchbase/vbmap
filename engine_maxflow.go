@@ -32,7 +32,7 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 		switch k {
 		case "dot":
 			gen.dotPath = v
-		case "dotVerbose":
+		case "dot-verbose":
 			gen.dotVerbose = true
 		default:
 			return fmt.Errorf("unsupported parameter '%s'", k)
