@@ -94,7 +94,11 @@ func (edge GraphEdge) Flow() int {
 	if edge.Demand == 0 {
 		return edge.flow
 	} else {
+		// Note that this value will only be correct if there's a
+		// feasible flow in the grah. If there's not, the value may be
+		// nonsensical.
 		demandFlow := Min(edge.demandEdge.flow, edge.supplyEdge.flow)
+		demandFlow = Min(edge.Demand, demandFlow)
 		return edge.flow + demandFlow
 	}
 }
@@ -462,6 +466,23 @@ func (g *Graph) addEdge(src, dst GraphVertex,
 	return edge
 }
 
+func (g *Graph) addDemandEdge(src, dst GraphVertex, demand int) *GraphEdge {
+	var edge *GraphEdge
+	for _, e := range g.edgesFromVertex(src, edgeDemand) {
+		if e.Dst == dst {
+			edge = e
+			break
+		}
+	}
+
+	if edge == nil {
+		edge = g.addEdge(src, dst, 0, 0, edgeDemand)
+	}
+
+	edge.capacity += demand
+	return edge
+}
+
 func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	g.checkNoEdge(src, dst)
 
@@ -474,8 +495,8 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	redge.ReverseEdge = edge
 
 	if demand != 0 {
-		demandEdge := g.addEdge(src, demandSink, demand, 0, edgeDemand)
-		supplyEdge := g.addEdge(supplySource, dst, demand, 0, edgeDemand)
+		demandEdge := g.addDemandEdge(src, demandSink, demand)
+		supplyEdge := g.addDemandEdge(supplySource, dst, demand)
 
 		edge.demandEdge = demandEdge
 		edge.supplyEdge = supplyEdge
@@ -551,17 +572,22 @@ func (g *Graph) hasVertex(v GraphVertex) bool {
 }
 
 func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
+	return g.edgesFromVertex(v, edgeNormal)
+}
+
+func (g *Graph) edgesFromVertex(v GraphVertex, etype edgeType) []*GraphEdge {
 	if !g.hasVertex(v) {
 		return nil
 	}
 
+	var edges []*GraphEdge
 	for _, edge := range g.vertices[v].edges() {
-		if edge.etype == edgeNormal {
+		if edge.etype == etype {
 			edges = append(edges, edge)
 		}
 	}
 
-	return
+	return edges
 }
 
 func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
