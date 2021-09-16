@@ -80,8 +80,10 @@ type GraphEdge struct {
 	// flow according to adjusted capacity
 	flow int
 
-	etype       edgeType
-	demandEdges []*GraphEdge
+	etype edgeType
+
+	demandEdge *GraphEdge
+	supplyEdge *GraphEdge
 }
 
 func (edge GraphEdge) Capacity() int {
@@ -89,16 +91,10 @@ func (edge GraphEdge) Capacity() int {
 }
 
 func (edge GraphEdge) Flow() int {
-	if edge.demandEdges == nil {
+	if edge.Demand == 0 {
 		return edge.flow
 	} else {
-		demandFlow := MaxInt
-		for _, demandEdge := range edge.demandEdges {
-			if demandEdge.flow < demandFlow {
-				demandFlow = demandEdge.flow
-			}
-		}
-
+		demandFlow := Min(edge.demandEdge.flow, edge.supplyEdge.flow)
 		return edge.flow + demandFlow
 	}
 }
@@ -478,10 +474,11 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	redge.ReverseEdge = edge
 
 	if demand != 0 {
-		demandEdge1 := g.addEdge(src, demandSink, demand, 0, edgeDemand)
-		demandEdge2 := g.addEdge(supplySource, dst, demand, 0, edgeDemand)
+		demandEdge := g.addEdge(src, demandSink, demand, 0, edgeDemand)
+		supplyEdge := g.addEdge(supplySource, dst, demand, 0, edgeDemand)
 
-		edge.demandEdges = []*GraphEdge{demandEdge1, demandEdge2}
+		edge.demandEdge = demandEdge
+		edge.supplyEdge = supplyEdge
 	}
 }
 
