@@ -467,6 +467,8 @@ func (g *Graph) addEdge(src, dst GraphVertex,
 }
 
 func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
+	g.checkNoEdge(src, dst)
+
 	capacity -= demand
 
 	edge := g.addEdge(src, dst, capacity, demand, edgeNormal)
@@ -480,6 +482,14 @@ func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 		demandEdge2 := g.addEdge(supplySource, dst, demand, 0, edgeDemand)
 
 		edge.demandEdges = []*GraphEdge{demandEdge1, demandEdge2}
+	}
+}
+
+func (g *Graph) checkNoEdge(src, dst GraphVertex) {
+	for _, edge := range g.EdgesFromVertex(src) {
+		if edge.Dst == dst {
+			panic("edge from %v to %v already exists")
+		}
 	}
 }
 
@@ -538,7 +548,16 @@ func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 	}
 }
 
+func (g *Graph) hasVertex(v GraphVertex) bool {
+	_, ok := g.vertices[v]
+	return ok
+}
+
 func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
+	if !g.hasVertex(v) {
+		return nil
+	}
+
 	for _, edge := range g.vertices[v].edges() {
 		if edge.etype == edgeNormal {
 			edges = append(edges, edge)
@@ -549,6 +568,10 @@ func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
 }
 
 func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
+	if !g.hasVertex(v) {
+		return nil
+	}
+
 	for _, edge := range g.vertices[v].edges() {
 		if edge.etype == edgeReverse {
 			edges = append(edges, edge.mustREdge())
