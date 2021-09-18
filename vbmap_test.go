@@ -12,6 +12,7 @@ import (
 	"log"
 	"math/rand"
 	"reflect"
+	"runtime/debug"
 	"testing"
 	"testing/quick"
 	"time"
@@ -148,7 +149,7 @@ func TestRIProperties(t *testing.T) {
 			return checkRIProperties(gen, params)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -218,7 +219,7 @@ func TestRProperties(t *testing.T) {
 			return checkRProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -329,7 +330,7 @@ func TestVbmapProperties(t *testing.T) {
 			return checkVbmapProperties(gen, params, seed)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -427,7 +428,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -521,10 +522,31 @@ func TestVbmapTagAware(t *testing.T) {
 			return checkVbmapTagAware(gen, params.VbmapParams)
 		}
 
-		err := quick.Check(check, &quick.Config{MaxCount: 250})
+		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
 		if err != nil {
 			t.Error(err)
 		}
 
 	}
+}
+
+// Calls quick.Check() with the function and the config passed. Converts
+// panics into test failures and logs the stacktrace. This way it's possible
+// to see what input caused the panic.
+func quickCheck(fn interface{}, config *quick.Config, t *testing.T) error {
+	wrapper := func(args []reflect.Value) (results []reflect.Value) {
+		defer func() {
+			if err := recover(); err != nil {
+				t.Logf("%v\n%s", err, debug.Stack())
+				results = []reflect.Value{
+					reflect.ValueOf(false),
+				}
+			}
+		}()
+
+		results = reflect.ValueOf(fn).Call(args)
+		return
+	}
+	check := reflect.MakeFunc(reflect.TypeOf(fn), wrapper).Interface()
+	return quick.Check(check, config)
 }
