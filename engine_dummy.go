@@ -34,16 +34,16 @@ func (_ DummyRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, e
 	}
 
 	ri.TagAwarenessRank = StrictlyTagAware
-	ri.Matrix = make([][]bool, params.NumNodes)
+	ri.Matrix = make([][]int, params.NumNodes)
 	for i := range ri.Matrix {
-		ri.Matrix[i] = make([]bool, params.NumNodes)
+		ri.Matrix[i] = make([]int, params.NumNodes)
 	}
 
 	for i, row := range ri.Matrix {
 		for j := range row {
 			k := (j - i + params.NumNodes - 1) % params.NumNodes
 			if k < params.NumSlaves {
-				ri.Matrix[i][j] = true
+				ri.Matrix[i][j] = 1
 			}
 		}
 	}

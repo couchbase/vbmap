@@ -113,7 +113,7 @@ const (
 )
 
 type RI struct {
-	Matrix           [][]bool
+	Matrix           [][]int
 	TagAwarenessRank TagAwarenessRank
 }
 
@@ -138,7 +138,7 @@ func (ri RI) String() string {
 
 	for _, row := range ri.Matrix {
 		for _, elem := range row {
-			fmt.Fprintf(buffer, "%2d ", B2i(elem))
+			fmt.Fprintf(buffer, "%2d ", elem)
 		}
 		fmt.Fprintf(buffer, "\n")
 	}

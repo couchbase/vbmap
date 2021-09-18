@@ -93,7 +93,7 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 
 		seenTags := make(map[Tag]bool)
 		for j, elem := range row {
-			if !elem {
+			if elem == 0 {
 				continue
 			}
 
@@ -282,7 +282,7 @@ func buildRandomizedR(params VbmapParams, ri RI, activeVbsPerNode []int) (r R) {
 
 		slave := 0
 		for j, elem := range row {
-			if elem {
+			if elem > 0 {
 				matrix[i][j] = slaveVbs[slave]
 				slave += 1
 			}
