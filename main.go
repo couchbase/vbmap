@@ -292,7 +292,6 @@ func readVbmap(path string) (vbmap Vbmap, err error) {
 }
 
 func main() {
-	// TODO
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
 	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "number of slaves")
 	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "number of VBuckets")
