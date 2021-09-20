@@ -108,10 +108,8 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		node := nodes[nodeIx]
 		nodeTag := params.Tags[node]
 		nodeSrcV := NodeSourceVertex(node)
-		nodeSinkV := NodeSinkVertex(node)
 
 		g.AddEdge(Source, nodeSrcV, params.NumSlaves, params.NumSlaves)
-		g.AddEdge(nodeSinkV, Sink, params.NumSlaves, 0)
 
 		for _, tagIx := range rand.Perm(len(tags)) {
 			tag := tags[tagIx]
@@ -133,11 +131,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 		tagNodes := tagsNodes[tag]
 		tagV := TagVertex(tag)
 
-		for _, tagNode := range tagNodes {
-			tagNodeV := NodeSinkVertex(tagNode)
-
-			g.AddEdge(tagV, tagNodeV, params.NumSlaves, 0)
-		}
+		g.AddEdge(tagV, Sink, params.NumSlaves*len(tagNodes), 0)
 	}
 
 	return
@@ -161,14 +155,9 @@ type nodeCount struct {
 	count int
 }
 
-type nodeCountSlice []nodeCount
-
-func (a nodeCountSlice) Len() int           { return len(a) }
-func (a nodeCountSlice) Less(i, j int) bool { return a[i].count > a[j].count }
-func (a nodeCountSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 	ri.Matrix = make([][]int, params.NumNodes)
+	tags := params.Tags.TagsNodesMap()
 
 	for i := range params.Nodes() {
 		ri.Matrix[i] = make([]int, params.NumNodes)
@@ -176,45 +165,30 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 
 	for _, tag := range params.Tags.TagsList() {
 		tagV := TagVertex(tag)
+		tagNodes := tags[tag]
 
-		inRepsCounts := make(nodeCountSlice, 0)
-		outRepsCounts := make(nodeCountSlice, 0)
-
-		for _, edge := range g.EdgesFromVertex(tagV) {
-			// edge to node sink vertex
-			dstNode := Node(edge.Dst.(NodeSinkVertex))
-
-			count := nodeCount{dstNode, edge.Flow()}
-			inRepsCounts = append(inRepsCounts, count)
-		}
+		reps := make([]nodeCount, 0)
 
 		for _, edge := range g.EdgesToVertex(tagV) {
 			srcNode := Node(edge.Src.(NodeSourceVertex))
 
 			count := nodeCount{srcNode, edge.Flow()}
-			outRepsCounts = append(outRepsCounts, count)
+			reps = append(reps, count)
 		}
 
-		sort.Sort(outRepsCounts)
-
-		slavesLeft := len(inRepsCounts)
+		sort.Slice(
+			reps,
+			func(i, j int) bool {
+				return reps[i].node < reps[j].node
+			})
 		slaveIx := 0
 
-		for _, pair := range outRepsCounts {
+		for _, pair := range reps {
 			count := pair.count
 			srcNode := int(pair.node)
 
 			for count > 0 {
-				if slavesLeft == 0 {
-					panic(fmt.Sprintf("Ran out of slaves "+
-						"on tag %v", tag))
-				}
-
-				for inRepsCounts[slaveIx].count == 0 {
-					slaveIx = (slaveIx + 1) % len(inRepsCounts)
-				}
-
-				dstNode := int(inRepsCounts[slaveIx].node)
+				dstNode := tagNodes[slaveIx]
 
 				if ri.Matrix[srcNode][dstNode] > 0 {
 					panic(fmt.Sprintf("Forced to use the "+
@@ -225,12 +199,7 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 				ri.Matrix[srcNode][dstNode] = 1
 				count -= 1
 
-				inRepsCounts[slaveIx].count -= 1
-				if inRepsCounts[slaveIx].count == 0 {
-					slavesLeft -= 1
-				}
-
-				slaveIx = (slaveIx + 1) % len(inRepsCounts)
+				slaveIx = (slaveIx + 1) % len(tagNodes)
 			}
 		}
 	}
