@@ -44,8 +44,7 @@ type VbmapParams struct {
 }
 
 type SearchParams struct {
-	NumRIRetries int
-	NumRRetries  int
+	NumRRetries int
 
 	StrictReplicaBalance bool
 	RelaxNumSlaves       bool

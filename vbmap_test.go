@@ -20,7 +20,6 @@ import (
 
 var (
 	testSearchParams = SearchParams{
-		NumRIRetries:         5,
 		NumRRetries:          25,
 		StrictReplicaBalance: false,
 		RelaxNumSlaves:       false,

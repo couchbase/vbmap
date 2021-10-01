@@ -549,26 +549,12 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 func tryBuildR(params VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, r R, err error) {
 
-	for i := 0; i < searchParams.NumRIRetries; i++ {
-		ri, err = tryBuildRI(&params, gen, searchParams)
-		if err != nil {
-			return
-		}
-
-		r, err = BuildR(params, ri, searchParams)
-		if err != nil {
-			if err == ErrorNoSolution {
-				continue
-			}
-
-			return
-		}
-
-		diag.Printf("Found feasible R after trying %d RI(s)", i+1)
+	ri, err = tryBuildRI(&params, gen, searchParams)
+	if err != nil {
 		return
 	}
 
-	err = ErrorNoSolution
+	r, err = BuildR(params, ri, searchParams)
 	return
 }
 
