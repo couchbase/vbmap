@@ -47,7 +47,8 @@ type SearchParams struct {
 	NumRIRetries int
 	NumRRetries  int
 
-	RelaxNumSlaves bool
+	StrictReplicaBalance bool
+	RelaxNumSlaves       bool
 
 	DotPath string
 }

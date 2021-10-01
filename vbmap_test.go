@@ -19,7 +19,13 @@ import (
 )
 
 var (
-	testSearchParams = SearchParams{5, 25, false, ""}
+	testSearchParams = SearchParams{
+		NumRIRetries:         5,
+		NumRRetries:          25,
+		StrictReplicaBalance: false,
+		RelaxNumSlaves:       false,
+		DotPath:              "",
+	}
 )
 
 func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
@@ -78,9 +84,9 @@ func TestRReplicaBalance(t *testing.T) {
 			normalizeParams(&params)
 
 			for _, gen := range allGenerators {
-				_, r, err := testBuildR(params, gen)
-				if err != nil || r.Evaluation() > 0 {
-					t.Error("Can't build zero-evaluation R")
+				_, _, err := testBuildR(params, gen)
+				if err != nil {
+					t.Error("Could not find a solution")
 				}
 			}
 		}

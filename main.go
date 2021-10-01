@@ -302,6 +302,10 @@ func main() {
 		"number of attempts to generate matrix RI")
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
+	flag.BoolVar(&searchParams.StrictReplicaBalance,
+		"strict-replica-balance", false,
+		"require that all nodes have "+
+			"the same number of replica vbuckets (±1)")
 	flag.BoolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
@@ -370,6 +374,7 @@ func main() {
 	}
 
 	if relaxAll {
+		searchParams.StrictReplicaBalance = false
 		searchParams.RelaxNumSlaves = true
 	}
 

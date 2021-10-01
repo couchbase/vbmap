@@ -73,11 +73,27 @@ func (cand R) String() string {
 	return buffer.String()
 }
 
-func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
+func buildRFlowGraph(
+	params VbmapParams, ri RI, activeVbs []int, strict bool) (g *Graph) {
+
 	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
 	g = NewGraph(graphName)
 
-	numReplicas := params.NumVBuckets * params.NumReplicas / params.NumNodes
+	numReplicasTotal := params.NumVBuckets * params.NumReplicas
+	numReplicasLo := numReplicasTotal / params.NumNodes
+	numReplicasHi := numReplicasLo + 1
+
+	if !strict {
+		numReplicasLo = params.NumVBuckets / params.NumNodes
+		numReplicasHi = numReplicasLo
+
+		if numReplicasLo*params.NumNodes < params.NumVBuckets {
+			numReplicasHi += 1
+		}
+
+		numReplicasLo *= params.NumReplicas
+		numReplicasHi *= params.NumReplicas
+	}
 
 	for i, row := range ri.Matrix {
 		node := Node(i)
@@ -87,7 +103,7 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 		numVbsReplicated := activeVbs[i] * params.NumReplicas
 
 		g.AddEdge(Source, nodeSrcV, numVbsReplicated, numVbsReplicated)
-		g.AddEdge(nodeSinkV, Sink, numReplicas+1, numReplicas)
+		g.AddEdge(nodeSinkV, Sink, numReplicasHi, numReplicasLo)
 
 		seenTags := make(map[Tag]bool)
 		for j, elem := range row {
@@ -118,7 +134,7 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 	return
 }
 
-func graphToR(g *Graph, params VbmapParams) (r R) {
+func graphToR(g *Graph, params VbmapParams) (r *R) {
 	matrix := make([][]int, params.NumNodes)
 
 	for i := range matrix {
@@ -138,7 +154,8 @@ func graphToR(g *Graph, params VbmapParams) (r R) {
 	return makeRFromMatrix(params, matrix)
 }
 
-func makeRFromMatrix(params VbmapParams, matrix [][]int) (result R) {
+func makeRFromMatrix(params VbmapParams, matrix [][]int) (result *R) {
+	result = &R{}
 	result.params = params
 	result.Matrix = matrix
 	result.ColSums = make([]int, params.NumNodes)
@@ -190,27 +207,46 @@ func (cand R) Evaluation() int {
 
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
-	dotPath := searchParams.DotPath
 	for i := 0; i < searchParams.NumRRetries; i++ {
-		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
-
-		g := buildRFlowGraph(params, ri, activeVbsPerNode)
-		feasible, _ := g.FindFeasibleFlow()
-
-		if dotPath != "" {
-			err := g.Dot(dotPath, false)
-			if err != nil {
-				diag.Printf("Couldn't create dot file %s: %s",
-					dotPath, err.Error())
-			}
-		}
-
-		if feasible {
+		r := buildR(params, ri, searchParams, true)
+		if r != nil {
 			diag.Printf("Found feasible R after %d attempts", i+1)
-			r := graphToR(g, params)
-			return r, nil
+			return *r, nil
 		}
 	}
 
+	if !searchParams.StrictReplicaBalance {
+		r := buildR(params, ri, searchParams, false)
+		if r == nil {
+			panic("Couldn't generate non-strict R. " +
+				"This should not happen")
+		}
+
+		return *r, nil
+	}
+
 	return R{}, ErrorNoSolution
+}
+
+func buildR(
+	params VbmapParams, ri RI, searchParams SearchParams, strict bool) *R {
+	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
+
+	g := buildRFlowGraph(params, ri, activeVbsPerNode, strict)
+	feasible, _ := g.FindFeasibleFlow()
+
+	dotPath := searchParams.DotPath
+	if dotPath != "" {
+		err := g.Dot(dotPath, false)
+		if err != nil {
+			diag.Printf("Couldn't create dot file %s: %s",
+				dotPath, err.Error())
+		}
+	}
+
+	if feasible {
+		return graphToR(g, params)
+	}
+
+	return nil
 }
