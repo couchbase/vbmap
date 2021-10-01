@@ -77,17 +77,17 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
 	g = NewGraph(graphName)
 
-	colSum := params.NumVBuckets * params.NumReplicas / params.NumNodes
+	numReplicas := params.NumVBuckets * params.NumReplicas / params.NumNodes
 
 	for i, row := range ri.Matrix {
 		node := Node(i)
 		nodeSrcV := NodeSourceVertex(node)
 		nodeSinkV := NodeSinkVertex(node)
 
-		rowSum := activeVbs[i] * params.NumReplicas
+		numVbsReplicated := activeVbs[i] * params.NumReplicas
 
-		g.AddEdge(Source, nodeSrcV, rowSum, rowSum)
-		g.AddEdge(nodeSinkV, Sink, colSum+1, colSum)
+		g.AddEdge(Source, nodeSrcV, numVbsReplicated, numVbsReplicated)
+		g.AddEdge(nodeSinkV, Sink, numReplicas+1, numReplicas)
 
 		seenTags := make(map[Tag]bool)
 		for j, elem := range row {
@@ -102,14 +102,16 @@ func buildRFlowGraph(params VbmapParams, ri RI, activeVbs []int) (g *Graph) {
 			tagV := TagNodeVertex{dstNodeTag, node}
 
 			if _, seen := seenTags[dstNodeTag]; !seen {
-				maxVbsPerTag := rowSum / params.NumReplicas
+				maxVbsPerTag :=
+					numVbsReplicated / params.NumReplicas
 
 				g.AddEdge(nodeSrcV, tagV, maxVbsPerTag, 0)
 				seenTags[dstNodeTag] = true
 			}
 
-			elem := rowSum / params.NumSlaves
-			g.AddEdge(tagV, dstNodeSinkV, elem+1, elem)
+			vbsPerSlave := numVbsReplicated / params.NumSlaves
+			g.AddEdge(tagV, dstNodeSinkV,
+				vbsPerSlave+1, vbsPerSlave)
 		}
 	}
 
