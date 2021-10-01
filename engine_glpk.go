@@ -103,7 +103,6 @@ func readSolution(params VbmapParams, outPath string) (ri RI, err error) {
 		}
 	}
 
-	ri.TagAwarenessRank = StrictlyTagAware
 	ri.Matrix = make([][]int, params.NumNodes)
 	for i := range ri.Matrix {
 		for _, v := range values[i*params.NumNodes : (i+1)*params.NumNodes] {

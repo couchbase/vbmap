@@ -33,7 +33,6 @@ func (_ DummyRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, e
 		return
 	}
 
-	ri.TagAwarenessRank = StrictlyTagAware
 	ri.Matrix = make([][]int, params.NumNodes)
 	for i := range ri.Matrix {
 		ri.Matrix[i] = make([]int, params.NumNodes)

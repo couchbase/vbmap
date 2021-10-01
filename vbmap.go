@@ -531,36 +531,15 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 		}
 	}
 
-	var nonstrictRI RI
-	nonstrictNumSlaves := -1
-
 	for _, numSlaves := range numSlavesCandidates {
 		diag.Printf("Trying to generate RI with NumSlaves=%d", numSlaves)
 
 		params.NumSlaves = numSlaves
 
 		ri, err = gen.Generate(*params, searchParams)
-		if err != nil && err != ErrorNoSolution {
+		if err != ErrorNoSolution {
 			return
 		}
-
-		if err == nil {
-			if ri.TagAwarenessRank == StrictlyTagAware {
-				return
-			}
-
-			if nonstrictNumSlaves == -1 ||
-				nonstrictRI.TagAwarenessRank > ri.TagAwarenessRank {
-
-				nonstrictRI = ri
-				nonstrictNumSlaves = numSlaves
-			}
-		}
-	}
-
-	if nonstrictNumSlaves != -1 {
-		params.NumSlaves = nonstrictNumSlaves
-		return nonstrictRI, nil
 	}
 
 	err = ErrorNoSolution
@@ -569,10 +548,6 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 
 func tryBuildR(params VbmapParams, gen RIGenerator,
 	searchParams SearchParams) (ri RI, r R, err error) {
-
-	var nonstrictRI RI
-	var nonstrictR R
-	foundNonstrict := false
 
 	for i := 0; i < searchParams.NumRIRetries; i++ {
 		ri, err = tryBuildRI(&params, gen, searchParams)
@@ -589,26 +564,8 @@ func tryBuildR(params VbmapParams, gen RIGenerator,
 			return
 		}
 
-		if r.Strict {
-			diag.Printf("Found feasible R after trying %d RI(s)", i+1)
-			return
-		}
-
-		if !foundNonstrict ||
-			nonstrictR.Evaluation() > r.Evaluation() {
-
-			nonstrictRI = ri
-			nonstrictR = r
-			foundNonstrict = true
-
-			if ri.TagAwarenessRank != StrictlyTagAware {
-				break
-			}
-		}
-	}
-
-	if foundNonstrict {
-		return nonstrictRI, nonstrictR, nil
+		diag.Printf("Found feasible R after trying %d RI(s)", i+1)
+		return
 	}
 
 	err = ErrorNoSolution

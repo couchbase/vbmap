@@ -47,9 +47,7 @@ type SearchParams struct {
 	NumRIRetries int
 	NumRRetries  int
 
-	RelaxTagConstraints bool
-	RelaxNumSlaves      bool
-	RelaxBalance        bool
+	RelaxNumSlaves bool
 }
 
 func (params VbmapParams) Nodes() (nodes []Node) {
@@ -106,15 +104,8 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 
 type TagAwarenessRank int
 
-const (
-	StrictlyTagAware TagAwarenessRank = iota
-	WeaklyTagAware
-	NonTagAware
-)
-
 type RI struct {
-	Matrix           [][]int
-	TagAwarenessRank TagAwarenessRank
+	Matrix [][]int
 }
 
 type RIGenerator interface {

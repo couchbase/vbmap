@@ -50,29 +50,7 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	diag.Print("Constructed flow graph.\n")
 	diag.Print(g.graphStats)
 
-	rank := StrictlyTagAware
 	feasible, _ := g.FindFeasibleFlow()
-
-	if !feasible && searchParams.RelaxTagConstraints {
-		rank = WeaklyTagAware
-		relaxMaxSlavesPerTag(g, params)
-		feasible, _ = g.FindFeasibleFlow()
-		if feasible {
-			diag.Printf("Managed to generate RI with relaxed " +
-				"number of slaves per tag")
-		} else {
-			rank = NonTagAware
-			params.Tags = TrivialTags(params.NumNodes)
-			g = buildFlowGraph(params)
-
-			feasible, _ = g.FindFeasibleFlow()
-			if feasible {
-				diag.Printf("Managed to generate RI after " +
-					"abandoning tag constraints")
-			}
-		}
-	}
-
 	if gen.dotPath != "" {
 		err := g.Dot(gen.dotPath, gen.dotVerbose)
 		if err != nil {
@@ -87,7 +65,6 @@ func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
 	}
 
 	ri = graphToRI(g, params)
-	ri.TagAwarenessRank = rank
 	return
 }
 
@@ -135,19 +112,6 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 	}
 
 	return
-}
-
-func relaxMaxSlavesPerTag(g *Graph, params VbmapParams) {
-	tagsNodes := params.Tags.TagsNodesMap()
-
-	for _, vertex := range g.Vertices() {
-		if tagV, ok := vertex.(TagVertex); ok {
-			for _, edge := range g.EdgesToVertex(tagV) {
-				tagNodesCount := len(tagsNodes[Tag(tagV)])
-				edge.IncreaseCapacity(tagNodesCount)
-			}
-		}
-	}
 }
 
 type nodeCount struct {

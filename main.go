@@ -258,12 +258,6 @@ func parseEngineParams(str string) (params map[string]string) {
 	return
 }
 
-func normalizeSearchParams(params *SearchParams) {
-	if params.RelaxBalance {
-		params.RelaxTagConstraints = true
-	}
-}
-
 func readVbmap(path string) (vbmap Vbmap, err error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -308,15 +302,9 @@ func main() {
 		"number of attempts to generate matrix RI")
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
-	flag.BoolVar(&searchParams.RelaxTagConstraints,
-		"relax-tag-constraints", false,
-		"allow relaxing tag constraints")
 	flag.BoolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
-	flag.BoolVar(&searchParams.RelaxBalance,
-		"relax-balance", false,
-		"allow relaxing balance")
 	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
 
 	flag.StringVar(&currentMapPath, "current-map", "",
@@ -381,10 +369,7 @@ func main() {
 
 	if relaxAll {
 		searchParams.RelaxNumSlaves = true
-		searchParams.RelaxTagConstraints = true
-		searchParams.RelaxBalance = true
 	}
-	normalizeSearchParams(&searchParams)
 
 	currentMap := Vbmap(nil)
 	if currentMapPath != "" {
