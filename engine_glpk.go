@@ -34,6 +34,7 @@ func (_ GlpkRIGenerator) String() string {
 const model = `
 param nodes, integer, >= 1;
 param slaves, integer, >= 0;
+param replicas, integer, >= 1;
 
 param tags_count, integer, >= 1;
 param tags{0..nodes-1}, integer, >= 0, < tags_count;
@@ -44,11 +45,8 @@ subject to zeros{i in 0..nodes-1, j in 0..nodes-1: tags[i] == tags[j]}: RI[i,j] 
 subject to active_balance{i in 0..nodes-1}: sum{j in 0..nodes-1} RI[i,j] = slaves;
 subject to replica_balance{j in 0..nodes-1}: sum{i in 0..nodes-1} RI[i,j] = slaves;
 
-var tag_max;
 subject to tags_balance{i in 0..nodes-1, t in 0..tags_count-1}:
-sum{j in 0..nodes-1} RI[i,j] * (if tags[j] == t then 1 else 0) <= tag_max;
-
-minimize obj: tag_max;
+sum{j in 0..nodes-1} RI[i,j] * (if tags[j] == t then 1 else 0) <= slaves / replicas;
 
 solve;
 
@@ -68,6 +66,7 @@ data;
 
 param nodes := {{ .NumNodes }};
 param slaves := {{ .NumSlaves }};
+param replicas := {{ .NumReplicas }};
 param tags_count := {{ .Tags.TagsCount }};
 param tags := {{ range $node, $tag := .Tags }}{{ $node }} {{ $tag }} {{ end }};
 
