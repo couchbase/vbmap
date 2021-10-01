@@ -188,11 +188,21 @@ func (cand R) Evaluation() int {
 
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
+	dotPath := searchParams.DotPath
 	for i := 0; i < searchParams.NumRRetries; i++ {
 		activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 		g := buildRFlowGraph(params, ri, activeVbsPerNode)
 		feasible, _ := g.FindFeasibleFlow()
+
+		if dotPath != "" {
+			err := g.Dot(dotPath, false)
+			if err != nil {
+				diag.Printf("Couldn't create dot file %s: %s",
+					dotPath, err.Error())
+			}
+		}
+
 		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			r := graphToR(g, params)

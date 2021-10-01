@@ -306,6 +306,8 @@ func main() {
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
 	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
+	flag.StringVar(&searchParams.DotPath,
+		"dot", "", "output the flow graph for matrix R to path")
 
 	flag.StringVar(&currentMapPath, "current-map", "",
 		"a path to current vbucket map")

@@ -48,6 +48,8 @@ type SearchParams struct {
 	NumRRetries  int
 
 	RelaxNumSlaves bool
+
+	DotPath string
 }
 
 func (params VbmapParams) Nodes() (nodes []Node) {
