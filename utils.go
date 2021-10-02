@@ -45,8 +45,6 @@ func SpreadSum(sum int, n int) (result []int) {
 		}
 	}
 
-	Shuffle(result)
-
 	return
 }
 

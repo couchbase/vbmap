@@ -230,7 +230,9 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 
 func buildR(
 	params VbmapParams, ri RI, searchParams SearchParams, strict bool) *R {
+
 	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
+	Shuffle(activeVbsPerNode)
 
 	g := buildRFlowGraph(params, ri, activeVbsPerNode, strict)
 	feasible, _ := g.FindFeasibleFlow()
