@@ -34,7 +34,7 @@ func (GlpkRIGenerator) String() string {
 const model = `
 param nodes, integer, >= 1;
 param slaves, integer, >= 0;
-param replicas, integer, >= 1;
+param replicas, integer, >= 0;
 
 param tags_count, integer, >= 1;
 param tags{0..nodes-1}, integer, >= 0, < tags_count;
@@ -46,7 +46,8 @@ subject to active_balance{i in 0..nodes-1}: sum{j in 0..nodes-1} RI[i,j] = slave
 subject to replica_balance{j in 0..nodes-1}: sum{i in 0..nodes-1} RI[i,j] = slaves;
 
 subject to tags_balance{i in 0..nodes-1, t in 0..tags_count-1}:
-sum{j in 0..nodes-1} RI[i,j] * (if tags[j] == t then 1 else 0) <= slaves / replicas;
+sum{j in 0..nodes-1} RI[i,j] * (if tags[j] == t then 1 else 0) <=
+  (if replicas == 0 then 0 else slaves / replicas);
 
 solve;
 
