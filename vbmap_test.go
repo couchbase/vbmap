@@ -9,6 +9,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"math/rand"
 	"reflect"
@@ -16,6 +17,11 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+)
+
+var (
+	testMaxFlow = flag.Bool("maxflow", true, "run maxflow tests")
+	testGlpk    = flag.Bool("glpk", false, "run glpk tests")
 )
 
 var (
@@ -39,8 +45,18 @@ type testingWriter struct {
 	t *testing.T
 }
 
-var allGenerators = []RIGenerator{
-	makeMaxFlowRIGenerator(),
+func allGenerators() []RIGenerator {
+	result := []RIGenerator{}
+
+	if *testMaxFlow {
+		result = append(result, makeMaxFlowRIGenerator())
+	}
+
+	if *testGlpk {
+		result = append(result, makeGlpkRIGenerator())
+	}
+
+	return result
 }
 
 func (w testingWriter) Write(p []byte) (n int, err error) {
@@ -86,7 +102,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 			normalizeParams(&params)
 
-			for _, gen := range allGenerators {
+			for _, gen := range allGenerators() {
 				_, _, err := testBuildR(params, gen)
 				if err != nil {
 					t.Error("Could not find a solution")
@@ -152,7 +168,7 @@ func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
 func TestRIProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range allGenerators {
+	for _, gen := range allGenerators() {
 		check := func(params VbmapParams) bool {
 			return checkRIProperties(gen, params)
 		}
@@ -221,7 +237,7 @@ func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 func TestRProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range allGenerators {
+	for _, gen := range allGenerators() {
 
 		check := func(params VbmapParams, seed int64) bool {
 			return checkRProperties(gen, params, seed)
@@ -332,7 +348,7 @@ func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool 
 func TestVbmapProperties(t *testing.T) {
 	setup(t)
 
-	for _, gen := range allGenerators {
+	for _, gen := range allGenerators() {
 
 		check := func(params VbmapParams, seed int64) bool {
 			return checkVbmapProperties(gen, params, seed)
@@ -431,7 +447,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 func TestRIPropertiesTagAware(t *testing.T) {
 	setup(t)
 
-	for _, gen := range allGenerators {
+	for _, gen := range allGenerators() {
 		check := func(params equalTagsR1VbmapParams) bool {
 			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
@@ -525,7 +541,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 func TestVbmapTagAware(t *testing.T) {
 	setup(t)
 
-	for _, gen := range allGenerators {
+	for _, gen := range allGenerators() {
 		check := func(params equalTagsVbmapParams) bool {
 			return checkVbmapTagAware(gen, params.VbmapParams)
 		}
