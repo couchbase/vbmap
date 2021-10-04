@@ -43,7 +43,7 @@ var diag *log.Logger
 
 var (
 	seed         int64
-	tagHistogram TagHist
+	tagHisto     TagHist
 	params       = VbmapParams{Tags: nil}
 	engine       = Engine{availableGenerators[0]}
 	engineParams string
@@ -175,38 +175,38 @@ func checkInput() {
 		fatal("num-replicas must be greater of equal than zero")
 	}
 
-	if params.Tags != nil && tagHistogram != nil {
+	if params.Tags != nil && tagHisto != nil {
 		fatal("Options --tags and --tag-histogram are exclusive")
 	}
 
-	if params.Tags == nil && tagHistogram == nil {
+	if params.Tags == nil && tagHisto == nil {
 		diag.Printf("Tags are not specified. Assuming every node on a separate tag.")
-		tagHistogram = make(TagHist, params.NumNodes)
+		tagHisto = make(TagHist, params.NumNodes)
 
 		for i := 0; i < params.NumNodes; i++ {
-			tagHistogram[i] = 1
+			tagHisto[i] = 1
 		}
 	}
 
 	nodes := params.Nodes()
 
-	if tagHistogram != nil {
+	if tagHisto != nil {
 		tag := 0
 		params.Tags = make(TagMap)
 
 		for _, node := range nodes {
-			for tag < len(tagHistogram) && tagHistogram[tag] == 0 {
+			for tag < len(tagHisto) && tagHisto[tag] == 0 {
 				tag++
 			}
-			if tag >= len(tagHistogram) {
+			if tag >= len(tagHisto) {
 				fatal("Invalid tag histogram. Counts do not add up.")
 			}
 
-			tagHistogram[tag]--
+			tagHisto[tag]--
 			params.Tags[node] = Tag(tag)
 		}
 
-		if tag != len(tagHistogram)-1 || tagHistogram[tag] != 0 {
+		if tag != len(tagHisto)-1 || tagHisto[tag] != 0 {
 			fatal("Invalid tag histogram. Counts do not add up.")
 		}
 	}
@@ -288,7 +288,7 @@ func main() {
 	flag.IntVar(&params.NumVBuckets, "num-vbuckets", 1024, "number of VBuckets")
 	flag.IntVar(&params.NumReplicas, "num-replicas", 1, "number of replicas")
 	flag.Var(&params.Tags, "tags", "tags")
-	flag.Var(&tagHistogram, "tag-histogram", "tag histogram")
+	flag.Var(&tagHisto, "tag-histogram", "tag histogram")
 	flag.Var(&engine, "engine", "engine used to generate the topology")
 	flag.StringVar(&engineParams, "engine-params", "", "engine specific params")
 	flag.Var(&outputFormat, "output-format", "output format")
