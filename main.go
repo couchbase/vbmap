@@ -23,11 +23,11 @@ import (
 	"time"
 )
 
-type TagHist []uint
-type Engine struct {
+type tagHistoValue []uint
+type engineValue struct {
 	generator RIGenerator
 }
-type OutputFormat string
+type outputFormatValue string
 
 const (
 	noSolutionExitCode   = 1
@@ -43,15 +43,15 @@ var diag *log.Logger
 
 var (
 	seed         int64
-	tagHisto     TagHist
+	tagHisto     tagHistoValue
 	params       = VbmapParams{Tags: nil}
-	engine       = Engine{availableGenerators[0]}
+	engine       = engineValue{availableGenerators[0]}
 	engineParams string
 	searchParams SearchParams
 	relaxAll     bool
 
-	outputFormat OutputFormat = "text"
-	diagTo                    = "stderr"
+	outputFormat outputFormatValue = "text"
+	diagTo                         = "stderr"
 	profTo       string
 
 	currentMapPath string
@@ -81,9 +81,9 @@ func (tags *TagMap) Set(s string) error {
 	return nil
 }
 
-func (hist *TagHist) Set(s string) error {
+func (hist *tagHistoValue) Set(s string) error {
 	values := strings.Split(s, ",")
-	*hist = make(TagHist, len(values))
+	*hist = make(tagHistoValue, len(values))
 
 	for i, v := range values {
 		count, err := strconv.ParseUint(v, 10, strconv.IntSize)
@@ -97,14 +97,14 @@ func (hist *TagHist) Set(s string) error {
 	return nil
 }
 
-func (hist TagHist) String() string {
+func (hist tagHistoValue) String() string {
 	return fmt.Sprintf("%v", []uint(hist))
 }
 
-func (engine *Engine) Set(s string) error {
+func (engine *engineValue) Set(s string) error {
 	for _, gen := range availableGenerators {
 		if s == gen.String() {
-			*engine = Engine{gen}
+			*engine = engineValue{gen}
 			return nil
 		}
 	}
@@ -112,7 +112,7 @@ func (engine *Engine) Set(s string) error {
 	return fmt.Errorf("unknown engine")
 }
 
-func (engine Engine) String() string {
+func (engine engineValue) String() string {
 	if engine.generator != nil {
 		return engine.generator.String()
 	}
@@ -120,10 +120,10 @@ func (engine Engine) String() string {
 	return "no-engine"
 }
 
-func (format *OutputFormat) Set(s string) error {
+func (format *outputFormatValue) Set(s string) error {
 	switch s {
 	case "text", "json", "ext-json":
-		*format = OutputFormat(s)
+		*format = outputFormatValue(s)
 	default:
 		return fmt.Errorf("unrecognized output format")
 	}
@@ -131,7 +131,7 @@ func (format *OutputFormat) Set(s string) error {
 	return nil
 }
 
-func (format OutputFormat) String() string {
+func (format outputFormatValue) String() string {
 	return string(format)
 }
 
@@ -181,7 +181,7 @@ func checkInput() {
 
 	if params.Tags == nil && tagHisto == nil {
 		diag.Printf("Tags are not specified. Assuming every node on a separate tag.")
-		tagHisto = make(TagHist, params.NumNodes)
+		tagHisto = make(tagHistoValue, params.NumNodes)
 
 		for i := 0; i < params.NumNodes; i++ {
 			tagHisto[i] = 1
