@@ -11,6 +11,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 )
@@ -46,7 +47,7 @@ type chainCost struct {
 }
 
 var (
-	inf = chainCost{MaxInt, MaxInt}
+	inf = chainCost{math.MaxInt, math.MaxInt}
 )
 
 func (c chainCost) cmp(other chainCost) int {

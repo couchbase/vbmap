@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 )
 
 type GraphVertex interface {
@@ -305,7 +306,7 @@ func NewGraph(name string) (g *Graph) {
 	g.vertices = make(map[GraphVertex]*graphVertexData)
 	g.distances = make(map[GraphVertex]int)
 
-	g.addEdge(Sink, Source, MaxInt, 0, edgeDemand)
+	g.addEdge(Sink, Source, math.MaxInt, 0, edgeDemand)
 
 	return
 }
@@ -671,7 +672,7 @@ func (g *Graph) Dot(path string, verbose bool) (err error) {
 		capacity := edge.Capacity()
 		capacityString := fmt.Sprintf("%d", capacity)
 
-		if capacity == MaxInt {
+		if capacity == math.MaxInt {
 			capacityString = "∞"
 		}
 
