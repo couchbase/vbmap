@@ -27,7 +27,7 @@ func makeGlpkRIGenerator() *GlpkRIGenerator {
 	return &GlpkRIGenerator{}
 }
 
-func (_ GlpkRIGenerator) String() string {
+func (GlpkRIGenerator) String() string {
 	return "glpk"
 }
 
@@ -85,7 +85,7 @@ func readSolution(params VbmapParams, outPath string) (ri RI, err error) {
 	}
 	defer output.Close()
 
-	var values []int = make([]int, params.NumNodes*params.NumNodes)
+	var values = make([]int, params.NumNodes*params.NumNodes)
 
 	for i := range values {
 		_, err = fmt.Fscan(output, &values[i])
@@ -110,7 +110,7 @@ func readSolution(params VbmapParams, outPath string) (ri RI, err error) {
 	return ri, nil
 }
 
-func (_ GlpkRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, err error) {
+func (GlpkRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, err error) {
 	dataFile, err := ioutil.TempFile("", "vbmap_glpk_data")
 	if err != nil {
 		err = fmt.Errorf("Couldn't create data file: %s", err.Error())

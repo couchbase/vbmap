@@ -34,7 +34,7 @@ const (
 	generalErrorExitCode = 2
 )
 
-var availableGenerators []RIGenerator = []RIGenerator{
+var availableGenerators = []RIGenerator{
 	makeMaxFlowRIGenerator(),
 	makeGlpkRIGenerator(),
 }
@@ -43,18 +43,16 @@ var diag *log.Logger
 
 var (
 	seed         int64
-	tagHistogram TagHist     = nil
-	params       VbmapParams = VbmapParams{
-		Tags: nil,
-	}
-	engine       Engine = Engine{availableGenerators[0]}
-	engineParams string = ""
+	tagHistogram TagHist
+	params       = VbmapParams{Tags: nil}
+	engine       = Engine{availableGenerators[0]}
+	engineParams string
 	searchParams SearchParams
 	relaxAll     bool
 
 	outputFormat OutputFormat = "text"
-	diagTo       string       = "stderr"
-	profTo       string       = ""
+	diagTo                    = "stderr"
+	profTo       string
 
 	currentMapPath string
 )
@@ -117,9 +115,9 @@ func (engine *Engine) Set(s string) error {
 func (engine Engine) String() string {
 	if engine.generator != nil {
 		return engine.generator.String()
-	} else {
-		return "no-engine"
 	}
+
+	return "no-engine"
 }
 
 func (format *OutputFormat) Set(s string) error {
@@ -198,13 +196,13 @@ func checkInput() {
 
 		for _, node := range nodes {
 			for tag < len(tagHistogram) && tagHistogram[tag] == 0 {
-				tag += 1
+				tag++
 			}
 			if tag >= len(tagHistogram) {
 				fatal("Invalid tag histogram. Counts do not add up.")
 			}
 
-			tagHistogram[tag] -= 1
+			tagHistogram[tag]--
 			params.Tags[node] = Tag(tag)
 		}
 
@@ -405,21 +403,21 @@ func main() {
 		}
 		fmt.Print(string(json))
 	case "ext-json":
-		extJsonMap := make(map[string]interface{})
-		extJsonMap["numNodes"] = params.NumNodes
-		extJsonMap["numSlaves"] = params.NumSlaves
-		extJsonMap["numVBuckets"] = params.NumVBuckets
-		extJsonMap["numReplicas"] = params.NumReplicas
-		extJsonMap["map"] = solution
+		extJSONMap := make(map[string]interface{})
+		extJSONMap["numNodes"] = params.NumNodes
+		extJSONMap["numSlaves"] = params.NumSlaves
+		extJSONMap["numVBuckets"] = params.NumVBuckets
+		extJSONMap["numReplicas"] = params.NumReplicas
+		extJSONMap["map"] = solution
 
 		tags := make([]Tag, params.NumNodes)
-		extJsonMap["tags"] = tags
+		extJSONMap["tags"] = tags
 
 		for i, t := range params.Tags {
 			tags[i] = t
 		}
 
-		json, err := json.Marshal(extJsonMap)
+		json, err := json.Marshal(extJSONMap)
 		if err != nil {
 			fatal("Couldn't encode the solution: %s", err.Error())
 		}

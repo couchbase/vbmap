@@ -116,8 +116,8 @@ type RIGenerator interface {
 
 type DontAcceptRIGeneratorParams struct{}
 
-func (_ DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
-	for k, _ := range params {
+func (DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
+	for k := range params {
 		return fmt.Errorf("unsupported parameter '%s'", k)
 	}
 

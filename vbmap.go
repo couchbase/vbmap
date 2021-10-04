@@ -49,17 +49,17 @@ var (
 	inf = chainCost{MaxInt, MaxInt}
 )
 
-func (self chainCost) cmp(other chainCost) int {
+func (c chainCost) cmp(other chainCost) int {
 	switch {
-	case self.tagViolations > other.tagViolations:
+	case c.tagViolations > other.tagViolations:
 		return 1
-	case self.tagViolations < other.tagViolations:
+	case c.tagViolations < other.tagViolations:
 		return -1
 	default:
 		switch {
-		case self.rawCost > other.rawCost:
+		case c.rawCost > other.rawCost:
 			return 1
-		case self.rawCost < other.rawCost:
+		case c.rawCost < other.rawCost:
 			return -1
 		}
 	}
@@ -67,38 +67,38 @@ func (self chainCost) cmp(other chainCost) int {
 	return 0
 }
 
-func (self chainCost) less(other chainCost) bool {
-	return self.cmp(other) == -1
+func (c chainCost) less(other chainCost) bool {
+	return c.cmp(other) == -1
 }
 
-func (self chainCost) plus(other chainCost) (result chainCost) {
-	if self == inf || other == inf {
+func (c chainCost) plus(other chainCost) (result chainCost) {
+	if c == inf || other == inf {
 		return inf
 	}
 
-	result.tagViolations = self.tagViolations + other.tagViolations
-	result.rawCost = self.rawCost + other.rawCost
+	result.tagViolations = c.tagViolations + other.tagViolations
+	result.rawCost = c.rawCost + other.rawCost
 
 	return
 }
 
-func (self chainCost) div(denom int) (result chainCost) {
-	if self == inf {
+func (c chainCost) div(denom int) (result chainCost) {
+	if c == inf {
 		return inf
 	}
 
-	result.tagViolations = self.tagViolations
-	result.rawCost = self.rawCost / denom
+	result.tagViolations = c.tagViolations
+	result.rawCost = c.rawCost / denom
 
 	return
 }
 
-func (self chainCost) String() string {
-	if self == inf {
+func (c chainCost) String() string {
+	if c == inf {
 		return "inf"
-	} else {
-		return fmt.Sprintf("{%d %d}", self.rawCost, self.tagViolations)
 	}
+
+	return fmt.Sprintf("{%d %d}", c.rawCost, c.tagViolations)
 }
 
 type slavePair struct {
@@ -229,7 +229,7 @@ func (ctx *selectionCtx) noteChain(chain []Node) {
 		}
 	}
 
-	ctx.vbuckets -= 1
+	ctx.vbuckets--
 }
 
 func (ctx *selectionCtx) hasSlaves() bool {
@@ -284,7 +284,7 @@ func (ctx *selectionCtx) availableSlaves() (result []Node) {
 	return
 }
 
-func (_ *selectionCtx) restoreChain(parent [][]int,
+func (*selectionCtx) restoreChain(parent [][]int,
 	nodes []Node, t, i int) (chain []Node) {
 
 	chain = make([]Node, t+1)
@@ -322,14 +322,14 @@ func (ctx *selectionCtx) isFeasibleChain(requiredTags []Tag,
 	reqTagsCount := 0
 	for _, tag := range requiredTags {
 		if _, present := seenTags[tag]; present {
-			reqTagsCount += 1
+			reqTagsCount++
 		}
 	}
 
 	reqNodesCount := 0
 	for _, node := range requiredNodes {
 		if _, present := seenNodes[node]; present {
-			reqNodesCount += 1
+			reqNodesCount++
 		}
 	}
 
@@ -387,7 +387,7 @@ func (ctx *selectionCtx) nextBestChain() (result []Node) {
 			min := inf
 			var minCount int
 
-			for j, _ := range candidates {
+			for j := range candidates {
 				c := cost[t-1][j]
 
 				if c == inf {
@@ -576,11 +576,11 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator,
 	diag.Printf("Generated topology:\n%s", ri.String())
 	diag.Printf("Final map R:\n%s", r.String())
 
-	vbmap_start := time.Now()
+	vbmapStart := time.Now()
 
 	vbmap = buildVbmap(r)
 
-	dt = time.Since(vbmap_start)
+	dt = time.Since(vbmapStart)
 	diag.Printf("Built vbucket map from R in %s (wall clock)", dt)
 
 	dt = time.Since(start)

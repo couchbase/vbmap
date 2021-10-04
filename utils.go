@@ -19,9 +19,9 @@ const (
 func Abs(v int) int {
 	if v < 0 {
 		return -v
-	} else {
-		return v
 	}
+
+	return v
 }
 
 func Shuffle(a []int) {
@@ -40,8 +40,8 @@ func SpreadSum(sum int, n int) (result []int) {
 	for i := range result {
 		result[i] = quot
 		if rem != 0 {
-			rem -= 1
-			result[i] += 1
+			rem--
+			result[i]++
 		}
 	}
 
@@ -51,15 +51,15 @@ func SpreadSum(sum int, n int) (result []int) {
 func B2i(b bool) int {
 	if b {
 		return 1
-	} else {
-		return 0
 	}
+
+	return 0
 }
 
 func Min(a, b int) int {
 	if a <= b {
 		return a
-	} else {
-		return b
 	}
+
+	return b
 }

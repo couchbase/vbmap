@@ -44,7 +44,7 @@ func (cand R) String() string {
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "----|")
-	for _ = range nodes {
+	for range nodes {
 		fmt.Fprintf(buffer, "----")
 	}
 	fmt.Fprintf(buffer, "|\n")
@@ -58,7 +58,7 @@ func (cand R) String() string {
 	}
 
 	fmt.Fprintf(buffer, "____|")
-	for _ = range nodes {
+	for range nodes {
 		fmt.Fprintf(buffer, "____")
 	}
 	fmt.Fprintf(buffer, "|\n")
@@ -88,7 +88,7 @@ func buildRFlowGraph(
 		numReplicasHi = numReplicasLo
 
 		if numReplicasLo*params.NumNodes < params.NumVBuckets {
-			numReplicasHi += 1
+			numReplicasHi++
 		}
 
 		numReplicasLo *= params.NumReplicas
@@ -177,7 +177,7 @@ func makeRFromMatrix(params VbmapParams, matrix [][]int) (result *R) {
 	for _, sum := range result.ColSums {
 		result.rawEvaluation += Abs(sum - result.expectedColSum)
 		if sum == result.expectedColSum+1 {
-			result.outliers += 1
+			result.outliers++
 		}
 	}
 

@@ -93,14 +93,13 @@ func (edge GraphEdge) Capacity() int {
 func (edge GraphEdge) Flow() int {
 	if edge.Demand == 0 {
 		return edge.flow
-	} else {
-		// Note that this value will only be correct if there's a
-		// feasible flow in the grah. If there's not, the value may be
-		// nonsensical.
-		demandFlow := Min(edge.demandEdge.flow, edge.supplyEdge.flow)
-		demandFlow = Min(edge.Demand, demandFlow)
-		return edge.flow + demandFlow
 	}
+
+	// Note that this value will only be correct if there's a feasible
+	// flow in the grah. If there's not, the value may be nonsensical.
+	demandFlow := Min(edge.demandEdge.flow, edge.supplyEdge.flow)
+	demandFlow = Min(edge.Demand, demandFlow)
+	return edge.flow + demandFlow
 }
 
 func (edge GraphEdge) String() string {
@@ -209,7 +208,7 @@ func (v *graphVertexData) addEdge(edge *GraphEdge) {
 }
 
 func (v *graphVertexData) forgetFirstEdge() {
-	v.firstEdge += 1
+	v.firstEdge++
 }
 
 func (v *graphVertexData) reset() {
@@ -237,11 +236,11 @@ func (stats graphStats) String() string {
 }
 
 func (stats *graphStats) noteVertexAdded() {
-	stats.numVertices += 1
+	stats.numVertices++
 }
 
 func (stats *graphStats) noteEdgeAdded() {
-	stats.numEdges += 1
+	stats.numEdges++
 }
 
 type maxflowStats struct {
@@ -276,19 +275,19 @@ func (stats *maxflowStats) nextIteration() {
 }
 
 func (stats *maxflowStats) noteAdvance() {
-	stats.numAdvances += 1
+	stats.numAdvances++
 }
 
 func (stats *maxflowStats) noteRetreat() {
-	stats.numRetreats += 1
+	stats.numRetreats++
 }
 
 func (stats *maxflowStats) noteAugment() {
-	stats.numAugments += 1
+	stats.numAugments++
 }
 
 func (stats *maxflowStats) noteEdgeProcessed() {
-	stats.numEdges += 1
+	stats.numEdges++
 }
 
 type Graph struct {
@@ -317,7 +316,7 @@ func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
 	queue := []GraphVertex{source}
 	seen := make(map[GraphVertex]bool)
 
-	for v, _ := range g.vertices {
+	for v := range g.vertices {
 		g.distances[v] = -1
 	}
 
@@ -432,11 +431,11 @@ func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 		} else {
 			if v == source {
 				break
-			} else {
-				g.distances[v] = -1
-				edge := path.removeLastEdge()
-				v = edge.Src
 			}
+
+			g.distances[v] = -1
+			edge := path.removeLastEdge()
+			v = edge.Src
 		}
 	}
 
@@ -605,7 +604,7 @@ func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
 }
 
 func (g *Graph) Vertices() (vertices []GraphVertex) {
-	for v, _ := range g.vertices {
+	for v := range g.vertices {
 		vertices = append(vertices, v)
 	}
 
@@ -628,7 +627,7 @@ func (g *Graph) Dot(path string, verbose bool) (err error) {
 	dist := g.bfsNetwork(Source)
 	groups := make([][]GraphVertex, dist+1)
 
-	for v, _ := range g.vertices {
+	for v := range g.vertices {
 		d := g.distances[v]
 
 		if d != -1 {

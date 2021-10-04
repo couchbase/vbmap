@@ -23,7 +23,7 @@ func makeMaxFlowRIGenerator() *MaxFlowRIGenerator {
 	return &MaxFlowRIGenerator{dotPath: "", dotVerbose: false}
 }
 
-func (_ MaxFlowRIGenerator) String() string {
+func (MaxFlowRIGenerator) String() string {
 	return "maxflow"
 }
 
@@ -42,8 +42,8 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 	return nil
 }
 
-func (gen MaxFlowRIGenerator) Generate(params VbmapParams,
-	searchParams SearchParams) (ri RI, err error) {
+func (gen MaxFlowRIGenerator) Generate(
+	params VbmapParams, _ SearchParams) (ri RI, err error) {
 
 	g := buildFlowGraph(params)
 
@@ -161,7 +161,7 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 				}
 
 				ri.Matrix[srcNode][dstNode] = 1
-				count -= 1
+				count--
 
 				slaveIx = (slaveIx + 1) % len(tagNodes)
 			}
