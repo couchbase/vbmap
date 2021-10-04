@@ -104,8 +104,6 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 	return
 }
 
-type TagAwarenessRank int
-
 type RI struct {
 	Matrix [][]int
 }

@@ -73,8 +73,6 @@ param tags := {{ range $node, $tag := .Tags }}{{ $node }} {{ $tag }} {{ end }};
 end;
 `
 
-type GlpkResult uint
-
 func genDataFile(file io.Writer, params VbmapParams) error {
 	tmpl := template.Must(template.New("data").Parse(dataTemplate))
 	return tmpl.Execute(file, params)
