@@ -53,11 +53,20 @@ func setup(t *testing.T) {
 	t.Parallel()
 }
 
+func trivialTags(nodes int) (tags map[Node]Tag) {
+	tags = make(map[Node]Tag)
+	for n := 0; n < nodes; n++ {
+		tags[Node(n)] = Tag(n)
+	}
+
+	return
+}
+
 func TestRReplicaBalance(t *testing.T) {
 	setup(t)
 
 	for nodes := 1; nodes <= 100; nodes++ {
-		tags := TrivialTags(nodes)
+		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
 			seed = time.Now().UTC().UnixNano()
@@ -92,7 +101,7 @@ func (_ VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 	replicas := rand.Int() % 4
 
 	params := VbmapParams{
-		Tags:        TrivialTags(nodes),
+		Tags:        trivialTags(nodes),
 		NumNodes:    nodes,
 		NumSlaves:   10,
 		NumVBuckets: 1024,
