@@ -40,11 +40,6 @@ type TestingWriter struct {
 }
 
 var allGenerators []RIGenerator = []RIGenerator{
-	makeDummyRIGenerator(),
-	makeMaxFlowRIGenerator(),
-}
-
-var tagAwareGenerators []RIGenerator = []RIGenerator{
 	makeMaxFlowRIGenerator(),
 }
 
@@ -427,7 +422,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 func TestRIPropertiesTagAware(t *testing.T) {
 	setup(t)
 
-	for _, gen := range tagAwareGenerators {
+	for _, gen := range allGenerators {
 		check := func(params EqualTagsR1VbmapParams) bool {
 			return checkRIPropertiesTagAware(gen, params.VbmapParams)
 		}
@@ -521,7 +516,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 func TestVbmapTagAware(t *testing.T) {
 	setup(t)
 
-	for _, gen := range tagAwareGenerators {
+	for _, gen := range allGenerators {
 		check := func(params EqualTagsVbmapParams) bool {
 			return checkVbmapTagAware(gen, params.VbmapParams)
 		}

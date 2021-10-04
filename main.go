@@ -37,7 +37,6 @@ const (
 var availableGenerators []RIGenerator = []RIGenerator{
 	makeMaxFlowRIGenerator(),
 	makeGlpkRIGenerator(),
-	makeDummyRIGenerator(),
 }
 
 var diag *log.Logger
