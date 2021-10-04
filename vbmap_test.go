@@ -38,7 +38,17 @@ func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
 }
 
 func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
-	return tryBuildR(params, gen, testSearchParams)
+	ri, err := tryBuildRI(&params, gen, testSearchParams)
+	if err != nil {
+		return RI{}, R{}, err
+	}
+
+	r, err := BuildR(params, ri, testSearchParams)
+	if err != nil {
+		return RI{}, R{}, err
+	}
+
+	return ri, r, nil
 }
 
 type testingWriter struct {

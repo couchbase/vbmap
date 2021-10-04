@@ -547,18 +547,6 @@ func tryBuildRI(params *VbmapParams, gen RIGenerator,
 	return
 }
 
-func tryBuildR(params VbmapParams, gen RIGenerator,
-	searchParams SearchParams) (ri RI, r R, err error) {
-
-	ri, err = tryBuildRI(&params, gen, searchParams)
-	if err != nil {
-		return
-	}
-
-	r, err = BuildR(params, ri, searchParams)
-	return
-}
-
 // Generate vbucket map given a generator for matrix RI and vbucket map
 // parameters.
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
@@ -566,15 +554,20 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator,
 
 	start := time.Now()
 
-	ri, r, err := tryBuildR(params, gen, searchParams)
+	ri, err := tryBuildRI(&params, gen, searchParams)
+	if err != nil {
+		return nil, err
+	}
+
+	diag.Printf("Generated topology:\n%s", ri.String())
+
+	r, err := BuildR(params, ri, searchParams)
 	if err != nil {
 		return nil, err
 	}
 
 	dt := time.Since(start)
 	diag.Printf("Generated matrix R in %s (wall clock)", dt)
-
-	diag.Printf("Generated topology:\n%s", ri.String())
 	diag.Printf("Final map R:\n%s", r.String())
 
 	vbmapStart := time.Now()
