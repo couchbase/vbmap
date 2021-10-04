@@ -13,7 +13,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -319,8 +318,6 @@ func main() {
 	switch diagTo {
 	case "stderr":
 		diagSink = os.Stderr
-	case "null":
-		diagSink = ioutil.Discard
 	default:
 		diagFile, err := os.Create(diagTo)
 		if err != nil {
