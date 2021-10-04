@@ -50,7 +50,7 @@ var (
 	relaxAll     bool
 
 	outputFormat outputFormatValue = "text"
-	diagTo                         = "stderr"
+	diagTo       string
 	profTo       string
 
 	currentMapPath string
@@ -291,7 +291,7 @@ func main() {
 	flag.Var(&engine, "engine", "engine used to generate the topology")
 	flag.StringVar(&engineParams, "engine-params", "", "engine specific params")
 	flag.Var(&outputFormat, "output-format", "output format")
-	flag.StringVar(&diagTo, "diag", "stderr", "where to send diagnostics")
+	flag.StringVar(&diagTo, "diag", "", "where to send diagnostics")
 	flag.StringVar(&profTo, "cpuprofile", "", "write cpuprofile to path")
 
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
@@ -315,10 +315,9 @@ func main() {
 	flag.Parse()
 
 	var diagSink io.Writer
-	switch diagTo {
-	case "stderr":
+	if diagTo == "" {
 		diagSink = os.Stderr
-	default:
+	} else {
 		diagFile, err := os.Create(diagTo)
 		if err != nil {
 			fatal("Couldn't create diagnostics file %s: %s",
