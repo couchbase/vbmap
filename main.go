@@ -300,6 +300,9 @@ func main() {
 		"strict-replica-balance", false,
 		"require that all nodes have "+
 			"the same number of replica vbuckets (±1)")
+	flag.BoolVar(&searchParams.RelaxSlaveBalance,
+		"relax-slave-balance", false,
+		"allow replicating differing number of vbuckets to node slaves")
 	flag.BoolVar(&searchParams.RelaxReplicaBalance,
 		"relax-replica-balance", false,
 		"allow nodes to have differing number of replicas")
@@ -369,6 +372,7 @@ func main() {
 
 	if relaxAll {
 		searchParams.StrictReplicaBalance = false
+		searchParams.RelaxSlaveBalance = true
 		searchParams.RelaxReplicaBalance = true
 		searchParams.RelaxNumSlaves = true
 	}

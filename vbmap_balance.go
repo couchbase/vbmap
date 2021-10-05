@@ -175,9 +175,15 @@ func buildRFlowGraph(
 				seenTags[dstNodeTag] = true
 			}
 
-			vbsPerSlave := numVbsReplicated / params.NumSlaves
-			g.AddEdge(tagV, dstNodeSinkV,
-				vbsPerSlave+1, vbsPerSlave)
+			vbsPerSlave := newRat(
+				numVbsReplicated, params.NumSlaves)
+			vbsPerSlaveLo := ratFloor(vbsPerSlave)
+			vbsPerSlaveHi := ratCeil(vbsPerSlave)
+
+			g.AddEdge(
+				tagV, dstNodeSinkV,
+				vbsPerSlaveHi*elem,
+				vbsPerSlaveLo*elem)
 		}
 	}
 

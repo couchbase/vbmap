@@ -47,6 +47,7 @@ type SearchParams struct {
 	NumRRetries int
 
 	StrictReplicaBalance bool
+	RelaxSlaveBalance    bool
 	RelaxReplicaBalance  bool
 	RelaxNumSlaves       bool
 

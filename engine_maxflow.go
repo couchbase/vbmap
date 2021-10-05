@@ -51,6 +51,14 @@ func (gen MaxFlowRIGenerator) Generate(
 	diag.Print(g.graphStats)
 
 	feasible, _ := g.FindFeasibleFlow()
+	if !feasible && searchParams.RelaxSlaveBalance {
+		relaxSlaveBalance(g, params)
+		feasible, _ = g.FindFeasibleFlow()
+		if feasible {
+			diag.Printf("Generated RI with relaxed slave balance")
+		}
+	}
+
 	if !feasible && searchParams.RelaxReplicaBalance {
 		relaxReplicaBalance(g, params)
 		feasible, _ = g.FindFeasibleFlow()
@@ -72,8 +80,22 @@ func (gen MaxFlowRIGenerator) Generate(
 		return
 	}
 
-	ri = graphToRI(g, params)
+	ri = graphToRI(g, params, searchParams)
 	return
+}
+
+func relaxSlaveBalance(g *Graph, params VbmapParams) {
+	tags := params.Tags.TagsList()
+	maxRepsPerTag := maxReplicationsPerTag(params)
+
+	for _, tag := range tags {
+		v := TagVertex(tag)
+
+		for _, edge := range g.EdgesToVertex(v) {
+			edge.IncreaseCapacity(maxRepsPerTag)
+		}
+	}
+
 }
 
 func relaxReplicaBalance(g *Graph, params VbmapParams) {
@@ -87,6 +109,14 @@ func relaxReplicaBalance(g *Graph, params VbmapParams) {
 	}
 }
 
+func maxReplicationsPerTag(params VbmapParams) int {
+	if params.NumReplicas != 0 {
+		return params.NumSlaves / params.NumReplicas
+	}
+
+	return 0
+}
+
 func buildFlowGraph(params VbmapParams) (g *Graph) {
 	graphName := fmt.Sprintf("Flow graph for RI (%s)", params)
 	g = NewGraph(graphName)
@@ -94,10 +124,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 	tags := params.Tags.TagsList()
 	tagsNodes := params.Tags.TagsNodesMap()
 
-	maxReplicationsPerTag := 0
-	if params.NumReplicas != 0 {
-		maxReplicationsPerTag = params.NumSlaves / params.NumReplicas
-	}
+	maxRepsPerTag := maxReplicationsPerTag(params)
 
 	for _, node := range params.Nodes() {
 		nodeTag := params.Tags[node]
@@ -111,7 +138,7 @@ func buildFlowGraph(params VbmapParams) (g *Graph) {
 			}
 
 			tagNodesCount := len(tagsNodes[tag])
-			tagCapacity := Min(tagNodesCount, maxReplicationsPerTag)
+			tagCapacity := Min(tagNodesCount, maxRepsPerTag)
 
 			tagV := TagVertex(tag)
 			g.AddEdge(nodeSrcV, tagV, tagCapacity, 0)
@@ -133,7 +160,9 @@ type nodeCount struct {
 	count int
 }
 
-func graphToRI(g *Graph, params VbmapParams) (ri RI) {
+func graphToRI(g *Graph, params VbmapParams, searchParams SearchParams) RI {
+	var ri RI
+
 	ri.Matrix = make([][]int, params.NumNodes)
 	tags := params.Tags.TagsNodesMap()
 
@@ -168,13 +197,14 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 			for count > 0 {
 				dstNode := tagNodes[slaveIx]
 
-				if ri.Matrix[srcNode][dstNode] > 0 {
+				if ri.Matrix[srcNode][dstNode] > 0 &&
+					!searchParams.RelaxSlaveBalance {
 					panic(fmt.Sprintf("Forced to use the "+
 						"same slave %d twice (tag %v)",
 						dstNode, tag))
 				}
 
-				ri.Matrix[srcNode][dstNode] = 1
+				ri.Matrix[srcNode][dstNode]++
 				count--
 
 				slaveIx = (slaveIx + 1) % len(tagNodes)
@@ -182,5 +212,5 @@ func graphToRI(g *Graph, params VbmapParams) (ri RI) {
 		}
 	}
 
-	return
+	return ri
 }
