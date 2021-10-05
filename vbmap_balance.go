@@ -272,6 +272,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 				"This should not happen")
 		}
 
+		diag.Printf("Found feasible R with non-strict replica balance")
 		return *r, nil
 	}
 
