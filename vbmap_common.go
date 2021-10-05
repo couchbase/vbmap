@@ -47,6 +47,7 @@ type SearchParams struct {
 	NumRRetries int
 
 	StrictReplicaBalance bool
+	RelaxReplicaBalance  bool
 	RelaxNumSlaves       bool
 
 	DotPath string
@@ -106,6 +107,17 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 
 type RI struct {
 	Matrix [][]int
+}
+
+func (ri RI) NumInboundReplications(node Node) int {
+	j := int(node)
+
+	result := 0
+	for i := range ri.Matrix {
+		result += ri.Matrix[i][j]
+	}
+
+	return result
 }
 
 type RIGenerator interface {

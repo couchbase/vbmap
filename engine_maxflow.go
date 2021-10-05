@@ -10,6 +10,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"sort"
 )
 
@@ -42,7 +43,7 @@ func (gen *MaxFlowRIGenerator) SetParams(params map[string]string) error {
 }
 
 func (gen MaxFlowRIGenerator) Generate(
-	params VbmapParams, _ SearchParams) (ri RI, err error) {
+	params VbmapParams, searchParams SearchParams) (ri RI, err error) {
 
 	g := buildFlowGraph(params)
 
@@ -50,6 +51,14 @@ func (gen MaxFlowRIGenerator) Generate(
 	diag.Print(g.graphStats)
 
 	feasible, _ := g.FindFeasibleFlow()
+	if !feasible && searchParams.RelaxReplicaBalance {
+		relaxReplicaBalance(g, params)
+		feasible, _ = g.FindFeasibleFlow()
+		if feasible {
+			diag.Printf("Generated RI with relaxed replica balance")
+		}
+	}
+
 	if gen.dotPath != "" {
 		err := g.Dot(gen.dotPath, gen.dotVerbose)
 		if err != nil {
@@ -65,6 +74,17 @@ func (gen MaxFlowRIGenerator) Generate(
 
 	ri = graphToRI(g, params)
 	return
+}
+
+func relaxReplicaBalance(g *Graph, params VbmapParams) {
+	tags := params.Tags.TagsList()
+	for _, tag := range tags {
+		v := TagVertex(tag)
+
+		for _, edge := range g.EdgesFromVertex(v) {
+			edge.IncreaseCapacity(math.MaxInt)
+		}
+	}
 }
 
 func buildFlowGraph(params VbmapParams) (g *Graph) {

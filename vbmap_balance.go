@@ -11,6 +11,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 )
 
 // Matrix R with some meta-information.
@@ -73,27 +74,66 @@ func (cand R) String() string {
 	return buffer.String()
 }
 
+func newRat(num, denom int) *big.Rat {
+	return big.NewRat(int64(num), int64(denom))
+}
+
+func newRatFromInt(n int) *big.Rat {
+	return newRat(n, 1)
+}
+
+func ratFloor(r *big.Rat) int {
+	num := int(r.Num().Int64())
+	denom := int(r.Denom().Int64())
+
+	return num / denom
+}
+
+func ratCeil(r *big.Rat) int {
+	if r.IsInt() {
+		return ratFloor(r)
+	}
+
+	return ratFloor(r) + 1
+}
+
+func replicasPerSlave(params VbmapParams, strict bool) (*big.Rat, *big.Rat) {
+	if params.NumSlaves == 0 {
+		return newRatFromInt(0), newRatFromInt(0)
+	}
+
+	total := params.NumVBuckets * params.NumReplicas
+	perNode := newRat(total, params.NumNodes)
+
+	low := &big.Rat{}
+	low.Quo(perNode, newRatFromInt(params.NumSlaves))
+	high := low
+
+	if !strict {
+		activeVbsPerNode := newRat(params.NumVBuckets, params.NumNodes)
+		activeVbsPerNodeLow := ratFloor(activeVbsPerNode)
+		activeVbsPerNodeHigh := ratCeil(activeVbsPerNode)
+
+		low = newRatFromInt(activeVbsPerNodeLow)
+		low.Mul(low, newRatFromInt(params.NumReplicas))
+		low.Quo(low, newRatFromInt(params.NumSlaves))
+
+		high = newRatFromInt(activeVbsPerNodeHigh)
+		high.Mul(high, newRatFromInt(params.NumReplicas))
+		high.Quo(high, newRatFromInt(params.NumSlaves))
+	}
+
+	return low, high
+}
+
 func buildRFlowGraph(
 	params VbmapParams, ri RI, activeVbs []int, strict bool) (g *Graph) {
 
+	replicasPerSlaveLo, replicasPerSlaveHi :=
+		replicasPerSlave(params, strict)
+
 	graphName := fmt.Sprintf("Flow graph for R (%s)", params)
 	g = NewGraph(graphName)
-
-	numReplicasTotal := params.NumVBuckets * params.NumReplicas
-	numReplicasLo := numReplicasTotal / params.NumNodes
-	numReplicasHi := numReplicasLo + 1
-
-	if !strict {
-		numReplicasLo = params.NumVBuckets / params.NumNodes
-		numReplicasHi = numReplicasLo
-
-		if numReplicasLo*params.NumNodes < params.NumVBuckets {
-			numReplicasHi++
-		}
-
-		numReplicasLo *= params.NumReplicas
-		numReplicasHi *= params.NumReplicas
-	}
 
 	for i, row := range ri.Matrix {
 		node := Node(i)
@@ -101,8 +141,18 @@ func buildRFlowGraph(
 		nodeSinkV := NodeSinkVertex(node)
 
 		numVbsReplicated := activeVbs[i] * params.NumReplicas
-
 		g.AddEdge(Source, nodeSrcV, numVbsReplicated, numVbsReplicated)
+
+		replications := newRatFromInt(ri.NumInboundReplications(node))
+
+		numReplicas := &big.Rat{}
+		numReplicas.Mul(replications, replicasPerSlaveLo)
+		numReplicasLo := ratFloor(numReplicas)
+
+		numReplicas.Mul(replications, replicasPerSlaveHi)
+		numReplicas.Mul(replications, replicasPerSlaveHi)
+		numReplicasHi := ratCeil(numReplicas)
+
 		g.AddEdge(nodeSinkV, Sink, numReplicasHi, numReplicasLo)
 
 		seenTags := make(map[Tag]bool)
