@@ -187,31 +187,29 @@ func checkInput() {
 		}
 	}
 
-	nodes := params.Nodes()
-
 	if tagHisto != nil {
+		numNodes := 0
+		for _, count := range tagHisto {
+			numNodes += int(count)
+		}
+
+		params.NumNodes = numNodes
+
 		tag := 0
 		params.Tags = make(TagMap)
 
-		for _, node := range nodes {
+		for _, node := range params.Nodes() {
 			for tag < len(tagHisto) && tagHisto[tag] == 0 {
 				tag++
-			}
-			if tag >= len(tagHisto) {
-				fatal("Invalid tag histogram. Counts do not add up.")
 			}
 
 			tagHisto[tag]--
 			params.Tags[node] = Tag(tag)
 		}
-
-		if tag != len(tagHisto)-1 || tagHisto[tag] != 0 {
-			fatal("Invalid tag histogram. Counts do not add up.")
-		}
 	}
 
 	// each node should have a tag assigned
-	for _, node := range nodes {
+	for _, node := range params.Nodes() {
 		_, present := params.Tags[node]
 		if !present {
 			fatal("Tag for node %v not specified", node)
