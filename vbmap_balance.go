@@ -155,7 +155,7 @@ func buildRFlowGraph(
 
 		g.AddEdge(nodeSinkV, Sink, numReplicasHi, numReplicasLo)
 
-		seenTags := make(map[Tag]bool)
+		maxVbsPerTag := numVbsReplicated / params.NumReplicas
 		for j, elem := range row {
 			if elem == 0 {
 				continue
@@ -167,12 +167,8 @@ func buildRFlowGraph(
 			dstNodeSinkV := NodeSinkVertex(dstNode)
 			tagV := TagNodeVertex{dstNodeTag, node}
 
-			if _, seen := seenTags[dstNodeTag]; !seen {
-				maxVbsPerTag :=
-					numVbsReplicated / params.NumReplicas
-
+			if !g.HasVertex(tagV) {
 				g.AddEdge(nodeSrcV, tagV, maxVbsPerTag, 0)
-				seenTags[dstNodeTag] = true
 			}
 
 			vbsPerSlave := newRat(

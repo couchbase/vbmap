@@ -566,7 +566,7 @@ func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 	}
 }
 
-func (g *Graph) hasVertex(v GraphVertex) bool {
+func (g *Graph) HasVertex(v GraphVertex) bool {
 	_, ok := g.vertices[v]
 	return ok
 }
@@ -576,7 +576,7 @@ func (g *Graph) EdgesFromVertex(v GraphVertex) (edges []*GraphEdge) {
 }
 
 func (g *Graph) edgesFromVertex(v GraphVertex, etype edgeType) []*GraphEdge {
-	if !g.hasVertex(v) {
+	if !g.HasVertex(v) {
 		return nil
 	}
 
@@ -591,7 +591,7 @@ func (g *Graph) edgesFromVertex(v GraphVertex, etype edgeType) []*GraphEdge {
 }
 
 func (g *Graph) EdgesToVertex(v GraphVertex) (edges []*GraphEdge) {
-	if !g.hasVertex(v) {
+	if !g.HasVertex(v) {
 		return nil
 	}
 
