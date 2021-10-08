@@ -259,20 +259,22 @@ func (cand R) Evaluation() int {
 
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
-	var r *R
 	var g *Graph
+	var feasible bool
+	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
 
 	for i := 0; i < searchParams.NumRRetries; i++ {
-		r, g = buildR(params, ri, true)
-		if r != nil {
+		Shuffle(activeVbsPerNode)
+		feasible, g = findRFlow(params, ri, activeVbsPerNode, true)
+		if feasible {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			break
 		}
 	}
 
-	if r == nil && !searchParams.StrictReplicaBalance {
-		r, g = buildR(params, ri, false)
-		if r == nil {
+	if !feasible && !searchParams.StrictReplicaBalance {
+		feasible, g = findRFlow(params, ri, activeVbsPerNode, false)
+		if !feasible {
 			panic("Couldn't generate non-strict R. " +
 				"This should not happen")
 		}
@@ -289,24 +291,18 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 		}
 	}
 
-	if r == nil {
+	if !feasible {
 		return R{}, ErrorNoSolution
 	}
 
-	return *r, nil
+	return *graphToR(g, params), nil
 }
 
-func buildR(params VbmapParams, ri RI, strict bool) (*R, *Graph) {
+func findRFlow(
+	params VbmapParams, ri RI, vbs []int, strict bool) (bool, *Graph) {
 
-	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
-	Shuffle(activeVbsPerNode)
-
-	g := buildRFlowGraph(params, ri, activeVbsPerNode, strict)
+	g := buildRFlowGraph(params, ri, vbs, strict)
 	feasible, _ := g.FindFeasibleFlow()
 
-	if feasible {
-		return graphToR(g, params), g
-	}
-
-	return nil, g
+	return feasible, g
 }
