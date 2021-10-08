@@ -259,26 +259,30 @@ func (cand R) Evaluation() int {
 
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
+	var r *R
 	for i := 0; i < searchParams.NumRRetries; i++ {
-		r := buildR(params, ri, searchParams, true)
+		r = buildR(params, ri, searchParams, true)
 		if r != nil {
 			diag.Printf("Found feasible R after %d attempts", i+1)
-			return *r, nil
+			break
 		}
 	}
 
-	if !searchParams.StrictReplicaBalance {
-		r := buildR(params, ri, searchParams, false)
+	if r == nil && !searchParams.StrictReplicaBalance {
+		r = buildR(params, ri, searchParams, false)
 		if r == nil {
 			panic("Couldn't generate non-strict R. " +
 				"This should not happen")
 		}
 
 		diag.Printf("Found feasible R with non-strict replica balance")
-		return *r, nil
 	}
 
-	return R{}, ErrorNoSolution
+	if r == nil {
+		return R{}, ErrorNoSolution
+	}
+
+	return *r, nil
 }
 
 func buildR(
