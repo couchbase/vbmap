@@ -137,7 +137,7 @@ func (edge *GraphEdge) pushFlow(flow int) {
 	}
 }
 
-func (edge GraphEdge) isSaturated() bool {
+func (edge GraphEdge) IsSaturated() bool {
 	return edge.residual() == 0
 }
 
@@ -352,7 +352,7 @@ func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
 
 func (g *Graph) bfsUnsaturated(source, sink GraphVertex) bool {
 	_ = g.bfsGeneric(source, func(edge *GraphEdge) bool {
-		return !edge.isSaturated()
+		return !edge.IsSaturated()
 	})
 
 	return g.distances[sink] != -1
@@ -378,7 +378,7 @@ func (g *Graph) dfsPath(from, to GraphVertex, path *augPath) bool {
 
 		dst := edge.Dst
 
-		if g.distances[dst] == d+1 && !edge.isSaturated() {
+		if g.distances[dst] == d+1 && !edge.IsSaturated() {
 			g.noteAdvance()
 
 			path.addEdge(edge)
@@ -416,7 +416,7 @@ func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 
 			for i, edge := range path {
 				edge.pushFlow(capacity)
-				if firstSaturatedEdge == -1 && edge.isSaturated() {
+				if firstSaturatedEdge == -1 && edge.IsSaturated() {
 					firstSaturatedEdge = i
 				}
 			}
