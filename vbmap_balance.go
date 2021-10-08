@@ -155,7 +155,10 @@ func buildRFlowGraph(
 
 		g.AddEdge(nodeSinkV, Sink, numReplicasHi, numReplicasLo)
 
-		maxVbsPerTag := numVbsReplicated / params.NumReplicas
+		var maxVbsPerTag int
+		if params.NumReplicas > 0 {
+			maxVbsPerTag = numVbsReplicated / params.NumReplicas
+		}
 		for j, elem := range row {
 			if elem == 0 {
 				continue
