@@ -260,8 +260,10 @@ func (cand R) Evaluation() int {
 // Build balanced matrix R from RI.
 func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 	var r *R
+	var g *Graph
+
 	for i := 0; i < searchParams.NumRRetries; i++ {
-		r = buildR(params, ri, searchParams, true)
+		r, g = buildR(params, ri, true)
 		if r != nil {
 			diag.Printf("Found feasible R after %d attempts", i+1)
 			break
@@ -269,7 +271,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 	}
 
 	if r == nil && !searchParams.StrictReplicaBalance {
-		r = buildR(params, ri, searchParams, false)
+		r, g = buildR(params, ri, false)
 		if r == nil {
 			panic("Couldn't generate non-strict R. " +
 				"This should not happen")
@@ -277,22 +279,6 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 
 		diag.Printf("Found feasible R with non-strict replica balance")
 	}
-
-	if r == nil {
-		return R{}, ErrorNoSolution
-	}
-
-	return *r, nil
-}
-
-func buildR(
-	params VbmapParams, ri RI, searchParams SearchParams, strict bool) *R {
-
-	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
-	Shuffle(activeVbsPerNode)
-
-	g := buildRFlowGraph(params, ri, activeVbsPerNode, strict)
-	feasible, _ := g.FindFeasibleFlow()
 
 	dotPath := searchParams.DotPath
 	if dotPath != "" {
@@ -303,9 +289,24 @@ func buildR(
 		}
 	}
 
-	if feasible {
-		return graphToR(g, params)
+	if r == nil {
+		return R{}, ErrorNoSolution
 	}
 
-	return nil
+	return *r, nil
+}
+
+func buildR(params VbmapParams, ri RI, strict bool) (*R, *Graph) {
+
+	activeVbsPerNode := SpreadSum(params.NumVBuckets, params.NumNodes)
+	Shuffle(activeVbsPerNode)
+
+	g := buildRFlowGraph(params, ri, activeVbsPerNode, strict)
+	feasible, _ := g.FindFeasibleFlow()
+
+	if feasible {
+		return graphToR(g, params), g
+	}
+
+	return nil, g
 }
