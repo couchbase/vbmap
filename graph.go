@@ -149,6 +149,10 @@ func (edge *GraphEdge) SetCapacity(capacity int) {
 	edge.capacity = capacity - edge.Demand
 }
 
+func (edge *GraphEdge) IncreaseCapacity(by int) {
+	edge.SetCapacity(edge.Capacity() + by)
+}
+
 type augPath []*GraphEdge
 
 func (path *augPath) addEdge(edge *GraphEdge) {
