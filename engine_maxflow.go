@@ -92,7 +92,7 @@ func relaxSlaveBalance(g *Graph, params VbmapParams) {
 		v := TagVertex(tag)
 
 		for _, edge := range g.EdgesToVertex(v) {
-			edge.IncreaseCapacity(maxRepsPerTag)
+			edge.SetCapacity(maxRepsPerTag)
 		}
 	}
 
@@ -104,7 +104,7 @@ func relaxReplicaBalance(g *Graph, params VbmapParams) {
 		v := TagVertex(tag)
 
 		for _, edge := range g.EdgesFromVertex(v) {
-			edge.IncreaseCapacity(math.MaxInt)
+			edge.SetCapacity(math.MaxInt)
 		}
 	}
 }

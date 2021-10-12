@@ -141,7 +141,7 @@ func (edge GraphEdge) IsSaturated() bool {
 	return edge.residual() == 0
 }
 
-func (edge *GraphEdge) IncreaseCapacity(capacity int) {
+func (edge *GraphEdge) SetCapacity(capacity int) {
 	if capacity < edge.Capacity() {
 		panic("new capacity is less than the old one")
 	}
