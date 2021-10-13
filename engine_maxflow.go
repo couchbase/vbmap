@@ -10,7 +10,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"sort"
 )
 
@@ -66,10 +65,17 @@ func (gen MaxFlowRIGenerator) Generate(
 	}
 
 	if !feasible && searchParams.RelaxReplicaBalance {
-		relaxReplicaBalance(g, params)
-		feasible, _ = g.FindFeasibleFlow()
-		if feasible {
-			diag.Printf("Generated RI with relaxed replica balance")
+		for {
+			if !relaxReplicaBalance(g, params) {
+				break
+			}
+
+			feasible, _ = g.FindFeasibleFlow()
+			if feasible {
+				diag.Printf("Generated RI with " +
+					"relaxed replica balance")
+				break
+			}
 		}
 	}
 
@@ -109,15 +115,21 @@ func relaxSlaveBalance(g *Graph, params VbmapParams) bool {
 	return relaxed
 }
 
-func relaxReplicaBalance(g *Graph, params VbmapParams) {
+func relaxReplicaBalance(g *Graph, params VbmapParams) bool {
+	relaxed := false
 	tags := params.Tags.TagsList()
 	for _, tag := range tags {
 		v := TagVertex(tag)
 
 		for _, edge := range g.EdgesFromVertex(v) {
-			edge.SetCapacity(math.MaxInt)
+			if edge.IsSaturated() {
+				edge.IncreaseCapacity(1)
+				relaxed = true
+			}
 		}
 	}
+
+	return relaxed
 }
 
 func maxReplicationsPerTag(params VbmapParams) int {
