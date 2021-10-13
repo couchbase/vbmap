@@ -52,10 +52,16 @@ func (gen MaxFlowRIGenerator) Generate(
 
 	feasible, _ := g.FindFeasibleFlow()
 	if !feasible && searchParams.RelaxSlaveBalance {
-		relaxSlaveBalance(g, params)
-		feasible, _ = g.FindFeasibleFlow()
-		if feasible {
-			diag.Printf("Generated RI with relaxed slave balance")
+		for {
+			if !relaxSlaveBalance(g, params) {
+				break
+			}
+			feasible, _ = g.FindFeasibleFlow()
+			if feasible {
+				diag.Printf("Generated RI with " +
+					"relaxed slave balance")
+				break
+			}
 		}
 	}
 
@@ -84,7 +90,8 @@ func (gen MaxFlowRIGenerator) Generate(
 	return
 }
 
-func relaxSlaveBalance(g *Graph, params VbmapParams) {
+func relaxSlaveBalance(g *Graph, params VbmapParams) bool {
+	relaxed := false
 	tags := params.Tags.TagsList()
 	maxRepsPerTag := maxReplicationsPerTag(params)
 
@@ -92,10 +99,14 @@ func relaxSlaveBalance(g *Graph, params VbmapParams) {
 		v := TagVertex(tag)
 
 		for _, edge := range g.EdgesToVertex(v) {
-			edge.SetCapacity(maxRepsPerTag)
+			if edge.Capacity() < maxRepsPerTag {
+				edge.IncreaseCapacity(1)
+				relaxed = true
+			}
 		}
 	}
 
+	return relaxed
 }
 
 func relaxReplicaBalance(g *Graph, params VbmapParams) {
