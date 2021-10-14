@@ -46,8 +46,7 @@ func (gen MaxFlowRIGenerator) Generate(
 
 	g := buildFlowGraph(params)
 
-	diag.Print("Constructed flow graph.\n")
-	diag.Print(g.graphStats)
+	diag.Verbosef("Constructed flow graph.\n%s", g.graphStats)
 
 	feasible, _ := g.FindFeasibleFlow()
 	if !feasible && searchParams.RelaxSlaveBalance {

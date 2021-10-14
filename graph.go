@@ -565,7 +565,7 @@ func (g *Graph) doMaximizeFlow(source, sink GraphVertex, statsHeader string) {
 			break
 		}
 
-		diag.Printf("%s:\n%s", statsHeader, g.maxflowStats.String())
+		diag.Verbosef("%s:\n%s", statsHeader, g.maxflowStats)
 		g.maxflowStats.nextIteration()
 	}
 }

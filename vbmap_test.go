@@ -10,7 +10,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"math/rand"
 	"reflect"
 	"runtime/debug"
@@ -75,7 +74,7 @@ func (w testingWriter) Write(p []byte) (n int, err error) {
 }
 
 func setup(t *testing.T) {
-	diag = log.New(testingWriter{t}, "", 0)
+	diag.SetSink(testingWriter{t})
 	t.Parallel()
 }
 

@@ -13,7 +13,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"runtime/pprof"
@@ -38,8 +37,6 @@ var availableGenerators = []RIGenerator{
 	makeGlpkRIGenerator(),
 }
 
-var diag *log.Logger
-
 var (
 	seed         int64
 	tagHisto     tagHistoValue
@@ -54,6 +51,8 @@ var (
 	profTo       string
 
 	currentMapPath string
+
+	verbose bool
 )
 
 func (tags *TagMap) Set(s string) error {
@@ -316,6 +315,8 @@ func main() {
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
+	flag.BoolVar(&verbose, "verbose", false, "enable verbose output")
+
 	flag.Parse()
 
 	var diagSink io.Writer
@@ -344,7 +345,9 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	diag = log.New(diagSink, "", 0)
+	diag.SetSink(diagSink)
+	diag.SetVerbose(verbose)
+
 	diag.Printf("Started as:\n  %s", strings.Join(os.Args, " "))
 
 	diag.Printf("Using %d as a seed", seed)
