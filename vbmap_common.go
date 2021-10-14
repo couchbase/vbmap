@@ -106,18 +106,47 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 	return
 }
 
+type RIBalance uint64
+
+const (
+	ReplicasBalanced RIBalance = 1 << iota
+	SlavesBalanced
+)
+
 type RI struct {
 	Matrix [][]int
 
-	params VbmapParams
+	balance RIBalance
+	params  VbmapParams
 }
 
 func MakeRI(m [][]int, params VbmapParams) RI {
 	ri := RI{}
 	ri.Matrix = m
+	ri.balance = ReplicasBalanced | SlavesBalanced
 	ri.params = params
 
+	for node := 0; node < params.NumNodes; node++ {
+		sum := 0
+		for i := 0; i < params.NumNodes; i++ {
+			elem := m[i][node]
+
+			sum += elem
+			if elem > 1 {
+				ri.balance &^= SlavesBalanced
+			}
+		}
+
+		if sum != params.NumSlaves {
+			ri.balance &^= ReplicasBalanced
+		}
+	}
+
 	return ri
+}
+
+func (ri RI) IsBalanced(need RIBalance) bool {
+	return ri.balance&need != 0
 }
 
 func (ri RI) NumInboundReplications(node Node) int {
@@ -148,10 +177,24 @@ func (DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
 }
 
 func (ri RI) String() string {
-	return matrixToString(ri.Matrix, ri.params)
+	buffer := matrixToBuffer(ri.Matrix, ri.params)
+
+	fmt.Fprintf(
+		buffer, "Slaves balanced: %t\n", ri.IsBalanced(SlavesBalanced))
+	fmt.Fprintf(
+		buffer,
+		"Replicas balanced: %t\n",
+		ri.IsBalanced(ReplicasBalanced))
+
+	return buffer.String()
 }
 
 func matrixToString(m [][]int, params VbmapParams) string {
+	buffer := matrixToBuffer(m, params)
+	return buffer.String()
+}
+
+func matrixToBuffer(m [][]int, params VbmapParams) *bytes.Buffer {
 	buffer := &bytes.Buffer{}
 
 	nodes := params.Nodes()
@@ -195,5 +238,5 @@ func matrixToString(m [][]int, params VbmapParams) string {
 	}
 	fmt.Fprintf(buffer, "|\n")
 
-	return buffer.String()
+	return buffer
 }
