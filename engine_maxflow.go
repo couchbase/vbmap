@@ -184,13 +184,11 @@ type nodeCount struct {
 }
 
 func graphToRI(g *Graph, params VbmapParams, searchParams SearchParams) RI {
-	var ri RI
-
-	ri.Matrix = make([][]int, params.NumNodes)
+	ri := make([][]int, params.NumNodes)
 	tags := params.Tags.TagsNodesMap()
 
 	for i := range params.Nodes() {
-		ri.Matrix[i] = make([]int, params.NumNodes)
+		ri[i] = make([]int, params.NumNodes)
 	}
 
 	for _, tag := range params.Tags.TagsList() {
@@ -220,14 +218,14 @@ func graphToRI(g *Graph, params VbmapParams, searchParams SearchParams) RI {
 			for count > 0 {
 				dstNode := tagNodes[slaveIx]
 
-				if ri.Matrix[srcNode][dstNode] > 0 &&
+				if ri[srcNode][dstNode] > 0 &&
 					!searchParams.RelaxSlaveBalance {
 					panic(fmt.Sprintf("Forced to use the "+
 						"same slave %d twice (tag %v)",
 						dstNode, tag))
 				}
 
-				ri.Matrix[srcNode][dstNode]++
+				ri[srcNode][dstNode]++
 				count--
 
 				slaveIx = (slaveIx + 1) % len(tagNodes)
@@ -235,5 +233,5 @@ func graphToRI(g *Graph, params VbmapParams, searchParams SearchParams) RI {
 		}
 	}
 
-	return ri
+	return MakeRI(ri, params)
 }

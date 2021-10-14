@@ -108,6 +108,16 @@ func (tags TagMap) TagsNodesMap() (m map[Tag][]Node) {
 
 type RI struct {
 	Matrix [][]int
+
+	params VbmapParams
+}
+
+func MakeRI(m [][]int, params VbmapParams) RI {
+	ri := RI{}
+	ri.Matrix = m
+	ri.params = params
+
+	return ri
 }
 
 func (ri RI) NumInboundReplications(node Node) int {

@@ -79,10 +79,10 @@ func genDataFile(file io.Writer, params VbmapParams) error {
 	return tmpl.Execute(file, params)
 }
 
-func readSolution(params VbmapParams, outPath string) (ri RI, err error) {
+func readSolution(params VbmapParams, outPath string) (RI, error) {
 	output, err := os.Open(outPath)
 	if err != nil {
-		return
+		return RI{}, err
 	}
 	defer output.Close()
 
@@ -91,24 +91,23 @@ func readSolution(params VbmapParams, outPath string) (ri RI, err error) {
 	for i := range values {
 		_, err = fmt.Fscan(output, &values[i])
 		if err == io.EOF && i == 0 {
-			err = ErrorNoSolution
-			return
+			return RI{}, ErrorNoSolution
 		}
 
 		if err != nil {
-			err = fmt.Errorf("Invalid GLPK output (%s)", err.Error())
-			return
+			err = fmt.Errorf(
+				"Invalid GLPK output (%s)", err.Error())
+			return RI{}, err
 		}
 	}
 
-	ri.Matrix = make([][]int, params.NumNodes)
-	for i := range ri.Matrix {
-		for _, v := range values[i*params.NumNodes : (i+1)*params.NumNodes] {
-			ri.Matrix[i] = append(ri.Matrix[i], v)
-		}
+	ri := make([][]int, params.NumNodes)
+	for i := range ri {
+		row := values[i*params.NumNodes : (i+1)*params.NumNodes]
+		ri[i] = append(ri[i], row...)
 	}
 
-	return ri, nil
+	return MakeRI(ri, params), nil
 }
 
 func (GlpkRIGenerator) Generate(params VbmapParams, _ SearchParams) (ri RI, err error) {
