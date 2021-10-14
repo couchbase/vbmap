@@ -149,3 +149,50 @@ func (ri RI) String() string {
 
 	return buffer.String()
 }
+
+func matrixToString(m [][]int, params VbmapParams) string {
+	buffer := &bytes.Buffer{}
+
+	nodes := params.Nodes()
+
+	fmt.Fprintf(buffer, "    |")
+	for _, node := range nodes {
+		fmt.Fprintf(buffer, "%3d ", params.Tags[node])
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "----|")
+	for range nodes {
+		fmt.Fprintf(buffer, "----")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	for i, row := range m {
+		fmt.Fprintf(buffer, "%3d |", params.Tags[Node(i)])
+		rowSum := 0
+		for _, elem := range row {
+			rowSum += elem
+			fmt.Fprintf(buffer, "%3d ", elem)
+		}
+		fmt.Fprintf(buffer, "| %d\n", rowSum)
+	}
+
+	fmt.Fprintf(buffer, "____|")
+	for range nodes {
+		fmt.Fprintf(buffer, "____")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "    |")
+	for i := range nodes {
+		colSum := 0
+		for j := range nodes {
+			colSum += m[j][i]
+		}
+
+		fmt.Fprintf(buffer, "%3d ", colSum)
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	return buffer.String()
+}

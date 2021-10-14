@@ -9,7 +9,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"math/big"
 )
@@ -24,43 +23,7 @@ type R struct {
 }
 
 func (r R) String() string {
-	buffer := &bytes.Buffer{}
-
-	nodes := r.params.Nodes()
-
-	fmt.Fprintf(buffer, "    |")
-	for _, node := range nodes {
-		fmt.Fprintf(buffer, "%3d ", r.params.Tags[node])
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	fmt.Fprintf(buffer, "----|")
-	for range nodes {
-		fmt.Fprintf(buffer, "----")
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	for i, row := range r.Matrix {
-		fmt.Fprintf(buffer, "%3d |", r.params.Tags[Node(i)])
-		for _, elem := range row {
-			fmt.Fprintf(buffer, "%3d ", elem)
-		}
-		fmt.Fprintf(buffer, "| %d\n", r.RowSums[i])
-	}
-
-	fmt.Fprintf(buffer, "____|")
-	for range nodes {
-		fmt.Fprintf(buffer, "____")
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	fmt.Fprintf(buffer, "    |")
-	for i := range nodes {
-		fmt.Fprintf(buffer, "%3d ", r.ColSums[i])
-	}
-	fmt.Fprintf(buffer, "|\n")
-
-	return buffer.String()
+	return matrixToString(r.Matrix, params)
 }
 
 func newRat(num, denom int) *big.Rat {
