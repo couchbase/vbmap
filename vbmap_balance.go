@@ -20,17 +20,7 @@ type R struct {
 	RowSums []int   // row sums for the matrix
 	ColSums []int   // column sums for the matrix
 
-	params           VbmapParams // corresponding vbucket map params
-	expectedColSum   int         // expected column sum
-	expectedOutliers int         // number of columns that can be off-by-one
-
-	outliers int // actual number of columns that are off-by-one
-
-	// sum of absolute differences between column sum and expected column
-	// sum; it's called 'raw' because it doesn't take into consideration
-	// that expectedOutliers number of columns can be off-by-one; the
-	// smaller the better
-	rawEvaluation int
+	params VbmapParams // corresponding vbucket map params
 }
 
 func (r R) String() string {
@@ -69,7 +59,6 @@ func (r R) String() string {
 		fmt.Fprintf(buffer, "%3d ", r.ColSums[i])
 	}
 	fmt.Fprintf(buffer, "|\n")
-	fmt.Fprintf(buffer, "Evaluation: %d\n", r.Evaluation())
 
 	return buffer.String()
 }
@@ -225,39 +214,7 @@ func makeRFromMatrix(params VbmapParams, matrix [][]int) (result *R) {
 		result.RowSums[i] = rowSum
 	}
 
-	numReplications := params.NumVBuckets * params.NumReplicas
-	result.expectedColSum = numReplications / params.NumNodes
-	result.expectedOutliers = numReplications % params.NumNodes
-
-	for _, sum := range result.ColSums {
-		result.rawEvaluation += Abs(sum - result.expectedColSum)
-		if sum == result.expectedColSum+1 {
-			result.outliers++
-		}
-	}
-
 	return
-}
-
-// Compute adjusted evaluation of matrix R from raw evaluation and number of
-// outliers.
-//
-// It differs from raw evaluation in that it allows fixed number of column
-// sums to be off-by-one.
-func (cand R) computeEvaluation(rawEval int, outliers int) (eval int) {
-	eval = rawEval
-	if outliers > cand.expectedOutliers {
-		eval -= cand.expectedOutliers
-	} else {
-		eval -= outliers
-	}
-
-	return
-}
-
-// Compute adjusted evaluation of matrix R.
-func (cand R) Evaluation() int {
-	return cand.computeEvaluation(cand.rawEvaluation, cand.outliers)
 }
 
 // Build balanced matrix R from RI.
