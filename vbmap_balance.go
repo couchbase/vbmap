@@ -33,14 +33,14 @@ type R struct {
 	rawEvaluation int
 }
 
-func (cand R) String() string {
+func (r R) String() string {
 	buffer := &bytes.Buffer{}
 
-	nodes := cand.params.Nodes()
+	nodes := r.params.Nodes()
 
 	fmt.Fprintf(buffer, "    |")
 	for _, node := range nodes {
-		fmt.Fprintf(buffer, "%3d ", cand.params.Tags[node])
+		fmt.Fprintf(buffer, "%3d ", r.params.Tags[node])
 	}
 	fmt.Fprintf(buffer, "|\n")
 
@@ -50,12 +50,12 @@ func (cand R) String() string {
 	}
 	fmt.Fprintf(buffer, "|\n")
 
-	for i, row := range cand.Matrix {
-		fmt.Fprintf(buffer, "%3d |", cand.params.Tags[Node(i)])
+	for i, row := range r.Matrix {
+		fmt.Fprintf(buffer, "%3d |", r.params.Tags[Node(i)])
 		for _, elem := range row {
 			fmt.Fprintf(buffer, "%3d ", elem)
 		}
-		fmt.Fprintf(buffer, "| %d\n", cand.RowSums[i])
+		fmt.Fprintf(buffer, "| %d\n", r.RowSums[i])
 	}
 
 	fmt.Fprintf(buffer, "____|")
@@ -66,10 +66,10 @@ func (cand R) String() string {
 
 	fmt.Fprintf(buffer, "    |")
 	for i := range nodes {
-		fmt.Fprintf(buffer, "%3d ", cand.ColSums[i])
+		fmt.Fprintf(buffer, "%3d ", r.ColSums[i])
 	}
 	fmt.Fprintf(buffer, "|\n")
-	fmt.Fprintf(buffer, "Evaluation: %d\n", cand.Evaluation())
+	fmt.Fprintf(buffer, "Evaluation: %d\n", r.Evaluation())
 
 	return buffer.String()
 }
