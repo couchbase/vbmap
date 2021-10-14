@@ -10,6 +10,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 )
 
@@ -205,6 +206,14 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 		diag.Printf("Found feasible R with non-strict replica balance")
 	}
 
+	if feasible {
+		if searchParams.BalanceSlaves &&
+			!ri.IsBalanced(SlavesBalanced) {
+
+			g = balanceSlaves(params, g)
+		}
+	}
+
 	dotPath := searchParams.DotPath
 	if dotPath != "" {
 		err := g.Dot(dotPath, false)
@@ -228,4 +237,90 @@ func findRFlow(
 	feasible, _ := g.FindFeasibleFlow()
 
 	return feasible, g
+}
+
+func balanceSlaves(params VbmapParams, rg *Graph) *Graph {
+	graphName := fmt.Sprintf(
+		"Flow graph for balancing slaves in R (%s)", params)
+	g := NewGraph(graphName)
+
+	capacity := params.NumVBuckets * params.NumReplicas
+	capacity /= params.NumNodes * params.NumSlaves
+
+	for _, edge := range rg.EdgesFromVertex(Source) {
+		g.AddEdge(Source, edge.Dst, edge.Capacity(), edge.Capacity())
+	}
+
+	for _, edge := range rg.EdgesToVertex(Sink) {
+		g.AddEdge(edge.Src, Sink, edge.Flow(), 0)
+	}
+
+	for _, node := range params.Nodes() {
+		nodeSrc := NodeSourceVertex(node)
+		nodeSink := NodeSinkVertex(node)
+
+		for _, edge := range rg.EdgesFromVertex(nodeSrc) {
+			g.AddEdge(nodeSrc, edge.Dst, edge.Capacity(), 0)
+		}
+
+		for _, edge := range rg.EdgesToVertex(nodeSink) {
+			g.AddEdge(edge.Src, nodeSink, capacity, 0)
+		}
+	}
+
+	for {
+		feasible, _ := g.FindFeasibleFlow()
+		if feasible {
+			break
+		}
+
+		relaxed := relaxSlaves(g, params)
+		if !relaxed {
+			panic("no feasible flow; should not happen")
+		}
+	}
+
+	return g
+}
+
+func relaxSlaves(g *Graph, params VbmapParams) bool {
+	relaxed := false
+	for _, node := range params.Nodes() {
+		v := NodeSourceVertex(node)
+
+		edges := []*GraphEdge(nil)
+		for _, tagEdge := range g.EdgesFromVertex(v) {
+			nodeEdges := g.EdgesFromVertex(tagEdge.Dst)
+			edges = append(edges, nodeEdges...)
+		}
+
+		relaxEdges := edgesToRelax(edges)
+		if len(relaxEdges) > 0 {
+			relaxed = true
+			for _, edge := range relaxEdges {
+				edge.IncreaseCapacity(1)
+			}
+		}
+	}
+
+	return relaxed
+}
+
+func edgesToRelax(edges []*GraphEdge) []*GraphEdge {
+	minFlow := math.MaxInt
+	relaxEdges := []*GraphEdge(nil)
+
+	for _, edge := range edges {
+		flow := edge.Flow()
+		if edge.IsSaturated() {
+			if flow < minFlow {
+				minFlow = flow
+				relaxEdges = []*GraphEdge{edge}
+			} else if flow == minFlow {
+				relaxEdges = append(relaxEdges, edge)
+			}
+		}
+	}
+
+	return relaxEdges
 }

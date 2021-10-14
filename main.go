@@ -306,6 +306,9 @@ func main() {
 	flag.BoolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
+	flag.BoolVar(&searchParams.BalanceSlaves,
+		"balance-slaves", true,
+		"attempt to improve slave balance")
 	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
 	flag.StringVar(&searchParams.DotPath,
 		"dot", "", "output the flow graph for matrix R to path")
@@ -376,6 +379,7 @@ func main() {
 		searchParams.RelaxSlaveBalance = true
 		searchParams.RelaxReplicaBalance = true
 		searchParams.RelaxNumSlaves = true
+		searchParams.BalanceSlaves = true
 	}
 
 	currentMap := Vbmap(nil)
