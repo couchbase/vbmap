@@ -148,16 +148,7 @@ func (DontAcceptRIGeneratorParams) SetParams(params map[string]string) error {
 }
 
 func (ri RI) String() string {
-	buffer := &bytes.Buffer{}
-
-	for _, row := range ri.Matrix {
-		for _, elem := range row {
-			fmt.Fprintf(buffer, "%2d ", elem)
-		}
-		fmt.Fprintf(buffer, "\n")
-	}
-
-	return buffer.String()
+	return matrixToString(ri.Matrix, ri.params)
 }
 
 func matrixToString(m [][]int, params VbmapParams) string {
