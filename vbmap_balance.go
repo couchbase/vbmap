@@ -207,6 +207,12 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 	}
 
 	if feasible {
+		if searchParams.BalanceReplicas &&
+			!ri.IsBalanced(ReplicasBalanced) {
+
+			g = balanceReplicas(params, g)
+		}
+
 		if searchParams.BalanceSlaves &&
 			!ri.IsBalanced(SlavesBalanced) {
 
@@ -323,4 +329,62 @@ func edgesToRelax(edges []*GraphEdge) []*GraphEdge {
 	}
 
 	return relaxEdges
+}
+
+func balanceReplicas(params VbmapParams, rg *Graph) *Graph {
+	graphName := fmt.Sprintf(
+		"Flow graph for balancing replicas in R (%s)", params)
+	g := NewGraph(graphName)
+
+	for _, edge := range rg.EdgesFromVertex(Source) {
+		g.AddEdge(Source, edge.Dst, edge.Capacity(), edge.Capacity())
+	}
+
+	minFlow := math.MaxInt
+	for _, edge := range rg.EdgesToVertex(Sink) {
+		minFlow = Min(minFlow, edge.Flow())
+	}
+
+	for _, edge := range rg.EdgesToVertex(Sink) {
+		g.AddEdge(edge.Src, Sink, minFlow, 0)
+	}
+
+	for _, node := range params.Nodes() {
+		nodeSrc := NodeSourceVertex(node)
+		nodeSink := NodeSinkVertex(node)
+
+		for _, edge := range rg.EdgesFromVertex(nodeSrc) {
+			g.AddEdge(nodeSrc, edge.Dst, edge.Capacity(), 0)
+		}
+
+		for _, edge := range rg.EdgesToVertex(nodeSink) {
+			g.AddEdge(edge.Src, nodeSink, math.MaxInt, 0)
+		}
+	}
+
+	for {
+		feasible, _ := g.FindFeasibleFlow()
+		if feasible {
+			break
+		}
+
+		if !relaxReplicas(g) {
+			panic("no feasible flow; should not happen")
+		}
+	}
+
+	return g
+}
+
+func relaxReplicas(g *Graph) bool {
+	relaxed := false
+
+	for _, edge := range g.EdgesToVertex(Sink) {
+		if edge.IsSaturated() {
+			relaxed = true
+			edge.IncreaseCapacity(1)
+		}
+	}
+
+	return relaxed
 }

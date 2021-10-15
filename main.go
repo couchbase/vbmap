@@ -309,6 +309,9 @@ func main() {
 	flag.BoolVar(&searchParams.BalanceSlaves,
 		"balance-slaves", true,
 		"attempt to improve slave balance")
+	flag.BoolVar(&searchParams.BalanceReplicas,
+		"balance-replicas", true,
+		"attempt to improve replica balance (implies --balance-slaves)")
 	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
 	flag.StringVar(&searchParams.DotPath,
 		"dot", "", "output the flow graph for matrix R to path")
@@ -379,6 +382,10 @@ func main() {
 		searchParams.RelaxSlaveBalance = true
 		searchParams.RelaxReplicaBalance = true
 		searchParams.RelaxNumSlaves = true
+		searchParams.BalanceSlaves = true
+	}
+
+	if searchParams.BalanceReplicas {
 		searchParams.BalanceSlaves = true
 	}
 

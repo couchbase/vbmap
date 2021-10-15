@@ -51,6 +51,7 @@ type SearchParams struct {
 	RelaxReplicaBalance  bool
 	RelaxNumSlaves       bool
 	BalanceSlaves        bool
+	BalanceReplicas      bool
 
 	DotPath string
 }
