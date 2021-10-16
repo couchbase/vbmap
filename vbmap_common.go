@@ -148,7 +148,7 @@ func MakeRI(m [][]int, params VbmapParams) RI {
 }
 
 func (ri RI) IsBalanced(need RIBalance) bool {
-	return ri.balance&need != 0
+	return ri.balance&need == need
 }
 
 func (ri RI) NumInboundReplications(node Node) int {
