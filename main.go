@@ -370,6 +370,7 @@ func main() {
 		searchParams.RelaxReplicaBalance = true
 		searchParams.RelaxNumSlaves = true
 		searchParams.BalanceSlaves = true
+		searchParams.BalanceReplicas = true
 	}
 
 	if searchParams.BalanceReplicas {
