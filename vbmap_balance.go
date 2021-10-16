@@ -216,7 +216,7 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 		if searchParams.BalanceSlaves &&
 			!ri.IsBalanced(SlavesBalanced) {
 
-			g = balanceSlaves(params, g)
+			g = balanceSlaves(ri, params, g)
 		}
 	}
 
@@ -245,13 +245,18 @@ func findRFlow(
 	return feasible, g
 }
 
-func balanceSlaves(params VbmapParams, rg *Graph) *Graph {
+func balanceSlaves(ri RI, params VbmapParams, rg *Graph) *Graph {
 	graphName := fmt.Sprintf(
 		"Flow graph for balancing slaves in R (%s)", params)
 	g := NewGraph(graphName)
 
+	numSlaves := params.NumSlaves
+	for _, node := range params.Nodes() {
+		numSlaves = Max(numSlaves, ri.NumInboundReplications(node))
+	}
+
 	capacity := params.NumVBuckets * params.NumReplicas
-	capacity /= params.NumNodes * params.NumSlaves
+	capacity /= params.NumNodes * numSlaves
 
 	for _, edge := range rg.EdgesFromVertex(Source) {
 		g.AddEdge(Source, edge.Dst, edge.Capacity(), edge.Capacity())
