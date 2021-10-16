@@ -207,14 +207,17 @@ func BuildR(params VbmapParams, ri RI, searchParams SearchParams) (R, error) {
 	}
 
 	if feasible {
+		var balancedReplicas bool
 		if searchParams.BalanceReplicas &&
 			!ri.IsBalanced(ReplicasBalanced) {
 
 			g = balanceReplicas(params, g)
+			balancedReplicas = true
 		}
 
-		if searchParams.BalanceSlaves &&
-			!ri.IsBalanced(SlavesBalanced) {
+		if balancedReplicas ||
+			searchParams.BalanceSlaves &&
+				!ri.IsBalanced(SlavesBalanced) {
 
 			g = balanceSlaves(ri, params, g)
 		}
