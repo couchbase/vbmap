@@ -518,33 +518,103 @@ func buildVbmap(r R) (vbmap Vbmap) {
 	return
 }
 
-func tryBuildRI(params *VbmapParams, gen RIGenerator,
-	searchParams SearchParams) (ri RI, err error) {
-
-	numSlaves := params.NumSlaves
-	numReplicas := params.NumReplicas
-
-	numSlavesCandidates := []int{numSlaves}
-	if searchParams.RelaxNumSlaves && numSlaves > 0 {
-		low := (numSlaves / numReplicas) * numReplicas
-		for i := params.NumSlaves - 1; i >= low; i-- {
-			numSlavesCandidates = append(numSlavesCandidates, i)
-		}
+func getMaxStrictSlaves(params VbmapParams) int {
+	result := params.NumSlaves
+	for _, tagNodes := range params.Tags.TagsNodesMap() {
+		result = Min(params.NumNodes-len(tagNodes), result)
 	}
 
-	for _, numSlaves := range numSlavesCandidates {
-		diag.Printf("Trying to generate RI with NumSlaves=%d", numSlaves)
+	return result
+}
+
+func getTagMaxSlaves(params VbmapParams) int {
+	result := 0
+	for _, tagNodes := range params.Tags.TagsNodesMap() {
+		result = Max(params.NumNodes-len(tagNodes), result)
+	}
+
+	return result
+}
+
+func getMaxSlaves(params VbmapParams) int {
+	tagMaxSlaves := getTagMaxSlaves(params)
+	if params.NumSlaves < tagMaxSlaves {
+		return params.NumSlaves
+	}
+
+	maxTagSize := 0
+	for _, tagNodes := range params.Tags.TagsNodesMap() {
+		maxTagSize = Max(maxTagSize, len(tagNodes))
+	}
+
+	roundUp := (params.NumSlaves-1)/params.NumReplicas + 1
+	roundUp *= params.NumReplicas
+
+	return Max(maxTagSize*params.NumReplicas, roundUp)
+}
+
+func doBuildRI(
+	params *VbmapParams,
+	searchParams SearchParams,
+	gen RIGenerator,
+	banner string,
+	minSlaves, maxSlaves int) (RI, error) {
+
+	var ri RI
+	var err error
+
+	for numSlaves := maxSlaves; numSlaves >= minSlaves; numSlaves-- {
+		diag.Printf(
+			"Trying to generate %s RI with NumSlaves=%d",
+			banner, numSlaves)
 
 		params.NumSlaves = numSlaves
 
 		ri, err = gen.Generate(*params, searchParams)
 		if err != ErrorNoSolution {
-			return
+			return ri, err
 		}
 	}
 
-	err = ErrorNoSolution
-	return
+	return ri, ErrorNoSolution
+}
+
+func tryBuildRI(
+	params *VbmapParams,
+	searchParams SearchParams,
+	gen RIGenerator) (RI, error) {
+
+	var ri RI
+	var err error
+
+	minSlaves := params.NumSlaves
+	maxStrictSlaves := params.NumSlaves
+	maxSlaves := params.NumSlaves
+	if searchParams.RelaxNumSlaves {
+		maxStrictSlaves = getMaxStrictSlaves(*params)
+		maxSlaves = getMaxSlaves(*params)
+
+		minSlaves = maxStrictSlaves / params.NumReplicas
+		minSlaves *= params.NumReplicas
+	}
+
+	strict := searchParams
+	strict.RelaxSlaveBalance = false
+	strict.RelaxReplicaBalance = false
+
+	ri, err = doBuildRI(
+		params, strict, gen, "strict", minSlaves, maxStrictSlaves)
+	if err == nil || err != ErrorNoSolution {
+		return ri, err
+	}
+
+	if searchParams.RelaxSlaveBalance || searchParams.RelaxReplicaBalance {
+		return doBuildRI(
+			params, searchParams,
+			gen, "non-strict", minSlaves, maxSlaves)
+	}
+
+	return ri, ErrorNoSolution
 }
 
 // Generate vbucket map given a generator for matrix RI and vbucket map
@@ -554,7 +624,7 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator,
 
 	start := time.Now()
 
-	ri, err := tryBuildRI(&params, gen, searchParams)
+	ri, err := tryBuildRI(&params, searchParams, gen)
 	if err != nil {
 		return nil, err
 	}

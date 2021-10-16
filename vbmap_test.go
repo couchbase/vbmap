@@ -37,7 +37,7 @@ func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
 }
 
 func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
-	ri, err := tryBuildRI(&params, gen, testSearchParams)
+	ri, err := tryBuildRI(&params, testSearchParams, gen)
 	if err != nil {
 		return RI{}, R{}, err
 	}

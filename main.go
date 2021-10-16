@@ -146,19 +146,6 @@ func normalizeParams(params *VbmapParams) {
 		params.NumReplicas = params.NumSlaves
 	}
 
-	numSlaves := params.NumSlaves
-	for _, tagNodes := range params.Tags.TagsNodesMap() {
-		tagMaxSlaves := params.NumNodes - len(tagNodes)
-		if tagMaxSlaves < numSlaves {
-			numSlaves = tagMaxSlaves
-		}
-	}
-
-	if numSlaves >= params.NumReplicas {
-		// prefer having replicas over tag awareness
-		params.NumSlaves = numSlaves
-	}
-
 	if params.NumReplicas == 0 {
 		params.NumSlaves = 0
 	}
