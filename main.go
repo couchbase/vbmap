@@ -405,6 +405,9 @@ func main() {
 		searchParams.BalanceSlaves = true
 	}
 
+	diag.Printf(
+		"Search parameters:\n%s", ppStructFields("  ", searchParams))
+
 	currentMap := Vbmap(nil)
 	if currentMapPath != "" {
 		var err error

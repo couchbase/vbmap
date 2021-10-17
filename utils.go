@@ -9,7 +9,10 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"math/rand"
+	"reflect"
 )
 
 func Shuffle(a []int) {
@@ -58,4 +61,24 @@ func Max(a, b int) int {
 	}
 
 	return b
+}
+
+func ppStructFields(indent string, v interface{}) string {
+	value := reflect.ValueOf(v)
+	if value.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("called on non-struct %v", v))
+	}
+
+	buffer := &bytes.Buffer{}
+
+	for i := 0; i < value.NumField(); i++ {
+		fmt.Fprintf(
+			buffer,
+			"%s%s: %v\n",
+			indent,
+			value.Type().Field(i).Name,
+			value.Field(i))
+	}
+
+	return buffer.String()
 }
