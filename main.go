@@ -337,6 +337,18 @@ func main() {
 
 	flag.Parse()
 
+	if relaxAll {
+		searchParams.StrictReplicaBalance = false
+		searchParams.RelaxSlaveBalance = true
+		searchParams.RelaxReplicaBalance = true
+		searchParams.RelaxNumSlaves = true
+		searchParams.BalanceSlaves = true
+		searchParams.BalanceReplicas = true
+
+		// reparse so flags specified after -relax-all take precedence
+		flag.Parse()
+	}
+
 	var diagSink io.Writer
 	if diagTo == "" {
 		diagSink = os.Stderr
@@ -387,15 +399,6 @@ func main() {
 
 	for _, node := range params.Nodes() {
 		diag.Printf("    %v -> %v", node, params.Tags[node])
-	}
-
-	if relaxAll {
-		searchParams.StrictReplicaBalance = false
-		searchParams.RelaxSlaveBalance = true
-		searchParams.RelaxReplicaBalance = true
-		searchParams.RelaxNumSlaves = true
-		searchParams.BalanceSlaves = true
-		searchParams.BalanceReplicas = true
 	}
 
 	if searchParams.BalanceReplicas {
