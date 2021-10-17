@@ -121,7 +121,7 @@ func TestRReplicaBalance(t *testing.T) {
 	}
 }
 
-func (VbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
+func (VbmapParams) generate(rand *rand.Rand, _ int) VbmapParams {
 	nodes := rand.Int()%100 + 1
 	replicas := rand.Int() % 4
 
@@ -134,7 +134,11 @@ func (VbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	}
 	normalizeParams(&params)
 
-	return reflect.ValueOf(params)
+	return params
+}
+
+func (p VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(p.generate(rand, size))
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
@@ -401,18 +405,13 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	return
 }
 
-func (equalTagsR1VbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
-	numNodes := rand.Int()%100 + 2
-	// number of tags is in range [2, numNodes]
-	numTags := rand.Int()%(numNodes-1) + 2
+func (p equalTagsR1VbmapParams) Generate(
+	rand *rand.Rand, size int) reflect.Value {
 
-	params := VbmapParams{
-		Tags:        equalTags(numNodes, numTags),
-		NumNodes:    numNodes,
-		NumSlaves:   10,
-		NumVBuckets: 1024,
-		NumReplicas: 1,
-	}
+	params := p.VbmapParams.generate(rand, size)
+	numTags := rand.Int()%params.NumNodes + 1
+
+	params.Tags = equalTags(params.NumNodes, numTags)
 	normalizeParams(&params)
 
 	return reflect.ValueOf(equalTagsR1VbmapParams{params})
@@ -473,23 +472,16 @@ type equalTagsVbmapParams struct {
 	VbmapParams
 }
 
-func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
-	numNodes := rand.Int()%100 + 2
-	numReplicas := rand.Int()%3 + 1
-	if numReplicas >= numNodes {
-		numReplicas = numNodes - 1
-	}
+func (p equalTagsVbmapParams) Generate(
+	rand *rand.Rand, size int) reflect.Value {
+
+	params := p.VbmapParams.generate(rand, size)
 
 	// number of tags is in range [numReplicas+1, numNodes]
-	numTags := rand.Int()%(numNodes-numReplicas) + numReplicas + 1
+	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
+	numTags += params.NumReplicas + 1
 
-	params := VbmapParams{
-		Tags:        equalTags(numNodes, numTags),
-		NumNodes:    numNodes,
-		NumSlaves:   10,
-		NumVBuckets: 1024,
-		NumReplicas: numReplicas,
-	}
+	params.Tags = equalTags(params.NumNodes, numTags)
 	normalizeParams(&params)
 
 	return reflect.ValueOf(equalTagsVbmapParams{params})
@@ -519,7 +511,10 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 			counts[tag] = count + vbs
 		}
 
-		vbuckets := r.RowSums[i] / params.NumReplicas
+		var vbuckets int
+		if params.NumReplicas != 0 {
+			vbuckets = r.RowSums[i] / params.NumReplicas
+		}
 
 		for _, count := range counts {
 			if count > vbuckets {
