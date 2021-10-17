@@ -10,6 +10,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -265,6 +266,30 @@ func readVbmap(path string) (vbmap Vbmap, err error) {
 	return
 }
 
+type noBoolValue bool
+
+func boolVar(p *bool, name string, value bool, usage string) {
+	flag.BoolVar(p, name, value, usage)
+	flag.Var((*noBoolValue)(p), "no-"+name, "disable -"+name)
+}
+
+func (b *noBoolValue) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return errors.New("parse error")
+	}
+	*b = noBoolValue(!v)
+	return nil
+}
+
+func (b *noBoolValue) String() string {
+	return strconv.FormatBool(bool(*b))
+}
+
+func (*noBoolValue) IsBoolFlag() bool {
+	return true
+}
+
 func main() {
 	flag.IntVar(&params.NumNodes, "num-nodes", 25, "number of nodes")
 	flag.IntVar(&params.NumSlaves, "num-slaves", 10, "number of slaves")
@@ -280,26 +305,26 @@ func main() {
 
 	flag.IntVar(&searchParams.NumRRetries, "num-r-retries", 25,
 		"number of attempts to generate matrix R (for each RI attempt)")
-	flag.BoolVar(&searchParams.StrictReplicaBalance,
+	boolVar(&searchParams.StrictReplicaBalance,
 		"strict-replica-balance", false,
 		"require that all nodes have "+
 			"the same number of replica vbuckets (±1)")
-	flag.BoolVar(&searchParams.RelaxSlaveBalance,
+	boolVar(&searchParams.RelaxSlaveBalance,
 		"relax-slave-balance", false,
 		"allow replicating differing number of vbuckets to node slaves")
-	flag.BoolVar(&searchParams.RelaxReplicaBalance,
+	boolVar(&searchParams.RelaxReplicaBalance,
 		"relax-replica-balance", false,
 		"allow nodes to have differing number of replicas")
-	flag.BoolVar(&searchParams.RelaxNumSlaves,
+	boolVar(&searchParams.RelaxNumSlaves,
 		"relax-num-slaves", false,
 		"allow relaxing number of slaves")
-	flag.BoolVar(&searchParams.BalanceSlaves,
+	boolVar(&searchParams.BalanceSlaves,
 		"balance-slaves", true,
 		"attempt to improve slave balance")
-	flag.BoolVar(&searchParams.BalanceReplicas,
+	boolVar(&searchParams.BalanceReplicas,
 		"balance-replicas", true,
 		"attempt to improve replica balance (implies --balance-slaves)")
-	flag.BoolVar(&relaxAll, "relax-all", false, "relax all constraints")
+	boolVar(&relaxAll, "relax-all", false, "relax all constraints")
 	flag.StringVar(&searchParams.DotPath,
 		"dot", "", "output the flow graph for matrix R to path")
 
@@ -308,7 +333,7 @@ func main() {
 
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
-	flag.BoolVar(&verbose, "verbose", false, "enable verbose output")
+	boolVar(&verbose, "verbose", false, "enable verbose output")
 
 	flag.Parse()
 
