@@ -91,6 +91,55 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 	return
 }
 
+type trivialTagsVbmapParams VbmapParams
+
+func (p trivialTagsVbmapParams) getParams() VbmapParams {
+	return VbmapParams(p)
+}
+
+func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
+	nodes := rand.Int()%100 + 1
+	replicas := rand.Int() % 4
+
+	params := VbmapParams{
+		Tags:        trivialTags(nodes),
+		NumNodes:    nodes,
+		NumSlaves:   10,
+		NumVBuckets: 1024,
+		NumReplicas: replicas,
+	}
+	normalizeParams(&params)
+
+	return reflect.ValueOf(trivialTagsVbmapParams(params))
+}
+
+type equalTagsVbmapParams VbmapParams
+
+func (p equalTagsVbmapParams) getParams() VbmapParams {
+	return VbmapParams(p)
+}
+
+func (p equalTagsVbmapParams) Generate(
+	rand *rand.Rand, size int) reflect.Value {
+
+	v := trivialTagsVbmapParams(p).Generate(rand, size)
+	params := VbmapParams(v.Interface().(trivialTagsVbmapParams))
+
+	// number of tags is in range [numReplicas+1, numNodes]
+	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
+	numTags += params.NumReplicas + 1
+
+	if params.NumNodes%numTags != 0 {
+		params.NumNodes /= numTags
+		params.NumNodes *= numTags
+	}
+
+	params.Tags = equalTags(params.NumNodes, numTags)
+	normalizeParams(&params)
+
+	return reflect.ValueOf(equalTagsVbmapParams(params))
+}
+
 func TestRReplicaBalance(t *testing.T) {
 	setup(t)
 
@@ -123,28 +172,6 @@ func TestRReplicaBalance(t *testing.T) {
 			}
 		}
 	}
-}
-
-type trivialTagsVbmapParams VbmapParams
-
-func (p trivialTagsVbmapParams) getParams() VbmapParams {
-	return VbmapParams(p)
-}
-
-func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
-	nodes := rand.Int()%100 + 1
-	replicas := rand.Int() % 4
-
-	params := VbmapParams{
-		Tags:        trivialTags(nodes),
-		NumNodes:    nodes,
-		NumSlaves:   10,
-		NumVBuckets: 1024,
-		NumReplicas: replicas,
-	}
-	normalizeParams(&params)
-
-	return reflect.ValueOf(trivialTagsVbmapParams(params))
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
@@ -417,33 +444,6 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	}
 
 	return
-}
-
-type equalTagsVbmapParams VbmapParams
-
-func (p equalTagsVbmapParams) getParams() VbmapParams {
-	return VbmapParams(p)
-}
-
-func (p equalTagsVbmapParams) Generate(
-	rand *rand.Rand, size int) reflect.Value {
-
-	v := trivialTagsVbmapParams(p).Generate(rand, size)
-	params := VbmapParams(v.Interface().(trivialTagsVbmapParams))
-
-	// number of tags is in range [numReplicas+1, numNodes]
-	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
-	numTags += params.NumReplicas + 1
-
-	if params.NumNodes%numTags != 0 {
-		params.NumNodes /= numTags
-		params.NumNodes *= numTags
-	}
-
-	params.Tags = equalTags(params.NumNodes, numTags)
-	normalizeParams(&params)
-
-	return reflect.ValueOf(equalTagsVbmapParams(params))
 }
 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
