@@ -91,6 +91,20 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 	return
 }
 
+func genVbmapParams(rand *rand.Rand) VbmapParams {
+	nodes := rand.Int()%100 + 1
+	replicas := rand.Int() % 4
+
+	params := VbmapParams{
+		NumNodes:    nodes,
+		NumSlaves:   10,
+		NumVBuckets: 1024,
+		NumReplicas: replicas,
+	}
+	normalizeParams(&params)
+	return params
+}
+
 type trivialTagsVbmapParams VbmapParams
 
 func (p trivialTagsVbmapParams) getParams() VbmapParams {
@@ -98,18 +112,8 @@ func (p trivialTagsVbmapParams) getParams() VbmapParams {
 }
 
 func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
-	nodes := rand.Int()%100 + 1
-	replicas := rand.Int() % 4
-
-	params := VbmapParams{
-		Tags:        trivialTags(nodes),
-		NumNodes:    nodes,
-		NumSlaves:   10,
-		NumVBuckets: 1024,
-		NumReplicas: replicas,
-	}
-	normalizeParams(&params)
-
+	params := genVbmapParams(rand)
+	params.Tags = trivialTags(params.NumNodes)
 	return reflect.ValueOf(trivialTagsVbmapParams(params))
 }
 
@@ -119,11 +123,8 @@ func (p equalTagsVbmapParams) getParams() VbmapParams {
 	return VbmapParams(p)
 }
 
-func (p equalTagsVbmapParams) Generate(
-	rand *rand.Rand, size int) reflect.Value {
-
-	v := trivialTagsVbmapParams(p).Generate(rand, size)
-	params := VbmapParams(v.Interface().(trivialTagsVbmapParams))
+func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
+	params := genVbmapParams(rand)
 
 	// number of tags is in range [numReplicas+1, numNodes]
 	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
