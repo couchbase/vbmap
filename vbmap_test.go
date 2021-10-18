@@ -32,6 +32,10 @@ var (
 	}
 )
 
+type vbmapParams interface {
+	getParams() VbmapParams
+}
+
 func testBuildRI(params *VbmapParams, gen RIGenerator) (RI, error) {
 	return tryBuildRI(params, testSearchParams, gen)
 }
@@ -123,6 +127,10 @@ func TestRReplicaBalance(t *testing.T) {
 
 type trivialTagsVbmapParams VbmapParams
 
+func (p trivialTagsVbmapParams) getParams() VbmapParams {
+	return VbmapParams(p)
+}
+
 func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	nodes := rand.Int()%100 + 1
 	replicas := rand.Int() % 4
@@ -180,13 +188,21 @@ func TestRIProperties(t *testing.T) {
 	setup(t)
 
 	for _, gen := range allGenerators() {
-		check := func(params trivialTagsVbmapParams) bool {
-			return checkRIProperties(gen, VbmapParams(params))
+		check := func(p vbmapParams) bool {
+			return checkRIProperties(gen, p.getParams())
 		}
 
-		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
-		if err != nil {
-			t.Error(err)
+		paramsGenerators := []vbmapParams{
+			trivialTagsVbmapParams{},
+			equalTagsVbmapParams{}}
+		for _, pgen := range paramsGenerators {
+			err := quickCheck(
+				makeChecker(pgen, check),
+				&quick.Config{MaxCount: 250},
+				t)
+			if err != nil {
+				t.Error(err)
+			}
 		}
 	}
 }
@@ -360,15 +376,21 @@ func TestVbmapProperties(t *testing.T) {
 	setup(t)
 
 	for _, gen := range allGenerators() {
-
-		check := func(params trivialTagsVbmapParams, seed int64) bool {
-			return checkVbmapProperties(
-				gen, VbmapParams(params), seed)
+		check := func(p vbmapParams, seed int64) bool {
+			return checkVbmapProperties(gen, p.getParams(), seed)
 		}
+		paramsGenerators := []vbmapParams{
+			trivialTagsVbmapParams{},
+			equalTagsVbmapParams{}}
 
-		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
-		if err != nil {
-			t.Error(err)
+		for _, pgen := range paramsGenerators {
+			err := quickCheck(
+				makeChecker(pgen, check),
+				&quick.Config{MaxCount: 250},
+				t)
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
 	}
@@ -398,6 +420,10 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 }
 
 type equalTagsVbmapParams VbmapParams
+
+func (p equalTagsVbmapParams) getParams() VbmapParams {
+	return VbmapParams(p)
+}
 
 func (p equalTagsVbmapParams) Generate(
 	rand *rand.Rand, size int) reflect.Value {
@@ -541,4 +567,32 @@ func quickCheck(fn interface{}, config *quick.Config, t *testing.T) error {
 	}
 	check := reflect.MakeFunc(reflect.TypeOf(fn), wrapper).Interface()
 	return quick.Check(check, config)
+}
+
+// Makes a function that can be passed to quickCheck(). The values are
+// generated for the specific type as specified by `params`. The callback
+// function `check` will receive the value via `vbmapParams` interface
+// though. This allows writing loops over different generators for
+// `VbmapParams`.
+func makeChecker(gen vbmapParams, check interface{}) interface{} {
+	checkType := reflect.TypeOf(check)
+	in := make([]reflect.Type, checkType.NumIn())
+
+	in[0] = reflect.TypeOf(gen)
+	for i := 1; i < checkType.NumIn(); i++ {
+		in[i] = checkType.In(i)
+	}
+
+	out := []reflect.Type(nil)
+	for i := 0; i < checkType.NumOut(); i++ {
+		out = append(out, checkType.Out(i))
+	}
+
+	fnType := reflect.FuncOf(in, out, false)
+
+	fn := func(args []reflect.Value) []reflect.Value {
+		return reflect.ValueOf(check).Call(args)
+	}
+
+	return reflect.MakeFunc(fnType, fn).Interface()
 }
