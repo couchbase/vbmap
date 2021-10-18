@@ -378,7 +378,10 @@ func TestVbmapProperties(t *testing.T) {
 func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	tags = make(map[Node]Tag)
 	tagSize := numNodes / numTags
-	tagResidue := numNodes % numTags
+
+	if tagSize*numTags != numNodes {
+		panic("numNodes % numTags != 0")
+	}
 
 	node := 0
 	tag := 0
@@ -386,12 +389,6 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 		for i := 0; i < tagSize; i++ {
 			tags[Node(node)] = Tag(tag)
 			node++
-		}
-
-		if tagResidue != 0 {
-			tags[Node(node)] = Tag(tag)
-			node++
-			tagResidue--
 		}
 
 		tag++
@@ -413,6 +410,11 @@ func (p equalTagsVbmapParams) Generate(
 	// number of tags is in range [numReplicas+1, numNodes]
 	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
 	numTags += params.NumReplicas + 1
+
+	if params.NumNodes%numTags != 0 {
+		params.NumNodes /= numTags
+		params.NumNodes *= numTags
+	}
 
 	params.Tags = equalTags(params.NumNodes, numTags)
 	normalizeParams(&params)
