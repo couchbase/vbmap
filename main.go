@@ -345,7 +345,8 @@ func main() {
 		searchParams.BalanceSlaves = true
 		searchParams.BalanceReplicas = true
 
-		// reparse so flags specified after -relax-all take precedence
+		// reparse so any explicitly specified --(no-)-relax-* flags
+		// take precedence
 		flag.Parse()
 	}
 
