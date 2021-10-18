@@ -590,7 +590,7 @@ func tryBuildRI(
 	minSlaves := params.NumSlaves
 	maxStrictSlaves := params.NumSlaves
 	maxSlaves := params.NumSlaves
-	if searchParams.RelaxNumSlaves {
+	if searchParams.RelaxNumSlaves && params.NumSlaves != 0 {
 		maxStrictSlaves = getMaxStrictSlaves(*params)
 		maxSlaves = getMaxSlaves(*params)
 
