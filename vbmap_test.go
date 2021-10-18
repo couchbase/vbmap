@@ -121,7 +121,9 @@ func TestRReplicaBalance(t *testing.T) {
 	}
 }
 
-func (VbmapParams) generate(rand *rand.Rand, _ int) VbmapParams {
+type trivialTagsVbmapParams VbmapParams
+
+func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	nodes := rand.Int()%100 + 1
 	replicas := rand.Int() % 4
 
@@ -134,11 +136,7 @@ func (VbmapParams) generate(rand *rand.Rand, _ int) VbmapParams {
 	}
 	normalizeParams(&params)
 
-	return params
-}
-
-func (p VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
-	return reflect.ValueOf(p.generate(rand, size))
+	return reflect.ValueOf(trivialTagsVbmapParams(params))
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
@@ -182,8 +180,8 @@ func TestRIProperties(t *testing.T) {
 	setup(t)
 
 	for _, gen := range allGenerators() {
-		check := func(params VbmapParams) bool {
-			return checkRIProperties(gen, params)
+		check := func(params trivialTagsVbmapParams) bool {
+			return checkRIProperties(gen, VbmapParams(params))
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
@@ -252,8 +250,8 @@ func TestRProperties(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 
-		check := func(params VbmapParams, seed int64) bool {
-			return checkRProperties(gen, params, seed)
+		check := func(params trivialTagsVbmapParams, seed int64) bool {
+			return checkRProperties(gen, VbmapParams(params), seed)
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
@@ -363,8 +361,9 @@ func TestVbmapProperties(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 
-		check := func(params VbmapParams, seed int64) bool {
-			return checkVbmapProperties(gen, params, seed)
+		check := func(params trivialTagsVbmapParams, seed int64) bool {
+			return checkVbmapProperties(
+				gen, VbmapParams(params), seed)
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
@@ -403,7 +402,8 @@ type equalTagsVbmapParams VbmapParams
 func (p equalTagsVbmapParams) Generate(
 	rand *rand.Rand, size int) reflect.Value {
 
-	params := VbmapParams(p).generate(rand, size)
+	v := trivialTagsVbmapParams(p).Generate(rand, size)
+	params := VbmapParams(v.Interface().(trivialTagsVbmapParams))
 
 	// number of tags is in range [numReplicas+1, numNodes]
 	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
