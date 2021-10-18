@@ -27,13 +27,13 @@ var (
 	testSearchParams = SearchParams{
 		NumRRetries:          25,
 		StrictReplicaBalance: false,
-		RelaxNumSlaves:       false,
+		RelaxNumSlaves:       true,
 		DotPath:              "",
 	}
 )
 
 func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
-	return gen.Generate(params, testSearchParams)
+	return tryBuildRI(&params, testSearchParams, gen)
 }
 
 func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
@@ -425,23 +425,7 @@ func (p equalTagsVbmapParams) Generate(
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
 	ri, err := testBuildRI(params, gen)
 	if err != nil {
-		switch err {
-		case ErrorNoSolution:
-			diag.Printf("Couldn't find a solution for params %s", params)
-
-			// cross-check using glpk generator
-			gen := makeGlpkRIGenerator()
-
-			// if glpk can find a solution then report an error
-			_, err := testBuildRI(params, gen)
-			if err == nil {
-				return false
-			}
-
-			return true
-		default:
-			return false
-		}
+		return false
 	}
 
 	for i, row := range ri.Matrix {
@@ -476,11 +460,6 @@ func TestRIPropertiesTagAware(t *testing.T) {
 func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 	_, r, err := testBuildR(params, gen)
 	if err != nil {
-		if err == ErrorNoSolution {
-			diag.Printf("Couldn't find a solution for params %s", params)
-			return true
-		}
-
 		return false
 	}
 
@@ -506,7 +485,7 @@ func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
 			if count > vbuckets {
 				diag.Printf("Can't generate fully rack aware "+
 					"vbucket map for params %s", params)
-				return true
+				return false
 			}
 		}
 	}
