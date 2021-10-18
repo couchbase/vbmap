@@ -32,17 +32,17 @@ var (
 	}
 )
 
-func testBuildRI(params VbmapParams, gen RIGenerator) (RI, error) {
-	return tryBuildRI(&params, testSearchParams, gen)
+func testBuildRI(params *VbmapParams, gen RIGenerator) (RI, error) {
+	return tryBuildRI(params, testSearchParams, gen)
 }
 
-func testBuildR(params VbmapParams, gen RIGenerator) (RI, R, error) {
-	ri, err := tryBuildRI(&params, testSearchParams, gen)
+func testBuildR(params *VbmapParams, gen RIGenerator) (RI, R, error) {
+	ri, err := tryBuildRI(params, testSearchParams, gen)
 	if err != nil {
 		return RI{}, R{}, err
 	}
 
-	r, err := BuildR(params, ri, testSearchParams)
+	r, err := BuildR(*params, ri, testSearchParams)
 	if err != nil {
 		return RI{}, R{}, err
 	}
@@ -112,7 +112,7 @@ func TestRReplicaBalance(t *testing.T) {
 			normalizeParams(&params)
 
 			for _, gen := range allGenerators() {
-				_, _, err := testBuildR(params, gen)
+				_, _, err := testBuildR(&params, gen)
 				if err != nil {
 					t.Error("Could not find a solution")
 				}
@@ -142,7 +142,7 @@ func (p VbmapParams) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
-	ri, err := testBuildRI(params, gen)
+	ri, err := testBuildRI(&params, gen)
 	if err != nil {
 		return false
 	}
@@ -196,7 +196,7 @@ func TestRIProperties(t *testing.T) {
 func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	ri, r, err := testBuildR(params, gen)
+	ri, r, err := testBuildR(&params, gen)
 	if err != nil {
 		return false
 	}
@@ -270,7 +270,7 @@ type nodePair struct {
 func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	ri, r, err := testBuildR(params, gen)
+	ri, r, err := testBuildR(&params, gen)
 	if err != nil {
 		return false
 	}
@@ -423,7 +423,7 @@ func (p equalTagsVbmapParams) Generate(
 }
 
 func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
-	ri, err := testBuildRI(params, gen)
+	ri, err := testBuildRI(&params, gen)
 	if err != nil {
 		return false
 	}
@@ -458,7 +458,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 }
 
 func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
-	_, r, err := testBuildR(params, gen)
+	_, r, err := testBuildR(&params, gen)
 	if err != nil {
 		return false
 	}
