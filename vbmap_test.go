@@ -365,11 +365,25 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 	}
 
 	totalReplicas := 0
-	for _, sum := range r.ColSums {
-		totalReplicas += sum
+	targetReplicasLo := params.NumVBuckets / params.NumNodes
+	targetReplicasHi := targetReplicasLo
+	if targetReplicasLo*params.NumNodes != params.NumVBuckets {
+		targetReplicasHi++
 	}
 
-	if totalReplicas != params.NumVBuckets * params.NumReplicas {
+	targetReplicasLo *= params.NumReplicas
+	targetReplicasHi *= params.NumReplicas
+
+	for _, sum := range r.ColSums {
+		totalReplicas += sum
+
+		if mustBalance &&
+			(sum < targetReplicasLo || sum > targetReplicasHi) {
+			return false
+		}
+	}
+
+	if totalReplicas != params.NumVBuckets*params.NumReplicas {
 		return false
 	}
 
