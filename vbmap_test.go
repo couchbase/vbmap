@@ -360,6 +360,15 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 		if totalVBuckets != params.NumVBuckets {
 			return false
 		}
+
+		totalReplicas := 0
+		for _, sum := range r.ColSums {
+			totalReplicas += sum
+		}
+
+		if totalReplicas != params.NumVBuckets * params.NumReplicas {
+			return false
+		}
 	}
 
 	return true
