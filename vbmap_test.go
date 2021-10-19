@@ -607,6 +607,7 @@ func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
 func TestVbmapTagAware(t *testing.T) {
 	qc := newQc(t)
 	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkRIProperties)
 }
 
