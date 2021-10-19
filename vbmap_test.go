@@ -214,10 +214,6 @@ func TestRReplicaBalance(t *testing.T) {
 		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
-			t.Log("=======================================")
-			t.Logf("Generating R for %d node, %d replicas",
-				nodes, replicas)
-
 			params := VbmapParams{
 				Tags:        tags,
 				NumNodes:    nodes,
@@ -235,7 +231,9 @@ func TestRReplicaBalance(t *testing.T) {
 						balancedSearchParams,
 						gen)
 				if err != nil {
-					t.Error("Could not find a solution")
+					t.Error("Could not find a solution "+
+						"for %d nodes, %d replicas",
+						nodes, replicas)
 				}
 			}
 		}
