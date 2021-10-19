@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	testMaxFlow = flag.Bool("maxflow", true, "run maxflow tests")
-	testGlpk    = flag.Bool("glpk", false, "run glpk tests")
+	testMaxFlow  = flag.Bool("maxflow", true, "run maxflow tests")
+	testGlpk     = flag.Bool("glpk", false, "run glpk tests")
+	testMaxCount = flag.Int("max-count", 250, "testing/quick MaxCount")
 )
 
 var (
@@ -311,10 +312,7 @@ func TestRIProperties(t *testing.T) {
 			equalTagsVbmapParams{},
 			randomTagsVbmapParams{}}
 		for _, pgen := range paramsGenerators {
-			err := quickCheck(
-				makeChecker(pgen, check),
-				&quick.Config{MaxCount: 250},
-				t)
+			err := quickCheck(makeChecker(pgen, check), t)
 			if err != nil {
 				t.Error(err)
 			}
@@ -387,7 +385,7 @@ func TestRProperties(t *testing.T) {
 			return checkRProperties(gen, params, seed)
 		}
 
-		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
+		err := quickCheck(check, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -503,10 +501,7 @@ func TestVbmapProperties(t *testing.T) {
 			equalTagsVbmapParams{}}
 
 		for _, pgen := range paramsGenerators {
-			err := quickCheck(
-				makeChecker(pgen, check),
-				&quick.Config{MaxCount: 250},
-				t)
+			err := quickCheck(makeChecker(pgen, check), t)
 			if err != nil {
 				t.Error(err)
 			}
@@ -567,7 +562,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 			return checkRIPropertiesTagAware(gen, params)
 		}
 
-		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
+		err := quickCheck(check, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -635,7 +630,7 @@ func TestVbmapTagAware(t *testing.T) {
 			return checkVbmapTagAware(gen, params)
 		}
 
-		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
+		err := quickCheck(check, t)
 		if err != nil {
 			t.Error(err)
 		}
@@ -646,7 +641,7 @@ func TestVbmapTagAware(t *testing.T) {
 // Calls quick.Check() with the function and the config passed. Converts
 // panics into test failures and logs the stacktrace. This way it's possible
 // to see what input caused the panic.
-func quickCheck(fn interface{}, config *quick.Config, t *testing.T) error {
+func quickCheck(fn interface{}, t *testing.T) error {
 	wrapper := func(args []reflect.Value) (results []reflect.Value) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -660,8 +655,9 @@ func quickCheck(fn interface{}, config *quick.Config, t *testing.T) error {
 		results = reflect.ValueOf(fn).Call(args)
 		return
 	}
+	config := quick.Config{MaxCount: *testMaxCount}
 	check := reflect.MakeFunc(reflect.TypeOf(fn), wrapper).Interface()
-	return quick.Check(check, config)
+	return quick.Check(check, &config)
 }
 
 // Makes a function that can be passed to quickCheck(). The values are
