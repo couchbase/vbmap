@@ -310,22 +310,11 @@ func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
 }
 
 func TestRIProperties(t *testing.T) {
-	setup(t)
-
-	for _, gen := range allGenerators() {
-
-		paramsGenerators := []vbmapParams{
-			trivialTagsVbmapParams{},
-			equalTagsVbmapParams{},
-			randomTagsVbmapParams{}}
-		for _, p := range paramsGenerators {
-			check := makeChecker(gen, p, checkRIProperties)
-			err := quickCheck(check, t)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-	}
+	qc := newQc(t)
+	qc.testOn(trivialTagsVbmapParams{})
+	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
+	qc.run(checkRIProperties)
 }
 
 func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
@@ -385,19 +374,9 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 }
 
 func TestRProperties(t *testing.T) {
-	setup(t)
-
-	for _, gen := range allGenerators() {
-
-		check := func(params trivialTagsVbmapParams, seed int64) bool {
-			return checkRProperties(gen, params, seed)
-		}
-
-		err := quickCheck(check, t)
-		if err != nil {
-			t.Error(err)
-		}
-	}
+	qc := newQc(t)
+	qc.testOn(trivialTagsVbmapParams{})
+	qc.run(checkRProperties)
 }
 
 type nodePair struct {
@@ -498,22 +477,10 @@ func checkVbmapProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 }
 
 func TestVbmapProperties(t *testing.T) {
-	setup(t)
-
-	for _, gen := range allGenerators() {
-		paramsGenerators := []vbmapParams{
-			trivialTagsVbmapParams{},
-			equalTagsVbmapParams{}}
-
-		for _, p := range paramsGenerators {
-			check := makeChecker(gen, p, checkVbmapProperties)
-			err := quickCheck(check, t)
-			if err != nil {
-				t.Error(err)
-			}
-		}
-
-	}
+	qc := newQc(t)
+	qc.testOn(trivialTagsVbmapParams{})
+	qc.testOn(equalTagsVbmapParams{})
+	qc.run(checkVbmapProperties)
 }
 
 func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
@@ -561,19 +528,9 @@ func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) bool {
 }
 
 func TestRIPropertiesTagAware(t *testing.T) {
-	setup(t)
-
-	for _, gen := range allGenerators() {
-		check := func(params equalTagsVbmapParams) bool {
-			return checkRIPropertiesTagAware(gen, params)
-		}
-
-		err := quickCheck(check, t)
-		if err != nil {
-			t.Error(err)
-		}
-
-	}
+	qc := newQc(t)
+	qc.testOn(equalTagsVbmapParams{})
+	qc.run(checkRIProperties)
 }
 
 func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
@@ -629,19 +586,9 @@ func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
 }
 
 func TestVbmapTagAware(t *testing.T) {
-	setup(t)
-
-	for _, gen := range allGenerators() {
-		check := func(params equalTagsVbmapParams) bool {
-			return checkVbmapTagAware(gen, params)
-		}
-
-		err := quickCheck(check, t)
-		if err != nil {
-			t.Error(err)
-		}
-
-	}
+	qc := newQc(t)
+	qc.testOn(equalTagsVbmapParams{})
+	qc.run(checkRIProperties)
 }
 
 // Calls quick.Check() with the function and the config passed. Converts
@@ -664,6 +611,33 @@ func quickCheck(fn interface{}, t *testing.T) error {
 	config := quick.Config{MaxCount: *testMaxCount}
 	check := reflect.MakeFunc(reflect.TypeOf(fn), wrapper).Interface()
 	return quick.Check(check, &config)
+}
+
+type qc struct {
+	t  *testing.T
+	ps []vbmapParams
+}
+
+func newQc(t *testing.T) *qc {
+	return &qc{t, nil}
+}
+
+func (q *qc) testOn(p vbmapParams) {
+	q.ps = append(q.ps, p)
+}
+
+func (q qc) run(fn interface{}) {
+	setup(q.t)
+
+	for _, gen := range allGenerators() {
+		for _, p := range q.ps {
+			check := makeChecker(gen, p, fn)
+			err := quickCheck(check, q.t)
+			if err != nil {
+				q.t.Error(err)
+			}
+		}
+	}
 }
 
 // Makes a function that can be passed to quickCheck(). The values are
