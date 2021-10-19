@@ -324,51 +324,53 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 				}
 			}
 		}
-	} else {
-		// check that we follow RI topology
-		for i, row := range ri.Matrix {
-			for j, elem := range row {
-				if elem == 0 && r.Matrix[i][j] != 0 {
-					return false
-				}
 
-				if mustBalance &&
-					elem != 0 && r.Matrix[i][j] == 0 {
-					return false
-				}
-			}
-		}
+		return true
+	}
 
-		totalVBuckets := 0
-
-		// check active vbuckets balance
-		for _, sum := range r.RowSums {
-			if sum%params.NumReplicas != 0 {
+	// check that we follow RI topology
+	for i, row := range ri.Matrix {
+		for j, elem := range row {
+			if elem == 0 && r.Matrix[i][j] != 0 {
 				return false
 			}
 
-			vbuckets := sum / params.NumReplicas
-			expected := params.NumVBuckets / params.NumNodes
-
-			if vbuckets != expected && vbuckets != expected+1 {
+			if mustBalance &&
+				elem != 0 && r.Matrix[i][j] == 0 {
 				return false
 			}
-
-			totalVBuckets += vbuckets
 		}
+	}
 
-		if totalVBuckets != params.NumVBuckets {
+	totalVBuckets := 0
+
+	// check active vbuckets balance
+	for _, sum := range r.RowSums {
+		if sum%params.NumReplicas != 0 {
 			return false
 		}
 
-		totalReplicas := 0
-		for _, sum := range r.ColSums {
-			totalReplicas += sum
-		}
+		vbuckets := sum / params.NumReplicas
+		expected := params.NumVBuckets / params.NumNodes
 
-		if totalReplicas != params.NumVBuckets * params.NumReplicas {
+		if vbuckets != expected && vbuckets != expected+1 {
 			return false
 		}
+
+		totalVBuckets += vbuckets
+	}
+
+	if totalVBuckets != params.NumVBuckets {
+		return false
+	}
+
+	totalReplicas := 0
+	for _, sum := range r.ColSums {
+		totalReplicas += sum
+	}
+
+	if totalReplicas != params.NumVBuckets * params.NumReplicas {
+		return false
 	}
 
 	return true
