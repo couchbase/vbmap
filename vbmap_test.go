@@ -499,6 +499,7 @@ func TestVbmapProperties(t *testing.T) {
 	qc := newQc(t)
 	qc.testOn(trivialTagsVbmapParams{})
 	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkVbmapProperties)
 }
 
