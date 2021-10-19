@@ -10,6 +10,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"runtime/debug"
@@ -616,10 +617,17 @@ func (q qc) run(fn interface{}) {
 	for _, gen := range allGenerators() {
 		for _, p := range q.ps {
 			check := makeChecker(gen, p, fn)
-			err := quickCheck(check, q.t)
-			if err != nil {
-				q.t.Error(err)
-			}
+			pName := reflect.TypeOf(p).Name()
+			name := fmt.Sprintf("%s+%s", gen, pName)
+
+			q.t.Run(name,
+				func(t *testing.T) {
+					t.Parallel()
+					err := quickCheck(check, t)
+					if err != nil {
+						t.Error(err)
+					}
+				})
 		}
 	}
 }
