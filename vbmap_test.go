@@ -313,16 +313,14 @@ func TestRIProperties(t *testing.T) {
 	setup(t)
 
 	for _, gen := range allGenerators() {
-		check := func(p vbmapParams) bool {
-			return checkRIProperties(gen, p)
-		}
 
 		paramsGenerators := []vbmapParams{
 			trivialTagsVbmapParams{},
 			equalTagsVbmapParams{},
 			randomTagsVbmapParams{}}
-		for _, pgen := range paramsGenerators {
-			err := quickCheck(makeChecker(pgen, check), t)
+		for _, p := range paramsGenerators {
+			check := makeChecker(gen, p, checkRIProperties)
+			err := quickCheck(check, t)
 			if err != nil {
 				t.Error(err)
 			}
@@ -503,15 +501,13 @@ func TestVbmapProperties(t *testing.T) {
 	setup(t)
 
 	for _, gen := range allGenerators() {
-		check := func(p vbmapParams, seed int64) bool {
-			return checkVbmapProperties(gen, p, seed)
-		}
 		paramsGenerators := []vbmapParams{
 			trivialTagsVbmapParams{},
 			equalTagsVbmapParams{}}
 
-		for _, pgen := range paramsGenerators {
-			err := quickCheck(makeChecker(pgen, check), t)
+		for _, p := range paramsGenerators {
+			check := makeChecker(gen, p, checkVbmapProperties)
+			err := quickCheck(check, t)
 			if err != nil {
 				t.Error(err)
 			}
@@ -675,13 +671,15 @@ func quickCheck(fn interface{}, t *testing.T) error {
 // function `check` will receive the value via `vbmapParams` interface
 // though. This allows writing loops over different generators for
 // `VbmapParams`.
-func makeChecker(gen vbmapParams, check interface{}) interface{} {
-	checkType := reflect.TypeOf(check)
-	in := make([]reflect.Type, checkType.NumIn())
+func makeChecker(
+	gen RIGenerator, p vbmapParams, check interface{}) interface{} {
 
-	in[0] = reflect.TypeOf(gen)
-	for i := 1; i < checkType.NumIn(); i++ {
-		in[i] = checkType.In(i)
+	checkType := reflect.TypeOf(check)
+	in := make([]reflect.Type, checkType.NumIn()-1)
+
+	in[0] = reflect.TypeOf(p)
+	for i := 1; i < checkType.NumIn()-1; i++ {
+		in[i] = checkType.In(i + 1)
 	}
 
 	out := []reflect.Type(nil)
@@ -691,7 +689,10 @@ func makeChecker(gen vbmapParams, check interface{}) interface{} {
 
 	fnType := reflect.FuncOf(in, out, false)
 
-	fn := func(args []reflect.Value) []reflect.Value {
+	fn := func(args0 []reflect.Value) []reflect.Value {
+		args := []reflect.Value(nil)
+		args = append(args, reflect.ValueOf(gen))
+		args = append(args, args0...)
 		return reflect.ValueOf(check).Call(args)
 	}
 
