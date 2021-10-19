@@ -10,10 +10,11 @@ package main
 
 import (
 	"io"
+	"io/ioutil"
 	"log"
 )
 
-var diag logger
+var diag = logger{log.New(ioutil.Discard, "", 0), false}
 
 type logger struct {
 	*log.Logger

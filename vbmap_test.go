@@ -75,10 +75,6 @@ func testBuildR(
 	return ri, r, nil
 }
 
-type testingWriter struct {
-	t *testing.T
-}
-
 func allGenerators() []RIGenerator {
 	result := []RIGenerator{}
 
@@ -91,16 +87,6 @@ func allGenerators() []RIGenerator {
 	}
 
 	return result
-}
-
-func (w testingWriter) Write(p []byte) (n int, err error) {
-	w.t.Logf("%s", string(p))
-	return len(p), nil
-}
-
-func setup(t *testing.T) {
-	diag.SetSink(testingWriter{t})
-	t.Parallel()
 }
 
 func trivialTags(nodes int) (tags map[Node]Tag) {
@@ -222,7 +208,7 @@ func (randomTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 }
 
 func TestRReplicaBalance(t *testing.T) {
-	setup(t)
+	t.Parallel()
 
 	for nodes := 1; nodes <= 100; nodes++ {
 		tags := trivialTags(nodes)
@@ -561,8 +547,6 @@ func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
 
 		for _, count := range counts {
 			if count > vbuckets {
-				diag.Printf("Can't generate fully rack aware "+
-					"vbucket map for params %s", params)
 				return false
 			}
 		}
@@ -627,7 +611,7 @@ func (q *qc) testOn(p vbmapParams) {
 }
 
 func (q qc) run(fn interface{}) {
-	setup(q.t)
+	q.t.Parallel()
 
 	for _, gen := range allGenerators() {
 		for _, p := range q.ps {
