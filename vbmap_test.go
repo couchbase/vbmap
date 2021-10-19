@@ -16,7 +16,6 @@ import (
 	"runtime/debug"
 	"testing"
 	"testing/quick"
-	"time"
 )
 
 var (
@@ -215,12 +214,9 @@ func TestRReplicaBalance(t *testing.T) {
 		tags := trivialTags(nodes)
 
 		for replicas := 1; replicas <= 3; replicas++ {
-			seed = time.Now().UTC().UnixNano()
-			rand.Seed(seed)
-
 			t.Log("=======================================")
-			t.Logf("Generating R for %d node, %d replicas (seed %d)",
-				nodes, replicas, seed)
+			t.Logf("Generating R for %d node, %d replicas",
+				nodes, replicas)
 
 			params := VbmapParams{
 				Tags:        tags,
@@ -304,9 +300,7 @@ func TestRIProperties(t *testing.T) {
 	qc.run(checkRIProperties)
 }
 
-func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
-	rand.Seed(seed)
-
+func checkRProperties(gen RIGenerator, p vbmapParams) bool {
 	params := p.getParams()
 	mustBalance := p.mustBalance()
 
@@ -402,9 +396,7 @@ type nodePair struct {
 	x, y Node
 }
 
-func checkVbmapProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
-	rand.Seed(seed)
-
+func checkVbmapProperties(gen RIGenerator, p vbmapParams) bool {
 	params := p.getParams()
 
 	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
