@@ -550,6 +550,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) bool {
 func TestRIPropertiesTagAware(t *testing.T) {
 	qc := newQc(t)
 	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkRIProperties)
 }
 
