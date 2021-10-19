@@ -261,6 +261,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
 	params := p.getParams()
+	numSlaves := params.NumSlaves
 
 	ri, err := testBuildRI(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -279,9 +280,18 @@ func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
 	rowSums := make([]int, params.NumNodes)
 
 	for i, row := range ri.Matrix {
+		count := 0
 		for j, elem := range row {
 			colSums[j] += elem
 			rowSums[i] += elem
+
+			if elem != 0 {
+				count++
+			}
+		}
+
+		if count > numSlaves {
+			return false
 		}
 	}
 
