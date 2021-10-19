@@ -308,6 +308,7 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
 	params := p.getParams()
+	mustBalance := p.mustBalance()
 
 	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -327,7 +328,11 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 		// check that we follow RI topology
 		for i, row := range ri.Matrix {
 			for j, elem := range row {
-				if elem == 0 && r.Matrix[i][j] != 0 ||
+				if elem == 0 && r.Matrix[i][j] != 0 {
+					return false
+				}
+
+				if mustBalance &&
 					elem != 0 && r.Matrix[i][j] == 0 {
 					return false
 				}
@@ -363,6 +368,8 @@ func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 func TestRProperties(t *testing.T) {
 	qc := newQc(t)
 	qc.testOn(trivialTagsVbmapParams{})
+	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkRProperties)
 }
 
