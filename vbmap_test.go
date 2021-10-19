@@ -24,7 +24,7 @@ var (
 )
 
 var (
-	testSearchParams = SearchParams{
+	balancedSearchParams = SearchParams{
 		NumRRetries:          25,
 		StrictReplicaBalance: false,
 		RelaxNumSlaves:       true,
@@ -34,19 +34,28 @@ var (
 
 type vbmapParams interface {
 	getParams() VbmapParams
+	getSearchParams() SearchParams
 }
 
-func testBuildRI(params *VbmapParams, gen RIGenerator) (RI, error) {
-	return tryBuildRI(params, testSearchParams, gen)
+func testBuildRI(
+	params *VbmapParams,
+	searchParams SearchParams,
+	gen RIGenerator) (RI, error) {
+
+	return tryBuildRI(params, searchParams, gen)
 }
 
-func testBuildR(params *VbmapParams, gen RIGenerator) (RI, R, error) {
-	ri, err := tryBuildRI(params, testSearchParams, gen)
+func testBuildR(
+	params *VbmapParams,
+	searchParams SearchParams,
+	gen RIGenerator) (RI, R, error) {
+
+	ri, err := tryBuildRI(params, searchParams, gen)
 	if err != nil {
 		return RI{}, R{}, err
 	}
 
-	r, err := BuildR(*params, ri, testSearchParams)
+	r, err := BuildR(*params, ri, searchParams)
 	if err != nil {
 		return RI{}, R{}, err
 	}
@@ -111,6 +120,10 @@ func (p trivialTagsVbmapParams) getParams() VbmapParams {
 	return VbmapParams(p)
 }
 
+func (trivialTagsVbmapParams) getSearchParams() SearchParams {
+	return balancedSearchParams
+}
+
 func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	params := genVbmapParams(rand)
 	params.Tags = trivialTags(params.NumNodes)
@@ -121,6 +134,10 @@ type equalTagsVbmapParams VbmapParams
 
 func (p equalTagsVbmapParams) getParams() VbmapParams {
 	return VbmapParams(p)
+}
+
+func (equalTagsVbmapParams) getSearchParams() SearchParams {
+	return balancedSearchParams
 }
 
 func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
@@ -166,7 +183,11 @@ func TestRReplicaBalance(t *testing.T) {
 			normalizeParams(&params)
 
 			for _, gen := range allGenerators() {
-				_, _, err := testBuildR(&params, gen)
+				_, _, err :=
+					testBuildR(
+						&params,
+						balancedSearchParams,
+						gen)
 				if err != nil {
 					t.Error("Could not find a solution")
 				}
@@ -175,8 +196,10 @@ func TestRReplicaBalance(t *testing.T) {
 	}
 }
 
-func checkRIProperties(gen RIGenerator, params VbmapParams) bool {
-	ri, err := testBuildRI(&params, gen)
+func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
+	params := p.getParams()
+
+	ri, err := testBuildRI(&params, p.getSearchParams(), gen)
 	if err != nil {
 		return false
 	}
@@ -217,7 +240,7 @@ func TestRIProperties(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 		check := func(p vbmapParams) bool {
-			return checkRIProperties(gen, p.getParams())
+			return checkRIProperties(gen, p)
 		}
 
 		paramsGenerators := []vbmapParams{
@@ -235,10 +258,12 @@ func TestRIProperties(t *testing.T) {
 	}
 }
 
-func checkRProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
+func checkRProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	ri, r, err := testBuildR(&params, gen)
+	params := p.getParams()
+
+	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
 		return false
 	}
@@ -295,7 +320,7 @@ func TestRProperties(t *testing.T) {
 	for _, gen := range allGenerators() {
 
 		check := func(params trivialTagsVbmapParams, seed int64) bool {
-			return checkRProperties(gen, VbmapParams(params), seed)
+			return checkRProperties(gen, params, seed)
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
@@ -309,10 +334,12 @@ type nodePair struct {
 	x, y Node
 }
 
-func checkVbmapProperties(gen RIGenerator, params VbmapParams, seed int64) bool {
+func checkVbmapProperties(gen RIGenerator, p vbmapParams, seed int64) bool {
 	rand.Seed(seed)
 
-	ri, r, err := testBuildR(&params, gen)
+	params := p.getParams()
+
+	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
 		return false
 	}
@@ -405,7 +432,7 @@ func TestVbmapProperties(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 		check := func(p vbmapParams, seed int64) bool {
-			return checkVbmapProperties(gen, p.getParams(), seed)
+			return checkVbmapProperties(gen, p, seed)
 		}
 		paramsGenerators := []vbmapParams{
 			trivialTagsVbmapParams{},
@@ -447,8 +474,10 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	return
 }
 
-func checkRIPropertiesTagAware(gen RIGenerator, params VbmapParams) bool {
-	ri, err := testBuildRI(&params, gen)
+func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) bool {
+	params := p.getParams()
+
+	ri, err := testBuildRI(&params, p.getSearchParams(), gen)
 	if err != nil {
 		return false
 	}
@@ -471,8 +500,7 @@ func TestRIPropertiesTagAware(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 		check := func(params equalTagsVbmapParams) bool {
-			return checkRIPropertiesTagAware(
-				gen, VbmapParams(params))
+			return checkRIPropertiesTagAware(gen, params)
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
@@ -483,8 +511,10 @@ func TestRIPropertiesTagAware(t *testing.T) {
 	}
 }
 
-func checkVbmapTagAware(gen RIGenerator, params VbmapParams) bool {
-	_, r, err := testBuildR(&params, gen)
+func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
+	params := p.getParams()
+
+	_, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
 		return false
 	}
@@ -538,7 +568,7 @@ func TestVbmapTagAware(t *testing.T) {
 
 	for _, gen := range allGenerators() {
 		check := func(params equalTagsVbmapParams) bool {
-			return checkVbmapTagAware(gen, VbmapParams(params))
+			return checkVbmapTagAware(gen, params)
 		}
 
 		err := quickCheck(check, &quick.Config{MaxCount: 250}, t)
