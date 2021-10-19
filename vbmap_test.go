@@ -30,11 +30,22 @@ var (
 		RelaxNumSlaves:       true,
 		DotPath:              "",
 	}
+	unbalancedSearchParams = SearchParams{
+		NumRRetries:          25,
+		StrictReplicaBalance: false,
+		RelaxSlaveBalance:    true,
+		RelaxReplicaBalance:  true,
+		RelaxNumSlaves:       true,
+		BalanceSlaves:        true,
+		BalanceReplicas:      true,
+		DotPath:              "",
+	}
 )
 
 type vbmapParams interface {
 	getParams() VbmapParams
 	getSearchParams() SearchParams
+	mustBalance() bool
 }
 
 func testBuildRI(
@@ -124,6 +135,10 @@ func (trivialTagsVbmapParams) getSearchParams() SearchParams {
 	return balancedSearchParams
 }
 
+func (trivialTagsVbmapParams) mustBalance() bool {
+	return true
+}
+
 func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	params := genVbmapParams(rand)
 	params.Tags = trivialTags(params.NumNodes)
@@ -138,6 +153,10 @@ func (p equalTagsVbmapParams) getParams() VbmapParams {
 
 func (equalTagsVbmapParams) getSearchParams() SearchParams {
 	return balancedSearchParams
+}
+
+func (equalTagsVbmapParams) mustBalance() bool {
+	return true
 }
 
 func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
@@ -156,6 +175,49 @@ func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	normalizeParams(&params)
 
 	return reflect.ValueOf(equalTagsVbmapParams(params))
+}
+
+type randomTagsVbmapParams VbmapParams
+
+func (p randomTagsVbmapParams) getParams() VbmapParams {
+	return VbmapParams(p)
+}
+
+func (randomTagsVbmapParams) getSearchParams() SearchParams {
+	return unbalancedSearchParams
+}
+
+func (randomTagsVbmapParams) mustBalance() bool {
+	return false
+}
+
+func (randomTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
+	params := genVbmapParams(rand)
+
+	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
+	numTags += params.NumReplicas + 1
+
+	histo := make([]int, numTags)
+	for i := range histo {
+		histo[i] = 1
+	}
+
+	for i := 0; i < params.NumNodes-numTags; i++ {
+		histo[rand.Int()%numTags]++
+	}
+
+	tags := make(map[Node]Tag)
+	node := 0
+	for i, count := range histo {
+		tag := Tag(i)
+		for j := 0; j < count; j++ {
+			tags[Node(node)] = tag
+			node++
+		}
+	}
+
+	params.Tags = tags
+	return reflect.ValueOf(randomTagsVbmapParams(params))
 }
 
 func TestRReplicaBalance(t *testing.T) {
@@ -222,8 +284,9 @@ func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
 		}
 	}
 
+	mustBalance := p.mustBalance()
 	for i := range colSums {
-		if colSums[i] != params.NumSlaves {
+		if mustBalance && colSums[i] != params.NumSlaves {
 			return false
 		}
 
@@ -245,7 +308,8 @@ func TestRIProperties(t *testing.T) {
 
 		paramsGenerators := []vbmapParams{
 			trivialTagsVbmapParams{},
-			equalTagsVbmapParams{}}
+			equalTagsVbmapParams{},
+			randomTagsVbmapParams{}}
 		for _, pgen := range paramsGenerators {
 			err := quickCheck(
 				makeChecker(pgen, check),
