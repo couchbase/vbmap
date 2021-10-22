@@ -107,6 +107,7 @@ func genVbmapParams(rand *rand.Rand) VbmapParams {
 		NumSlaves:   10,
 		NumVBuckets: 1024,
 		NumReplicas: replicas,
+		Tags:        trivialTags(nodes),
 	}
 	normalizeParams(&params)
 	return params
@@ -127,9 +128,7 @@ func (trivialTagsVbmapParams) mustBalance() bool {
 }
 
 func (trivialTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
-	params := genVbmapParams(rand)
-	params.Tags = trivialTags(params.NumNodes)
-	return reflect.ValueOf(trivialTagsVbmapParams(params))
+	return reflect.ValueOf(trivialTagsVbmapParams(genVbmapParams(rand)))
 }
 
 type equalTagsVbmapParams VbmapParams

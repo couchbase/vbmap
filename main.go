@@ -139,6 +139,11 @@ func normalizeParams(params *VbmapParams) {
 		params.NumReplicas = params.NumNodes - 1
 	}
 
+	tagCount := params.Tags.TagsCount()
+	if params.NumReplicas+1 > tagCount {
+		params.NumReplicas = tagCount - 1
+	}
+
 	if params.NumSlaves >= params.NumNodes {
 		params.NumSlaves = params.NumNodes - 1
 	}
