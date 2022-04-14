@@ -109,7 +109,7 @@ func genVbmapParams(rand *rand.Rand) VbmapParams {
 		NumReplicas: replicas,
 		Tags:        trivialTags(nodes),
 	}
-	normalizeParams(&params)
+	normalizeParams(&params, false)
 	return params
 }
 
@@ -158,7 +158,7 @@ func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	}
 
 	params.Tags = equalTags(params.NumNodes, numTags)
-	normalizeParams(&params)
+	normalizeParams(&params, false)
 
 	return reflect.ValueOf(equalTagsVbmapParams(params))
 }
@@ -221,7 +221,7 @@ func TestRReplicaBalance(t *testing.T) {
 				NumReplicas: replicas,
 			}
 
-			normalizeParams(&params)
+			normalizeParams(&params, false)
 
 			for _, gen := range allGenerators() {
 				_, _, err :=

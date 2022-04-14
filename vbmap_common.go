@@ -56,9 +56,17 @@ type SearchParams struct {
 	DotPath string
 }
 
+// Return nodes sorted by their tag-ids and node-ids.
+
 func (params VbmapParams) Nodes() (nodes []Node) {
-	for n := 0; n < params.NumNodes; n++ {
-		nodes = append(nodes, Node(n))
+
+	tagsNodesMap := params.Tags.TagsNodesMap()
+
+	for _, tag := range params.Tags.TagsList() {
+		tagNodes := tagsNodesMap[tag]
+		for _, node := range tagNodes {
+			nodes = append(nodes, node)
+		}
 	}
 
 	return
@@ -201,20 +209,38 @@ func matrixToBuffer(m [][]int, params VbmapParams) *bytes.Buffer {
 
 	nodes := params.Nodes()
 
+	fmt.Fprintf(buffer, "  N |")
 	fmt.Fprintf(buffer, "    |")
+	for _, node := range nodes {
+		fmt.Fprintf(buffer, "%3d ", node)
+	}
+
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "----|")
+	fmt.Fprintf(buffer, "-----")
+	for range nodes {
+		fmt.Fprintf(buffer, "----")
+	}
+	fmt.Fprintf(buffer, "|\n")
+
+	fmt.Fprintf(buffer, "    |")
+	fmt.Fprintf(buffer, "  T |")
 	for _, node := range nodes {
 		fmt.Fprintf(buffer, "%3d ", params.Tags[node])
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	fmt.Fprintf(buffer, "----|")
+	fmt.Fprintf(buffer, "-----")
 	for range nodes {
 		fmt.Fprintf(buffer, "----")
 	}
 	fmt.Fprintf(buffer, "|\n")
 
 	for i, row := range m {
-		fmt.Fprintf(buffer, "%3d |", params.Tags[Node(i)])
+		fmt.Fprintf(buffer, "%3d |", nodes[i])
+		fmt.Fprintf(buffer, "%3d |", params.Tags[nodes[i]])
 		rowSum := 0
 		for _, elem := range row {
 			rowSum += elem
@@ -224,11 +250,13 @@ func matrixToBuffer(m [][]int, params VbmapParams) *bytes.Buffer {
 	}
 
 	fmt.Fprintf(buffer, "____|")
+	fmt.Fprintf(buffer, "_____")
 	for range nodes {
 		fmt.Fprintf(buffer, "____")
 	}
 	fmt.Fprintf(buffer, "|\n")
 
+	fmt.Fprintf(buffer, "    |")
 	fmt.Fprintf(buffer, "    |")
 	for i := range nodes {
 		colSum := 0

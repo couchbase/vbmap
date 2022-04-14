@@ -46,6 +46,7 @@ var (
 	engineParams string
 	searchParams SearchParams
 	relaxAll     bool
+	greedy       bool
 
 	outputFormat outputFormatValue = "text"
 	diagTo       string
@@ -134,14 +135,24 @@ func (format outputFormatValue) String() string {
 	return string(format)
 }
 
-func normalizeParams(params *VbmapParams) {
+func normalizeParams(params *VbmapParams, useGreedy bool) {
 	if params.NumReplicas+1 > params.NumNodes {
 		params.NumReplicas = params.NumNodes - 1
 	}
 
-	tagCount := params.Tags.TagsCount()
-	if params.NumReplicas+1 > tagCount {
-		params.NumReplicas = tagCount - 1
+	// Adjust the numReplicas based on the largest possible number
+	// of slaves any node can replicate to.
+
+	if useGreedy {
+		maxSlaves := getMaxStrictSlaves(*params)
+		if params.NumReplicas > maxSlaves {
+			params.NumReplicas = maxSlaves
+		}
+	} else {
+		tagCount := params.Tags.TagsCount()
+		if params.NumReplicas+1 > tagCount {
+			params.NumReplicas = tagCount - 1
+		}
 	}
 
 	if params.NumSlaves >= params.NumNodes {
@@ -157,7 +168,7 @@ func normalizeParams(params *VbmapParams) {
 	}
 }
 
-func checkInput() {
+func checkInput(useGreedy bool) {
 	if params.NumNodes <= 0 || params.NumSlaves <= 0 || params.NumVBuckets <= 0 {
 		fatal("num-nodes, num-slaves and num-vbuckets must be greater than zero")
 	}
@@ -190,13 +201,13 @@ func checkInput() {
 		tag := 0
 		params.Tags = make(TagMap)
 
-		for _, node := range params.Nodes() {
+		for node := 0; node < numNodes; node++ {
 			for tag < len(tagHisto) && tagHisto[tag] == 0 {
 				tag++
 			}
 
 			tagHisto[tag]--
-			params.Tags[node] = Tag(tag)
+			params.Tags[Node(node)] = Tag(tag)
 		}
 	}
 
@@ -208,7 +219,7 @@ func checkInput() {
 		}
 	}
 
-	normalizeParams(&params)
+	normalizeParams(&params, useGreedy)
 }
 
 func fatalExitCode(code int, format string, args ...interface{}) {
@@ -330,6 +341,7 @@ func main() {
 		"balance-replicas", true,
 		"attempt to improve replica balance (implies --balance-slaves)")
 	boolVar(&relaxAll, "relax-all", false, "relax all constraints")
+	boolVar(&greedy, "greedy", false, "generate vbmap via a greedy approach")
 	flag.StringVar(&searchParams.DotPath,
 		"dot", "", "output the flow graph for matrix R to path")
 
@@ -389,7 +401,7 @@ func main() {
 	diag.Printf("Using %d as a seed", seed)
 	rand.Seed(seed)
 
-	checkInput()
+	checkInput(greedy)
 
 	engineParamsMap := parseEngineParams(engineParams)
 	if err := engine.generator.SetParams(engineParamsMap); err != nil {
@@ -407,14 +419,8 @@ func main() {
 		diag.Printf("    %v -> %v", node, params.Tags[node])
 	}
 
-	if searchParams.BalanceReplicas {
-		searchParams.BalanceSlaves = true
-	}
-
-	diag.Printf(
-		"Search parameters:\n%s", ppStructFields("  ", searchParams))
-
 	currentMap := Vbmap(nil)
+
 	if currentMapPath != "" {
 		var err error
 		currentMap, err = readVbmap(currentMapPath)
@@ -423,8 +429,22 @@ func main() {
 		}
 	}
 
-	solution, err :=
-		VbmapGenerate(params, engine.generator, searchParams, currentMap)
+	var solution Vbmap
+	var err error
+
+	if greedy {
+		solution, err = generateVbmapGreedy(params, currentMap)
+	} else {
+		if searchParams.BalanceReplicas {
+			searchParams.BalanceSlaves = true
+		}
+		diag.Printf(
+			"Search parameters:\n%s", ppStructFields("  ", searchParams))
+
+		solution, err = VbmapGenerate(params, engine.generator, searchParams,
+			currentMap)
+	}
+
 	if err != nil {
 		switch err {
 		case ErrorNoSolution:
