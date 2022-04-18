@@ -58,14 +58,16 @@ class VbmapException(Exception):
                f'{self.description}'
 
 
-def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId], num_replicas: int) -> Any:
+def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId],
+              num_replicas: int, num_vbuckets: int, greedy: bool) -> Any:
     result = subprocess.run([vbmap_path,
                              '--num-nodes', str(len(node_tag_map)),
                              '--num-replicas', str(num_replicas),
-                             '--num-vbuckets', '1024',
+                             '--num-vbuckets', str(num_vbuckets),
                              '--tags', format_tags(node_tag_map),
                              '--output-format', 'json',
-                             '--relax-all'],
+                             '--relax-all',
+                             '--greedy' if greedy else ''],
                             capture_output=True)
     if result.returncode:
         raise VbmapException(f'no flow found',
@@ -141,7 +143,8 @@ class VbmapChecker:
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         pass
 
 
@@ -150,7 +153,8 @@ class RackZoneChecker(VbmapChecker):
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         tags = {t: None for t in node_tag_map.values()}
         for chain in chains:
             active_node = chain[0]
@@ -179,7 +183,8 @@ class ActiveBalanceChecker(VbmapChecker):
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         counts: Dict[int, int] = {}
         for chain in chains:
             increment(counts, chain[0], 1)
@@ -199,7 +204,8 @@ class ReplicaBalanceChecker(VbmapChecker):
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         counts: Dict[NodeId, int] = {}
         for chain in chains:
             for replica_node in chain[1:]:
@@ -239,9 +245,10 @@ class ActiveChecker(VbmapChecker):
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         nodes = {n: True for n in node_tag_map}
-        if len(chains) != 1024:
+        if len(chains) != num_vbuckets:
             raise VbmapException(f'missing actives: # of actives: {len(chains)}',
                                  node_tag_map,
                                  num_replicas)
@@ -260,7 +267,8 @@ class ReplicaChecker(VbmapChecker):
     def check(self,
               chains: List[List[NodeId]],
               node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int) -> None:
+              num_replicas: int,
+              num_vbuckets: int) -> None:
         nodes = {n: True for n in node_tag_map}
         vbucket = 0
         replicas = 0
@@ -275,11 +283,11 @@ class ReplicaChecker(VbmapChecker):
                                          f'chain: {chain}')
                 replicas += 1
             vbucket += 1
-        if replicas != 1024 * num_replicas:
+        if replicas != num_vbuckets * num_replicas:
             raise VbmapException(f'fewer replicas than configured',
                                  node_tag_map,
                                  num_replicas,
-                                 f'should be: {1024 * num_replicas}, are: {replicas}')
+                                 f'should be: {num_vbuckets * num_replicas}, are: {replicas}')
 
 
 def print_checker_result(
@@ -303,8 +311,10 @@ def check(vbmap_path: str,
           server_group_count: int,
           min_server_group_size: int,
           max_server_group_size: int,
+          vbmap_num_vbuckets: int,
           checkers: List[VbmapChecker],
-          verbose: bool = False):
+          verbose: bool = False,
+          vbmap_greedy: bool = False):
     server_groups_list = get_server_group_size_permutations(server_group_count,
                                                             min_server_group_size,
                                                             max_server_group_size,
@@ -315,11 +325,13 @@ def check(vbmap_path: str,
             ve = None
             node_tag_map: Dict[int, int] = create_node_tag_map(server_groups)
             try:
-                chains = run_vbmap(vbmap_path, node_tag_map, num_replicas)
+                chains = run_vbmap(vbmap_path, node_tag_map, num_replicas,
+                                   vbmap_num_vbuckets, vbmap_greedy)
                 for checker in checkers:
                     vee = None
                     try:
-                        checker.check(chains, node_tag_map, num_replicas)
+                        checker.check(chains, node_tag_map, num_replicas,
+                                      vbmap_num_vbuckets)
                     except VbmapException as e:
                         vee = e
                         exceptions.append(e)
@@ -348,8 +360,10 @@ def main(args):
                        args.server_group_count,
                        args.min_group_size,
                        args.max_group_size,
+                       args.vbmap_num_vbuckets,
                        checkers,
-                       verbose=args.verbose)
+                       verbose=args.verbose,
+                       vbmap_greedy=args.vbmap_greedy)
     for ex in exceptions:
         print(ex)
 
@@ -357,6 +371,7 @@ def main(args):
 DEFAULT_SERVER_GROUP_COUNT = 2
 DEFAULT_MAX_GROUP_SIZE = 5
 DEFAULT_MIN_GROUP_SIZE = 1
+DEFAULT_VBMAP_NUM_VBUCKETS = 1024
 
 parser = argparse.ArgumentParser(
     description='Runs vbmap to generate vbucket maps across a collection of sizes of '
@@ -378,7 +393,13 @@ parser.add_argument('--min-group-size', dest='min_group_size', type=int,
                         DEFAULT_MIN_GROUP_SIZE))
 parser.add_argument('--verbose', dest='verbose', default=False, action='store_true',
                     help='emit verbose log information')
-
+parser.add_argument('--vbmap-num-vbuckets', dest='vbmap_num_vbuckets', type=int,
+                    default=DEFAULT_VBMAP_NUM_VBUCKETS,
+                    help='number of vbuckets (default {}).'.format(
+                        DEFAULT_VBMAP_NUM_VBUCKETS))
+parser.add_argument('--vbmap-greedy', dest='vbmap_greedy', default=False,
+                    action='store_true', help='generate the vbmap via the '
+                    'greedy approach')
 
 if __name__ == '__main__':
     args = parser.parse_args()
