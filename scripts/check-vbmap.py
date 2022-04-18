@@ -297,29 +297,129 @@ class ReplicaChecker(VbmapChecker):
 
 class RebalanceMoveChecker(VbmapChecker):
 
-    def __init__(self, vbmap_path, num_vbuckets, greedy, verbose):
+    def __init__(self, vbmap_path: str, num_vbuckets: int, greedy: bool, verbose: bool):
         self.vbmap_path = vbmap_path
         self.num_vbuckets = num_vbuckets
         self.greedy = greedy
         self.verbose = verbose
 
-    def check(self,
-              chains: List[List[NodeId]],
-              node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int,
-              num_vbuckets: int) -> None:
-        tags = {t for t in node_tag_map.values()}
-        if len(tags) > 1:
-            return
-        next_node = max([n for n in node_tag_map]) + 1
-        new_node_tag_map = dict(node_tag_map)
-        new_node_tag_map[next_node] = next(iter(tags))
-        new_chains = run_vbmap(self.vbmap_path,
-                               new_node_tag_map,
-                               num_replicas,
-                               self.num_vbuckets,
-                               self.greedy)
-        idx = 0
+    @staticmethod
+    def list_cmp(list1, list2):
+        """ Compares two lists in the same as mb_map:listcmp/2.
+
+        :param: list1 - first list
+        :param: list2 - second list
+        :return: if an element of list1 is less than a corresponding element of list2
+        -1 is returned. If it's greater +1 is returned. Else the comparison
+        moves to the next element. If one of the lists ends before a
+        non-matching element is found, 0 is returned.
+        """
+        i1 = i2 = 0
+        while True:
+            if i1 < len(list1):
+                if i2 < len(list2):
+                    e1 = list1[i1]
+                    e2 = list2[i2]
+                    if e1 == e2:
+                        i1 += 1
+                        i2 += 1
+                    elif e1 < e2:
+                        return -1
+                    else:
+                        return 1
+                else:
+                    break
+            else:
+                break
+        return 0
+
+    @staticmethod
+    def genmerge(cmp, list1, list2):
+        """ Generic list merge following mb_map:genmerge/3.
+        :param: cmp - the comparision function
+        :param: list1 - first list
+        :param: list2 - second list
+        :return: 3-tuple where the first element is a list containing the items from the
+        two lists that compare equal; the second element is a list containing the unused
+        items from list1; the third element of the tuple is the unused items from list2
+        """
+        idx1 = idx2 = 0
+        equal = []
+        unused1 = []
+        unused2 = []
+        while True:
+            if idx1 < len(list1):
+                if idx2 < len(list2):
+                    e1 = list1[idx1]
+                    e2 = list2[idx2]
+                    value = cmp(e1, e2)
+                    if value == 0:
+                        equal.append((e1, e2))
+                        idx1 += 1
+                        idx2 += 1
+                    elif value < 0:
+                        unused1.append(e1)
+                        idx1 += 1
+                    else:
+                        unused2.append(e2)
+                        idx2 += 1
+                else:
+                    unused1.extend(list1[idx1:])
+                    break
+            else:
+                unused2.extend(list2[idx2:])
+                break
+        return equal, unused1, unused2
+
+    @staticmethod
+    def do_simple_minimize_moves(
+            numbered_chains: List[tuple[int, List[NodeId]]],
+            sorted_chains: List[List[NodeId]],
+            shift: int):
+        """ Part of simple move minimization following
+        mb_map:do_simple_minimize_moves/3.
+        :param numbered_chains: list of tuples of the form (vbucket-id, [chain])
+        :param sorted_chains: list of chains
+        :param shift:
+        :return:
+        """
+        def ranker(map_entry):
+            return map_entry[1][shift:]
+        map2 = sorted(numbered_chains, key=ranker)
+
+        def comparator(map_entry, chain):
+            return RebalanceMoveChecker.list_cmp(map_entry[1][shift:], chain)
+        return RebalanceMoveChecker.genmerge(comparator,
+                                             map2,
+                                             sorted_chains)
+
+    @staticmethod
+    def simple_minimize_moves(chains, new_chains, num_replicas, verbose):
+        """ Follows mb_map:simple_minimize_moves/4.
+
+        :param chains: old replication chains
+        :param new_chains: proposed new replication chains
+        :param num_replicas: number of replicas
+        :param verbose: whether or not to log verbosely
+        :return: a alternative list of replication chains that attempt to
+        minimize the vbucket moves
+        """
+        numbered_map = [(idx, chain) for idx, chain in enumerate(chains)]
+        nm = numbered_map
+        sc = sorted(new_chains)
+        pairs = []
+        for shift in range(0, num_replicas + 1 + 1):
+            result = RebalanceMoveChecker.do_simple_minimize_moves(nm, sc, shift)
+            pairs.extend(result[0])
+            if verbose:
+                print(f'match count: {len(result[0])}, shift: {shift}')
+                for p in result[0]:
+                    print(f'match: {p}')
+            nm = result[1]
+            sc = result[2]
+        return [p[1] for p in sorted(pairs)]
+
+    def compute_new_replicas_required(self, chains, new_chains):
         active_moves = 0
         new_replicas = 0
         for idx, chain in enumerate(chains):
@@ -330,13 +430,67 @@ class RebalanceMoveChecker(VbmapChecker):
             new_replicas += 1 if len(new_replica_vbuckets) > 0 else 0
             if self.verbose and (new_active or len(new_replica_vbuckets) > 0):
                 print(f'vbucket: {idx}, chain: {chain}, new_chain: {new_chain}')
-        best_case = (num_replicas + 1) * math.ceil(num_vbuckets / len(node_tag_map))
-        if active_moves + new_replicas > int(1.5 * best_case):
+        return active_moves, new_replicas
+
+    @staticmethod
+    def check_minimized(minimized_chains, node_tag_map, num_replicas, num_vbuckets):
+        checkers = [ActiveChecker(),
+                    RackZoneChecker(),
+                    ActiveBalanceChecker(),
+                    ReplicaBalanceChecker(),
+                    ReplicaChecker()]
+        exs = run_checkers(checkers, minimized_chains, node_tag_map, num_replicas,
+                           num_vbuckets)
+        if len(exs) > 0:
+            raise VbmapException('unexpected exceptions checking simple move minimization',
+                                 node_tag_map,
+                                 num_replicas,
+                                 ' '.join(exs))
+
+    def check(self,
+              chains: List[List[NodeId]],
+              node_tag_map: Dict[NodeId, TagId],
+              num_replicas: int,
+              num_vbuckets: int) -> None:
+        tags = {t for t in node_tag_map.values()}
+        new_node_tag_map = dict(node_tag_map)
+        max_node = max([n for n in node_tag_map])
+        for idx, tag in enumerate(tags):
+            new_node_tag_map[max_node + idx + 1] = tag
+        new_chains = run_vbmap(self.vbmap_path,
+                               new_node_tag_map,
+                               num_replicas,
+                               self.num_vbuckets,
+                               self.greedy)
+        best_case = (num_replicas + 1) * \
+                    math.ceil(len(tags) * num_vbuckets / len(new_node_tag_map))
+        (unmin_active_moves, unmin_new_replicas) = \
+            self.compute_new_replicas_required(chains, new_chains)
+        minimized = RebalanceMoveChecker.simple_minimize_moves(chains,
+                                                               new_chains,
+                                                               num_replicas,
+                                                               self.verbose)
+        if len(minimized) < num_vbuckets:
+            print(f'len minimized: {len(minimized)}')
+            for c in minimized:
+                print(f'min chain:{c}')
+            raise VbmapException('some chains lost during simple move minimization',
+                                 new_node_tag_map,
+                                 num_replicas)
+        (active_moves, new_replicas) = self.compute_new_replicas_required(chains,
+                                                                          minimized)
+        RebalanceMoveChecker.check_minimized(minimized,
+                                             new_node_tag_map,
+                                             num_replicas,
+                                             num_vbuckets)
+        if True or active_moves + new_replicas > int(1.3 * best_case):
             raise VbmapException('too many new replicas built',
                                  node_tag_map,
                                  num_replicas,
-                                 f'active moves: {active_moves}, '
-                                 f'new_replicas: {new_replicas}, '
+                                 f'active moves: {active_moves} '
+                                 f'(unmin: {unmin_active_moves}) '
+                                 f'new_replicas: {new_replicas} '
+                                 f'(unmin: {unmin_new_replicas}) '
                                  f'total: {active_moves + new_replicas}, '
                                  f'best_case: {best_case}')
 
@@ -357,6 +511,25 @@ def print_checker_result(
     else:
         print('x' if vbmap_exception else '.', end='', flush=True)
 
+
+def run_checkers(checkers, chains, node_tag_map, num_replicas, num_vbuckets, verbose=False):
+    tag_sizes = make_tag_size_map(node_tag_map)
+    server_groups = [tag_sizes[k] for k in sorted(tag_sizes)]
+    exceptions = []
+    for checker in checkers:
+        vee = None
+        try:
+            checker.check(chains, node_tag_map, num_replicas,
+                          num_vbuckets)
+        except VbmapException as e:
+            vee = e
+            exceptions.append(e)
+        print_checker_result(server_groups,
+                             num_replicas,
+                             vee,
+                             checker,
+                             verbose)
+    return exceptions
 
 def check(vbmap_path: str,
           server_group_count: int,
@@ -380,19 +553,9 @@ def check(vbmap_path: str,
             try:
                 chains = run_vbmap(vbmap_path, node_tag_map, num_replicas,
                                    vbmap_num_vbuckets, vbmap_greedy)
-                for checker in checkers:
-                    vee = None
-                    try:
-                        checker.check(chains, node_tag_map, num_replicas,
-                                      vbmap_num_vbuckets)
-                    except VbmapException as e:
-                        vee = e
-                        exceptions.append(e)
-                    print_checker_result(server_groups,
-                                         num_replicas,
-                                         vee,
-                                         checker,
-                                         verbose)
+                exs = run_checkers(checkers, chains, node_tag_map, num_replicas,
+                                   vbmap_num_vbuckets, verbose)
+                exceptions.extend(exs)
             except VbmapException as e:
                 ve = e
                 exceptions.append(ve)
@@ -414,9 +577,9 @@ def main(args):
                 ReplicaChecker()]
     if args.move_checker:
         checkers += [RebalanceMoveChecker(vbmap,
-                                         args.vbmap_num_vbuckets,
-                                         args.vbmap_greedy,
-                                         args.verbose)]
+                                          args.vbmap_num_vbuckets,
+                                          args.vbmap_greedy,
+                                          args.verbose)]
     exceptions = check(vbmap,
                        args.server_group_count,
                        args.min_group_size,
