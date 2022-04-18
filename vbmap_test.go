@@ -239,9 +239,15 @@ func TestRReplicaBalance(t *testing.T) {
 	}
 }
 
-func checkRIProperties(gen RIGenerator, p vbmapParams) bool {
+func checkRIProperties(gen RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
 	numSlaves := params.NumSlaves
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
 
 	ri, err := testBuildRI(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -297,9 +303,15 @@ func TestRIProperties(t *testing.T) {
 	qc.run(checkRIProperties)
 }
 
-func checkRProperties(gen RIGenerator, p vbmapParams) bool {
+func checkRProperties(gen RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
 	mustBalance := p.mustBalance()
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
 
 	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -393,8 +405,14 @@ type nodePair struct {
 	x, y Node
 }
 
-func checkVbmapProperties(gen RIGenerator, p vbmapParams) bool {
+func checkVbmapProperties(gen RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
 
 	ri, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -515,8 +533,14 @@ func equalTags(numNodes int, numTags int) (tags map[Node]Tag) {
 	return
 }
 
-func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) bool {
+func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
 
 	ri, err := testBuildRI(&params, p.getSearchParams(), gen)
 	if err != nil {
@@ -543,8 +567,14 @@ func TestRIPropertiesTagAware(t *testing.T) {
 	qc.run(checkRIPropertiesTagAware)
 }
 
-func checkVbmapTagAware(gen RIGenerator, p vbmapParams) bool {
+func checkVbmapTagAware(gen RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
 
 	_, r, err := testBuildR(&params, p.getSearchParams(), gen)
 	if err != nil {
