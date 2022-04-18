@@ -60,15 +60,17 @@ class VbmapException(Exception):
 
 def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId],
               num_replicas: int, num_vbuckets: int, greedy: bool) -> Any:
-    result = subprocess.run([vbmap_path,
-                             '--num-nodes', str(len(node_tag_map)),
-                             '--num-replicas', str(num_replicas),
-                             '--num-vbuckets', str(num_vbuckets),
-                             '--tags', format_tags(node_tag_map),
-                             '--output-format', 'json',
-                             '--relax-all',
-                             '--greedy' if greedy else ''],
-                            capture_output=True)
+    command = [vbmap_path,
+               '--num-nodes', str(len(node_tag_map)),
+               '--num-replicas', str(num_replicas),
+               '--num-vbuckets', str(num_vbuckets),
+               '--output-format', 'json',
+               '--relax-all']
+    if len({t for t in node_tag_map.values()}) > 1:
+        command += ['--tags', format_tags(node_tag_map)]
+    if greedy:
+        command += ['--greedy']
+    result = subprocess.run(command, capture_output=True)
     if result.returncode:
         raise VbmapException(f'no flow found',
                              node_tag_map,
@@ -156,6 +158,8 @@ class RackZoneChecker(VbmapChecker):
               num_replicas: int,
               num_vbuckets: int) -> None:
         tags = {t: None for t in node_tag_map.values()}
+        if len(tags) <= 1:
+            return
         for chain in chains:
             active_node = chain[0]
             active_tag = node_tag_map[active_node]
@@ -351,6 +355,9 @@ def check(vbmap_path: str,
 
 def main(args):
     vbmap = args.vbmap_path
+    if args.server_group_count < 1:
+        print('server groups must be at least 1')
+        exit(1)
     checkers = [ActiveChecker(),
                 RackZoneChecker(),
                 ActiveBalanceChecker(),
