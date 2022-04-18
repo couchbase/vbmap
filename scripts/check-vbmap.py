@@ -315,6 +315,8 @@ def check(vbmap_path: str,
           server_group_count: int,
           min_server_group_size: int,
           max_server_group_size: int,
+          min_replicas: int,
+          max_replicas: int,
           vbmap_num_vbuckets: int,
           checkers: List[VbmapChecker],
           verbose: bool = False,
@@ -325,7 +327,7 @@ def check(vbmap_path: str,
                                                             suppress_duplicates=True)
     exceptions = []
     for server_groups in server_groups_list:
-        for num_replicas in range(1, 4):
+        for num_replicas in range(min_replicas, max_replicas + 1):
             ve = None
             node_tag_map: Dict[int, int] = create_node_tag_map(server_groups)
             try:
@@ -367,6 +369,8 @@ def main(args):
                        args.server_group_count,
                        args.min_group_size,
                        args.max_group_size,
+                       args.min_replicas,
+                       args.max_replicas,
                        args.vbmap_num_vbuckets,
                        checkers,
                        verbose=args.verbose,
@@ -378,6 +382,8 @@ def main(args):
 DEFAULT_SERVER_GROUP_COUNT = 2
 DEFAULT_MAX_GROUP_SIZE = 5
 DEFAULT_MIN_GROUP_SIZE = 1
+DEFAULT_MAX_REPLICAS = 3
+DEFAULT_MIN_REPLICAS = 1
 DEFAULT_VBMAP_NUM_VBUCKETS = 1024
 
 parser = argparse.ArgumentParser(
@@ -398,6 +404,14 @@ parser.add_argument('--min-group-size', dest='min_group_size', type=int,
                     default=DEFAULT_MIN_GROUP_SIZE,
                     help='min server group size (default {})'.format(
                         DEFAULT_MIN_GROUP_SIZE))
+parser.add_argument('--max-replicas', dest='max_replicas', type=int,
+                    default=DEFAULT_MAX_REPLICAS,
+                    help='max number of replicas (default {})'.format(
+                        DEFAULT_MAX_REPLICAS))
+parser.add_argument('--min-replicas', dest='min_replicas', type=int,
+                    default=DEFAULT_MIN_REPLICAS,
+                    help='min number of replicas (default {})'.format(
+                        DEFAULT_MIN_REPLICAS))
 parser.add_argument('--verbose', dest='verbose', default=False, action='store_true',
                     help='emit verbose log information')
 parser.add_argument('--vbmap-num-vbuckets', dest='vbmap_num_vbuckets', type=int,
