@@ -13,6 +13,7 @@ licenses/APL2.txt.
 import json
 import subprocess
 import argparse
+import math
 from typing import Dict, List, Any, Optional, Callable
 
 TagId = int
@@ -294,6 +295,52 @@ class ReplicaChecker(VbmapChecker):
                                  f'should be: {num_vbuckets * num_replicas}, are: {replicas}')
 
 
+class RebalanceMoveChecker(VbmapChecker):
+
+    def __init__(self, vbmap_path, num_vbuckets, greedy, verbose):
+        self.vbmap_path = vbmap_path
+        self.num_vbuckets = num_vbuckets
+        self.greedy = greedy
+        self.verbose = verbose
+
+    def check(self,
+              chains: List[List[NodeId]],
+              node_tag_map: Dict[NodeId, TagId],
+              num_replicas: int,
+              num_vbuckets: int) -> None:
+        tags = {t for t in node_tag_map.values()}
+        if len(tags) > 1:
+            return
+        next_node = max([n for n in node_tag_map]) + 1
+        new_node_tag_map = dict(node_tag_map)
+        new_node_tag_map[next_node] = next(iter(tags))
+        new_chains = run_vbmap(self.vbmap_path,
+                               new_node_tag_map,
+                               num_replicas,
+                               self.num_vbuckets,
+                               self.greedy)
+        idx = 0
+        active_moves = 0
+        new_replicas = 0
+        for idx, chain in enumerate(chains):
+            new_chain = new_chains[idx]
+            new_active = chain[0] != new_chain[0]
+            new_replica_vbuckets = set(new_chain[1:]) - set(chain)
+            active_moves += 1 if new_active else 0
+            new_replicas += 1 if len(new_replica_vbuckets) > 0 else 0
+            if self.verbose and (new_active or len(new_replica_vbuckets) > 0):
+                print(f'vbucket: {idx}, chain: {chain}, new_chain: {new_chain}')
+        best_case = (num_replicas + 1) * math.ceil(num_vbuckets / len(node_tag_map))
+        if active_moves + new_replicas > int(1.5 * best_case):
+            raise VbmapException('too many new replicas built',
+                                 node_tag_map,
+                                 num_replicas,
+                                 f'active moves: {active_moves}, '
+                                 f'new_replicas: {new_replicas}, '
+                                 f'total: {active_moves + new_replicas}, '
+                                 f'best_case: {best_case}')
+
+
 def print_checker_result(
         server_groups: List[int],
         num_replicas: int,
@@ -365,6 +412,11 @@ def main(args):
                 ActiveBalanceChecker(),
                 ReplicaBalanceChecker(),
                 ReplicaChecker()]
+    if args.move_checker:
+        checkers += [RebalanceMoveChecker(vbmap,
+                                         args.vbmap_num_vbuckets,
+                                         args.vbmap_greedy,
+                                         args.verbose)]
     exceptions = check(vbmap,
                        args.server_group_count,
                        args.min_group_size,
@@ -412,6 +464,8 @@ parser.add_argument('--min-replicas', dest='min_replicas', type=int,
                     default=DEFAULT_MIN_REPLICAS,
                     help='min number of replicas (default {})'.format(
                         DEFAULT_MIN_REPLICAS))
+parser.add_argument('--move-checker', dest='move_checker', default=False, action='store_true',
+                    help='run the move checker (only runs on single server groups)')
 parser.add_argument('--verbose', dest='verbose', default=False, action='store_true',
                     help='emit verbose log information')
 parser.add_argument('--vbmap-num-vbuckets', dest='vbmap_num_vbuckets', type=int,
