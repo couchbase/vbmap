@@ -60,7 +60,7 @@ class VbmapException(Exception):
 
 
 def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId],
-              num_replicas: int, num_vbuckets: int, greedy: bool) -> Any:
+        num_replicas: int, num_vbuckets: int, greedy: bool, prev_vbmap_file: str) -> Any:
     command = [vbmap_path,
                '--num-nodes', str(len(node_tag_map)),
                '--num-replicas', str(num_replicas),
@@ -71,6 +71,11 @@ def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId],
         command += ['--tags', format_tags(node_tag_map)]
     if greedy:
         command += ['--greedy']
+    if prev_vbmap_file != '':
+        command += ['--current-map', prev_vbmap_file]
+
+    # print(f'command: {command}')
+
     result = subprocess.run(command, capture_output=True)
     if result.returncode:
         raise VbmapException(f'no flow found',
@@ -339,6 +344,7 @@ class RebalanceMoveChecker(VbmapChecker):
         :param: cmp - the comparision function
         :param: list1 - first list
         :param: list2 - second list
+
         :return: 3-tuple where the first element is a list containing the items from the
         two lists that compare equal; the second element is a list containing the unused
         items from list1; the third element of the tuple is the unused items from list2
@@ -457,11 +463,17 @@ class RebalanceMoveChecker(VbmapChecker):
         max_node = max([n for n in node_tag_map])
         for idx, tag in enumerate(tags):
             new_node_tag_map[max_node + idx + 1] = tag
+
+        prev_vbmap_file = f'prev-vbmap.{num_replicas}.json'
+
+        with open(prev_vbmap_file, "w") as f:
+            json.dump(chains, f)
+
         new_chains = run_vbmap(self.vbmap_path,
                                new_node_tag_map,
                                num_replicas,
                                self.num_vbuckets,
-                               self.greedy)
+                               self.greedy, prev_vbmap_file)
         best_case = (num_replicas + 1) * \
                     math.ceil(len(tags) * num_vbuckets / len(new_node_tag_map))
         (unmin_active_moves, unmin_new_replicas) = \
@@ -552,7 +564,7 @@ def check(vbmap_path: str,
             node_tag_map: Dict[int, int] = create_node_tag_map(server_groups)
             try:
                 chains = run_vbmap(vbmap_path, node_tag_map, num_replicas,
-                                   vbmap_num_vbuckets, vbmap_greedy)
+                                   vbmap_num_vbuckets, vbmap_greedy, '')
                 exs = run_checkers(checkers, chains, node_tag_map, num_replicas,
                                    vbmap_num_vbuckets, verbose)
                 exceptions.extend(exs)
