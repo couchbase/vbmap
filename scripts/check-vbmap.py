@@ -59,12 +59,19 @@ class VbmapException(Exception):
                f'{self.description}'
 
 
-def run_vbmap(vbmap_path: str, node_tag_map: Dict[NodeId, TagId],
-        num_replicas: int, num_vbuckets: int, greedy: bool, prev_vbmap_file: str) -> Any:
+def run_vbmap(
+        vbmap_path: str,
+        node_tag_map: Dict[NodeId, TagId],
+        num_replicas: int,
+        num_vbuckets: int,
+        num_slaves: int,
+        greedy: bool,
+        prev_vbmap_file: str) -> Any:
     command = [vbmap_path,
                '--num-nodes', str(len(node_tag_map)),
                '--num-replicas', str(num_replicas),
                '--num-vbuckets', str(num_vbuckets),
+               '--num-slaves', str(num_slaves),
                '--output-format', 'json',
                '--relax-all']
     if len({t for t in node_tag_map.values()}) > 1:
@@ -302,9 +309,15 @@ class ReplicaChecker(VbmapChecker):
 
 class RebalanceMoveChecker(VbmapChecker):
 
-    def __init__(self, vbmap_path: str, num_vbuckets: int, greedy: bool, verbose: bool):
+    def __init__(self,
+                 vbmap_path: str,
+                 num_vbuckets: int,
+                 num_slaves: int,
+                 greedy: bool,
+                 verbose: bool):
         self.vbmap_path = vbmap_path
         self.num_vbuckets = num_vbuckets
+        self.num_slaves = num_slaves
         self.greedy = greedy
         self.verbose = verbose
 
@@ -446,7 +459,7 @@ class RebalanceMoveChecker(VbmapChecker):
                     ReplicaBalanceChecker(),
                     ReplicaChecker()]
         exs = run_checkers(checkers, minimized_chains, node_tag_map, num_replicas,
-                           num_vbuckets)
+                           num_vbuckets, False)
         if len(exs) > 0:
             raise VbmapException('unexpected exceptions checking simple move minimization',
                                  node_tag_map,
@@ -473,7 +486,9 @@ class RebalanceMoveChecker(VbmapChecker):
                                new_node_tag_map,
                                num_replicas,
                                self.num_vbuckets,
-                               self.greedy, prev_vbmap_file)
+                               self.num_slaves,
+                               self.greedy,
+                               prev_vbmap_file)
         best_case = (num_replicas + 1) * \
                     math.ceil(len(tags) * num_vbuckets / len(new_node_tag_map))
         (unmin_active_moves, unmin_new_replicas) = \
@@ -524,7 +539,13 @@ def print_checker_result(
         print('x' if vbmap_exception else '.', end='', flush=True)
 
 
-def run_checkers(checkers, chains, node_tag_map, num_replicas, num_vbuckets, verbose=False):
+def run_checkers(
+        checkers,
+        chains,
+        node_tag_map,
+        num_replicas,
+        num_vbuckets,
+        verbose):
     tag_sizes = make_tag_size_map(node_tag_map)
     server_groups = [tag_sizes[k] for k in sorted(tag_sizes)]
     exceptions = []
@@ -550,6 +571,7 @@ def check(vbmap_path: str,
           min_replicas: int,
           max_replicas: int,
           vbmap_num_vbuckets: int,
+          vbmap_num_slaves: int,
           checkers: List[VbmapChecker],
           verbose: bool = False,
           vbmap_greedy: bool = False):
@@ -564,7 +586,10 @@ def check(vbmap_path: str,
             node_tag_map: Dict[int, int] = create_node_tag_map(server_groups)
             try:
                 chains = run_vbmap(vbmap_path, node_tag_map, num_replicas,
-                                   vbmap_num_vbuckets, vbmap_greedy, '')
+                                   vbmap_num_vbuckets,
+                                   vbmap_num_slaves,
+                                   vbmap_greedy,
+                                   '')
                 exs = run_checkers(checkers, chains, node_tag_map, num_replicas,
                                    vbmap_num_vbuckets, verbose)
                 exceptions.extend(exs)
@@ -590,6 +615,7 @@ def main(args):
     if args.move_checker:
         checkers += [RebalanceMoveChecker(vbmap,
                                           args.vbmap_num_vbuckets,
+                                          args.vbmap_num_slaves,
                                           args.vbmap_greedy,
                                           args.verbose)]
     exceptions = check(vbmap,
@@ -599,6 +625,7 @@ def main(args):
                        args.min_replicas,
                        args.max_replicas,
                        args.vbmap_num_vbuckets,
+                       args.vbmap_num_slaves,
                        checkers,
                        verbose=args.verbose,
                        vbmap_greedy=args.vbmap_greedy)
@@ -612,6 +639,7 @@ DEFAULT_MIN_GROUP_SIZE = 1
 DEFAULT_MAX_REPLICAS = 3
 DEFAULT_MIN_REPLICAS = 1
 DEFAULT_VBMAP_NUM_VBUCKETS = 1024
+DEFAULT_VBMAP_NUM_SLAVES = 10
 
 parser = argparse.ArgumentParser(
     description='Runs vbmap to generate vbucket maps across a collection of sizes of '
@@ -647,6 +675,10 @@ parser.add_argument('--vbmap-num-vbuckets', dest='vbmap_num_vbuckets', type=int,
                     default=DEFAULT_VBMAP_NUM_VBUCKETS,
                     help='number of vbuckets (default {}).'.format(
                         DEFAULT_VBMAP_NUM_VBUCKETS))
+parser.add_argument('--vbmap-num-slaves', dest='vbmap_num_slaves', type=int,
+                    default=DEFAULT_VBMAP_NUM_SLAVES,
+                    help='number of slaves (default {}).'.format(
+                        DEFAULT_VBMAP_NUM_SLAVES))
 parser.add_argument('--vbmap-greedy', dest='vbmap_greedy', default=False,
                     action='store_true', help='generate the vbmap via the '
                     'greedy approach')
