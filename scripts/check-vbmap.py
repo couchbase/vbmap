@@ -15,7 +15,8 @@ import subprocess
 import argparse
 import math
 import statistics
-from typing import Dict, List, Any, Optional, Callable, Tuple
+from typing import Dict, List, Any, Optional, Callable
+from enum import Enum
 
 TagId = int
 NodeId = int
@@ -67,7 +68,8 @@ def run_vbmap(
         num_vbuckets: int,
         num_slaves: int,
         greedy: bool,
-        prev_vbmap_file: str) -> Any:
+        prev_vbmap_file: str,
+        diag_file: str) -> Any:
     command = [vbmap_path,
                '--num-nodes', str(len(node_tag_map)),
                '--num-replicas', str(num_replicas),
@@ -79,8 +81,10 @@ def run_vbmap(
         command += ['--tags', format_tags(node_tag_map)]
     if greedy:
         command += ['--greedy']
-    if prev_vbmap_file != '':
+    if prev_vbmap_file:
         command += ['--current-map', prev_vbmap_file]
+    if diag_file:
+        command += ['--diag', diag_file]
 
     # print(f'command: {command}')
 
@@ -146,7 +150,7 @@ def get_server_group_size_permutations(
     return result
 
 
-def fold(map: Dict[Any, int], key: Any, folder: Callable[[Any], Any]) -> None:
+def fold(map: Dict[Any, Any], key: Any, folder: Callable[[Any], Any]) -> None:
     map[key] = folder(map.get(key))
 
 
@@ -258,6 +262,59 @@ class ReplicaBalanceChecker(VbmapChecker):
                                      f'counts: {[counts[x] for x in sorted(counts)]}')
 
 
+class PerNodeReplicaBalanceChecker(VbmapChecker):
+
+    def check(self,
+              chains: List[List[NodeId]],
+              node_tag_map: Dict[NodeId, TagId],
+              num_replicas: int,
+              num_vbuckets: int) -> None:
+        counts: Dict[NodeId, Dict[NodeId, int]] = {}
+        for chain in chains:
+            active_node = chain[0]
+            fold(counts, active_node, lambda x: {} if x is None else x)
+            per_node_counts = counts[active_node]
+            for replica_node in chain[1:]:
+                increment(per_node_counts, replica_node, 1)
+        max_replicas: Dict[NodeId, Dict[TagSize, int]] = {}
+        min_replicas: Dict[NodeId, Dict[TagSize, int]] = {}
+        tag_sizes: Dict[TagId, TagSize] = make_tag_size_map(node_tag_map)
+        node: NodeId
+        size: TagSize
+        for active_node in counts:
+            per_node_counts = counts[active_node]
+            fold(max_replicas, active_node, lambda x: {} if x is None else x)
+            fold(min_replicas, active_node, lambda x: {} if x is None else x)
+            per_node_max_replicas = max_replicas[active_node]
+            per_node_min_replicas = min_replicas[active_node]
+            for replica_node in per_node_counts:
+                size = tag_sizes[node_tag_map[replica_node]]
+                fold(per_node_max_replicas, size,
+                     lambda x: max(per_node_counts[replica_node], x)
+                            if x is not None else per_node_counts[replica_node])
+                fold(per_node_min_replicas, size,
+                     lambda x: min(per_node_counts[replica_node], x)
+                            if x is not None else per_node_counts[replica_node])
+        for node in max_replicas:
+            for size in max_replicas[node]:
+                max_count = max_replicas[node][size]
+                min_count = min_replicas[node][size]
+                if max_count - min_count > 7:
+                    groups: List[TagId] = [t for t in tag_sizes if tag_sizes[t] == size]
+                    max_node: NodeId = [n for n in counts[node] if counts[node][n] == max_count][0]
+                    min_node: NodeId = [n for n in counts[node] if counts[node][n] == min_count][0]
+                    raise VbmapException(f'not replica balanced for active node {node}',
+                                         node_tag_map,
+                                         num_replicas,
+                                         f'group size: {size}, '
+                                         f'groups: {sorted(groups)}, '
+                                         f'max: {max_count}, '
+                                         f'max_node: {max_node}, '
+                                         f'min: {min_count}, '
+                                         f'min_node: {min_node}, '
+                                         f'counts: {[counts[node][x] for x in sorted(counts[node])]}')
+
+
 class ActiveChecker(VbmapChecker):
 
     def check(self,
@@ -307,22 +364,7 @@ class ReplicaChecker(VbmapChecker):
                                  num_replicas,
                                  f'should be: {num_vbuckets * num_replicas}, are: {replicas}')
 
-
 class RebalanceMoveChecker(VbmapChecker):
-
-    def __init__(self,
-                 vbmap_path: str,
-                 num_vbuckets: int,
-                 num_slaves: int,
-                 greedy: bool,
-                 trials: int,
-                 verbose: bool):
-        self.vbmap_path = vbmap_path
-        self.num_vbuckets = num_vbuckets
-        self.num_slaves = num_slaves
-        self.greedy = greedy
-        self.num_trials = trials
-        self.verbose = verbose
 
     @staticmethod
     def list_cmp(list1, list2):
@@ -416,16 +458,58 @@ class RebalanceMoveChecker(VbmapChecker):
                                              sorted_chains)
 
     @staticmethod
-    def simple_minimize_moves(chains, new_chains, num_replicas, verbose):
+    def map_strip(
+            chains: List[List[NodeId]],
+            num_copies: int,
+            keep_nodes: set[NodeId]) -> List[List[NodeId]]:
+        result = []
+        keep_set: set[NodeId] = {n for n in keep_nodes}
+        for c in chains:
+            result.append([(n if n in keep_set else -1) for n in c[:num_copies]])
+        return result
+
+    @staticmethod
+    def map_chains(
+            chains: List[List[NodeId]],
+            node_map: Dict[NodeId, NodeId]) -> List[List[NodeId]]:
+        result = []
+        for c in chains:
+            new_chain = [(x if x not in node_map else node_map[x]) for x in c]
+            result.append(new_chain)
+        return result
+
+    @staticmethod
+    def failover(
+            chains: List[List[NodeId]],
+            nodes: set[NodeId]) -> List[List[NodeId]]:
+        result = []
+        for c in chains:
+            chain_len = len(c)
+            new_chain = [x for x in c if x not in nodes]
+            len_mismatch = chain_len - len(new_chain)
+            if len_mismatch > 0:
+                new_chain += ([-1] * len_mismatch)
+            result.append(new_chain)
+        return result
+
+    @staticmethod
+    def simple_minimize_moves(
+            chains: List[List[NodeId]],
+            new_chains: List[List[NodeId]],
+            num_replicas: int,
+            keep_nodes: set[NodeId],
+            verbose: bool):
         """ Follows mb_map:simple_minimize_moves/4.
 
         :param chains: old replication chains
         :param new_chains: proposed new replication chains
         :param num_replicas: number of replicas
+        :param keep_nodes: nodes that will remain after the rebalance
         :param verbose: whether or not to log verbosely
         :return: a alternative list of replication chains that attempt to
         minimize the vbucket moves
         """
+        chains = RebalanceMoveChecker.map_strip(chains, num_replicas+1, keep_nodes)
         numbered_map = [(idx, chain) for idx, chain in enumerate(chains)]
         nm = numbered_map
         sc = sorted(new_chains)
@@ -433,26 +517,9 @@ class RebalanceMoveChecker(VbmapChecker):
         for shift in range(0, num_replicas + 1 + 1):
             result = RebalanceMoveChecker.do_simple_minimize_moves(nm, sc, shift)
             pairs.extend(result[0])
-            if verbose:
-                print(f'match count: {len(result[0])}, shift: {shift}')
-                for p in result[0]:
-                    print(f'match: {p}')
             nm = result[1]
             sc = result[2]
         return [p[1] for p in sorted(pairs)]
-
-    def compute_new_replicas_required(self, chains, new_chains):
-        active_moves = 0
-        new_replicas = 0
-        for idx, chain in enumerate(chains):
-            new_chain = new_chains[idx]
-            new_active = chain[0] != new_chain[0]
-            new_replica_vbuckets = set(new_chain[1:]) - set(chain)
-            active_moves += 1 if new_active else 0
-            new_replicas += 1 if len(new_replica_vbuckets) > 0 else 0
-            if self.verbose and (new_active or len(new_replica_vbuckets) > 0):
-                print(f'vbucket: {idx}, chain: {chain}, new_chain: {new_chain}')
-        return active_moves, new_replicas
 
     @staticmethod
     def check_minimized(minimized_chains, node_tag_map, num_replicas, num_vbuckets):
@@ -460,51 +527,116 @@ class RebalanceMoveChecker(VbmapChecker):
                     RackZoneChecker(),
                     ActiveBalanceChecker(),
                     ReplicaBalanceChecker(),
+                    PerNodeReplicaBalanceChecker(),
                     ReplicaChecker()]
         exs = run_checkers(checkers, minimized_chains, node_tag_map, num_replicas,
                            num_vbuckets, False)
         if len(exs) > 0:
-            raise VbmapException('unexpected exceptions checking simple move minimization',
+            raise VbmapException('check failure after rebalance: ',
                                  node_tag_map,
                                  num_replicas,
                                  ' '.join([ex.__str__() for ex in exs]))
+            print('{ex}')
+            exit(0)
+
+    class Type(Enum):
+        rebalance_in = 'in'
+        rebalance_out = 'out'
+        rebalance_swap = 'swap'
+        after_failover = 'after_failover'
+        after_dataloss = 'after_dataloss'
+        add_replica = 'add_replica'
+        remove_replica = 'remove_replica'
+
+        def __str__(self):
+            return self.value
+
+    def __init__(self,
+                 vbmap_path: str,
+                 type_of_rebalance: str,
+                 num_vbuckets: int,
+                 num_slaves: int,
+                 greedy: bool,
+                 trials: int,
+                 verbose: bool):
+        self.rebalance_type = type_of_rebalance
+        self.vbmap_path = vbmap_path
+        self.num_vbuckets = num_vbuckets
+        self.num_slaves = num_slaves
+        self.greedy = greedy
+        self.num_trials = trials
+        self.verbose = verbose
+
+    def compute_new_replicas_required(self, chains, new_chains):
+        active_moves = 0
+        new_replicas = 0
+        total_moves = 0
+        for idx, chain in enumerate(chains):
+            new_chain = new_chains[idx]
+            if chain != new_chain:
+                total_moves += 1
+            new_active = chain[0] != new_chain[0]
+            active_moves += 1 if new_active else 0
+            new_replica_vbuckets = len(set(new_chain) - set(chain))
+            new_replicas += new_replica_vbuckets
+            if self.verbose and chain != new_chain:
+                print(f'vbucket: {idx}, '
+                      f'chain: {chain}, '
+                      f'new_chain: {new_chain} '
+                      f'new replicas: {new_replica_vbuckets}')
+        return active_moves, new_replicas, total_moves
 
     def do_check(self,
                  prev_vbmap_file: str,
                  chains: List[List[NodeId]],
                  node_tag_map: Dict[NodeId, TagId],
                  num_replicas: int,
-                 num_vbuckets: int) -> tuple[list[list[int]], int, int]:
+                 num_vbuckets: int) -> tuple[list[list[int]], int, int, int]:
         new_chains = run_vbmap(self.vbmap_path,
                                node_tag_map,
                                num_replicas,
                                self.num_vbuckets,
                                self.num_slaves,
                                self.greedy,
-                               prev_vbmap_file)
-        (unmin_active_moves, unmin_new_replicas) = \
+                               prev_vbmap_file,
+                               'diag.log')
+        (u_active_moves, u_new_replicas, u_total_moves) = \
             self.compute_new_replicas_required(chains, new_chains)
+        keep_nodes = {n for n in node_tag_map}
+        if self.verbose:
+            print(f'unmin: new replicas: {u_new_replicas}, '
+                  f'active moves: {u_active_moves} '
+                  f'total moves: {u_total_moves} ')
         minimized = RebalanceMoveChecker.simple_minimize_moves(chains,
                                                                new_chains,
                                                                num_replicas,
+                                                               keep_nodes,
                                                                self.verbose)
         if len(minimized) < num_vbuckets:
+            print(f'keep_nodes: {keep_nodes}')
+            print(f'num-replicas: {num_replicas}')
             print(f'len minimized: {len(minimized)}')
-            for c in minimized:
-                print(f'min chain:{c}')
+            print(f'    chains = {chains}')
+            print(f'    new-chains = {new_chains}')
+            print(f'    minimized = {minimized}')
             raise VbmapException('some chains lost during simple move minimization',
                                  node_tag_map,
                                  num_replicas)
-        (active_moves, new_replicas) = self.compute_new_replicas_required(chains,
-                                                                          minimized)
+        (active_moves, new_replicas, total_moves) = \
+            self.compute_new_replicas_required(chains, minimized)
 
-        if unmin_active_moves + unmin_new_replicas <= active_moves + new_replicas:
+        if self.verbose:
+            print(f'min: new replicas: {new_replicas}, '
+                  f'active moves: {active_moves} '
+                  f'total moves: {total_moves} ')
+        if u_new_replicas <= new_replicas:
             # use the original version
-            active_moves = unmin_active_moves
-            new_replicas = unmin_new_replicas
-            minimized = chains
+            active_moves = u_active_moves
+            new_replicas = u_new_replicas
+            minimized = new_chains
+            total_moves = u_total_moves
 
-        return minimized, active_moves, new_replicas
+        return minimized, active_moves, new_replicas, total_moves
 
     def check(self,
               chains: List[List[NodeId]],
@@ -512,47 +644,98 @@ class RebalanceMoveChecker(VbmapChecker):
               num_replicas: int,
               num_vbuckets: int) -> None:
         tags = {t for t in node_tag_map.values()}
-        new_node_tag_map = dict(node_tag_map)
+        sorted_nodes = sorted([n for n in node_tag_map], reverse=True)
         max_node = max([n for n in node_tag_map])
-        for idx, tag in enumerate(tags):
-            new_node_tag_map[max_node + idx + 1] = tag
+        max_node_tag = node_tag_map[max_node]
+        new_node_tag_map = dict(node_tag_map)
+        if self.rebalance_type == RebalanceMoveChecker.Type.rebalance_in:
+            # add in a single node
+            new_node_tag_map[max_node + 1] = max_node_tag
+        elif self.rebalance_type == RebalanceMoveChecker.Type.rebalance_out:
+            # remove a single node (the max node)
+            del new_node_tag_map[max_node]
+        elif self.rebalance_type == RebalanceMoveChecker.Type.rebalance_swap:
+            # map the vbuckets on max_node to max_node + 1, don't change the
+            # node tag map
+            chains = RebalanceMoveChecker.map_chains(chains, {max_node: max_node+1})
+        elif self.rebalance_type == RebalanceMoveChecker.Type.after_failover:
+            # failover the max node and remove it
+            chains = RebalanceMoveChecker.failover(chains, {max_node})
+            del new_node_tag_map[max_node]
+        elif self.rebalance_type == RebalanceMoveChecker.Type.after_dataloss:
+            # failover num_replicas + 1 nodes and remove them
+            if len(node_tag_map) - num_replicas - 1 < 2:
+                # skip this case
+                return
+            to_failover = sorted_nodes[:(num_replicas + 1)]
+            for node in to_failover:
+                del new_node_tag_map[node]
+            chains = RebalanceMoveChecker.failover(chains, set(to_failover))
+        elif self.rebalance_type == RebalanceMoveChecker.Type.add_replica:
+            if num_replicas >= 3:
+                # skip this case
+                return
+            num_replicas += 1
+        elif self.rebalance_type == RebalanceMoveChecker.Type.remove_replica:
+            if num_replicas == 0:
+                # skip this case
+                return
+            num_replicas -= 1
+
 
         prev_vbmap_file = f'prev-vbmap.{num_replicas}.json'
 
         with open(prev_vbmap_file, "w") as f:
             json.dump(chains, f)
 
-        (minimized, active_moves, new_replicas) = self.do_check(prev_vbmap_file,
-                                                                chains,
-                                                                new_node_tag_map,
-                                                                num_replicas,
-                                                                num_vbuckets)
+        (minimized, active_moves, new_replicas, total_moves) = \
+            self.do_check(prev_vbmap_file,
+                          chains,
+                          new_node_tag_map,
+                          num_replicas,
+                          num_vbuckets)
+
         if self.num_trials > 1:
-            total_new_replicas = [active_moves + new_replicas]
+            all_new_replicas = [new_replicas]
+            all_active_moves = [active_moves]
+            all_total_moves = [total_moves]
             for i in range(self.num_trials):
-                (c, active_moves, new_replicas) = self.do_check(prev_vbmap_file,
-                                                                chains,
-                                                                new_node_tag_map,
-                                                                num_replicas,
-                                                                num_vbuckets)
-                total_new_replicas += [active_moves + new_replicas]
-            print("total new replicas: average: {}, stddev: {}".format(
-                round(statistics.mean(total_new_replicas), 1),
-                round(statistics.stdev(total_new_replicas), 1)))
+                (c, active_moves, new_replicas, total_moves) = \
+                    self.do_check(prev_vbmap_file,
+                                  chains,
+                                  new_node_tag_map,
+                                  num_replicas,
+                                  num_vbuckets)
+                all_new_replicas += [new_replicas]
+                all_active_moves += [active_moves]
+                all_total_moves += [total_moves]
+            print('total new replicas: avg: {}, stddev: {}, '
+                  'active moves avg: {}, stddev: {}, '
+                  'total moves avg: {}, stddev: {}, '.format(
+                round(statistics.mean(all_new_replicas), 1),
+                round(statistics.stdev(all_new_replicas), 1),
+                round(statistics.mean(all_active_moves), 1),
+                round(statistics.stdev(all_active_moves), 1),
+                round(statistics.mean(all_total_moves), 1),
+                round(statistics.stdev(all_total_moves), 1)))
         else:
             RebalanceMoveChecker.check_minimized(minimized,
-                                                 node_tag_map,
+                                                 new_node_tag_map,
                                                  num_replicas,
                                                  num_vbuckets)
-            best_case = (num_replicas + 1) * \
-                        math.ceil(len(tags) * num_vbuckets / len(new_node_tag_map))
-            if (active_moves + new_replicas) > int(1.3 * best_case):
+            old_num_nodes = len(node_tag_map)
+            new_num_nodes = len(new_node_tag_map)
+            # at the end of the day, each node needs to carry at least 1/n of the vbuckets
+            one_nth = math.floor(num_vbuckets * (num_replicas + 1) / new_num_nodes)
+            diff_num_nodes = new_num_nodes - old_num_nodes
+            diff_num_nodes = diff_num_nodes if diff_num_nodes >= 0 else -diff_num_nodes
+            best_case = one_nth * diff_num_nodes
+            if new_replicas > int(1.3 * best_case):
                 raise VbmapException('too many new replicas built',
                                      node_tag_map,
                                      num_replicas,
-                                     f'active moves: {active_moves} '
                                      f'new_replicas: {new_replicas} '
-                                     f'total: {active_moves + new_replicas}, '
+                                     f'active moves: {active_moves} '
                                      f'best_case: {best_case}')
 
 
@@ -623,7 +806,7 @@ def check(vbmap_path: str,
                                    vbmap_num_vbuckets,
                                    vbmap_num_slaves,
                                    vbmap_greedy,
-                                   '')
+                                   '', '')
                 exs = run_checkers(checkers, chains, node_tag_map, num_replicas,
                                    vbmap_num_vbuckets, verbose)
                 exceptions.extend(exs)
@@ -635,12 +818,67 @@ def check(vbmap_path: str,
         print()
     return exceptions
 
+def run_simple_minimize_moves_tests():
+    old_chains = [[0, 1], [1, 0]]
+    new_chains = [[1, 0], [0, 1]]
+    minimized = RebalanceMoveChecker.simple_minimize_moves(old_chains, new_chains,
+                                                           1, {0, 1}, False)
+    assert minimized == old_chains, 'new chains rearranged to look like old chains'
+    old_chains = [[0, -1], [1, 0]]
+    new_chains = [[1, 0], [0, 1]]
+    minimized = RebalanceMoveChecker.simple_minimize_moves(old_chains, new_chains,
+                                                           1, {0, 1}, False)
+    assert minimized[1] == old_chains[1]
+    assert minimized[0] == new_chains[1]
+
+    old_chains = [[4, 2], [1, 0], [3, 0], [3, 2], [0, 3], [0, 1], [2, 4], [2, 1]]
+    new_chains = [[4], [1], [3], [4], [0], [0], [2], [1]]
+    minimized = RebalanceMoveChecker.simple_minimize_moves(old_chains, new_chains,
+                                                           0, {0, 1, 2, 3, 4}, False)
+    assert len(minimized) == len(old_chains)
+
+
+def run_fold_test():
+    mapping = {'a': 1, 'b': 2, 'c':3}
+    fold(mapping, 'a', lambda x: x + 1)
+    assert mapping['a'] == 2
+    fold(mapping, 'd', lambda x: 1 if x is None else x + 1)
+    assert mapping['d'] == 1
+
+
+def run_rack_zone_tests():
+    vbmap = [[11,9],[11,4],[11,1],[11,7],[11,0],[1,9],[1,8],[1,8],[1,7],[1,5],[0,9],[0,10],[0,6],
+             [0,5],[0,7],[3,8],[3,10],[3,7],[3,6],[3,11],[10,3],[10,6],[10,8],[10,5],[10,0],[7,2],
+             [7,4],[7,3],[7,11],[7,2],[7,10],[9,11],[9,1],[9,0],[9,4],[9,3],[9,2],[5,3],[5,2],[5,11],
+             [5,1],[5,10],[4,5],[4,7],[4,11],[4,9],[4,8],[2,5],[2,6],[2,9],[2,8],[2,6],[2,5],[6,4],
+             [6,4],[6,1],[6,0],[6,2],[6,10],[8,0],[8,4],[8,3],[8,1],[8,2]]
+
+    node_tag_map = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+                    5: 1, 6: 1, 7: 1, 8: 1, 9: 1,
+                    10: 2, 11: 2}
+    checker = RackZoneChecker()
+    try:
+        checker.check(vbmap, node_tag_map, 1, 64)
+    except VbmapException as e:
+        print(f'excption in test: {e}')
+        assert False
+
+
+
+def run_tests():
+    run_fold_test()
+    run_simple_minimize_moves_tests()
+    run_rack_zone_tests()
+
 
 def main(args):
     vbmap = args.vbmap_path
     if args.server_group_count < 1:
         print('server groups must be at least 1')
         exit(1)
+    if args.run_tests:
+        run_tests()
+        exit(0)
     checkers = [ActiveChecker(),
                 RackZoneChecker(),
                 ActiveBalanceChecker(),
@@ -648,6 +886,7 @@ def main(args):
                 ReplicaChecker()]
     if args.move_checker:
         checkers += [RebalanceMoveChecker(vbmap,
+                                          args.move_checker,
                                           args.vbmap_num_vbuckets,
                                           args.vbmap_num_slaves,
                                           args.vbmap_greedy,
@@ -672,7 +911,7 @@ DEFAULT_SERVER_GROUP_COUNT = 2
 DEFAULT_MAX_GROUP_SIZE = 5
 DEFAULT_MIN_GROUP_SIZE = 1
 DEFAULT_MAX_REPLICAS = 3
-DEFAULT_MIN_REPLICAS = 1
+DEFAULT_MIN_REPLICAS = 0
 DEFAULT_VBMAP_NUM_VBUCKETS = 1024
 DEFAULT_VBMAP_NUM_SLAVES = 10
 
@@ -702,8 +941,9 @@ parser.add_argument('--min-replicas', dest='min_replicas', type=int,
                     default=DEFAULT_MIN_REPLICAS,
                     help='min number of replicas (default {})'.format(
                         DEFAULT_MIN_REPLICAS))
-parser.add_argument('--move-checker', dest='move_checker', default=False, action='store_true',
-                    help='run the move checker')
+parser.add_argument('--move-checker', dest='move_checker',
+                    type=RebalanceMoveChecker.Type, choices=list(RebalanceMoveChecker.Type),
+                    help='run the move checker with the specified rebalance type')
 parser.add_argument('--move-checker-trials', dest='move_checker_trials', type=int,
                     default=1,
                     help='run the move checker a specified number of times reporting average moves')
@@ -720,6 +960,9 @@ parser.add_argument('--vbmap-num-slaves', dest='vbmap_num_slaves', type=int,
 parser.add_argument('--vbmap-greedy', dest='vbmap_greedy', default=False,
                     action='store_true', help='generate the vbmap via the '
                     'greedy approach')
+parser.add_argument('--run-tests', dest='run_tests', default=False,
+                    action='store_true',
+                    help='run internal tests')
 
 if __name__ == '__main__':
     args = parser.parse_args()
