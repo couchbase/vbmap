@@ -547,6 +547,8 @@ class RebalanceMoveChecker(VbmapChecker):
         after_dataloss = 'after_dataloss'
         add_replica = 'add_replica'
         remove_replica = 'remove_replica'
+        decrease_tags = 'decrease_tags'
+        increase_tags = 'increase_tags'
 
         def __str__(self):
             return self.value
@@ -681,7 +683,23 @@ class RebalanceMoveChecker(VbmapChecker):
                 # skip this case
                 return
             num_replicas -= 1
-
+        elif self.rebalance_type == RebalanceMoveChecker.Type.decrease_tags:
+            # move all nodes with max_tag to min_tag.
+            min_node = sorted_nodes[-1]
+            min_tag = new_node_tag_map[min_node]
+            for node, tag in new_node_tag_map.items():
+                if (tag == max_node_tag):
+                   new_node_tag_map[node] = min_tag
+        elif self.rebalance_type == RebalanceMoveChecker.Type.increase_tags:
+            # Pick a node from each tag (if there is more than one node with
+            # the same tag) and move them to max_tag+1.
+            max_tag = max(tags)
+            tags_used = {}
+            for node, tag in new_node_tag_map.items():
+                if tag in tags_used:
+                    new_node_tag_map[node] = max_tag+1
+                else:
+                    tags_used[tag] = True
 
         prev_vbmap_file = f'prev-vbmap.{num_replicas}.json'
 
@@ -737,7 +755,6 @@ class RebalanceMoveChecker(VbmapChecker):
                                      f'new_replicas: {new_replicas} '
                                      f'active moves: {active_moves} '
                                      f'best_case: {best_case}')
-
 
 def print_checker_result(
         server_groups: List[int],
