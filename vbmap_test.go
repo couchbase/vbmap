@@ -21,7 +21,8 @@ import (
 var (
 	testMaxFlow  = flag.Bool("maxflow", true, "run maxflow tests")
 	testGlpk     = flag.Bool("glpk", false, "run glpk tests")
-	testMaxCount = flag.Int("max-count", 250, "testing/quick MaxCount")
+	testGreedy   = flag.Bool("greedy", true, "run greedy tests")
+	testMaxCount = flag.Int("max-count", 50, "testing/quick MaxCount")
 )
 
 var (
@@ -75,7 +76,7 @@ func testBuildR(
 	return ri, r, nil
 }
 
-func allGenerators() []RIGenerator {
+func defaultGenerators() []RIGenerator {
 	result := []RIGenerator{}
 
 	if *testMaxFlow {
@@ -100,7 +101,7 @@ func trivialTags(nodes int) (tags map[Node]Tag) {
 
 func genVbmapParams(rand *rand.Rand) VbmapParams {
 	nodes := rand.Int()%100 + 1
-	replicas := rand.Int() % 4
+	replicas := rand.Int()%3 + 1
 
 	params := VbmapParams{
 		NumNodes:    nodes,
@@ -148,9 +149,7 @@ func (equalTagsVbmapParams) mustBalance() bool {
 func (equalTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	params := genVbmapParams(rand)
 
-	// number of tags is in range [numReplicas+1, numNodes]
-	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
-	numTags += params.NumReplicas + 1
+	numTags := rand.Int()%params.NumNodes + 1
 
 	if params.NumNodes%numTags != 0 {
 		params.NumNodes /= numTags
@@ -180,8 +179,7 @@ func (randomTagsVbmapParams) mustBalance() bool {
 func (randomTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	params := genVbmapParams(rand)
 
-	numTags := rand.Int() % (params.NumNodes - params.NumReplicas)
-	numTags += params.NumReplicas + 1
+	numTags := rand.Int()%params.NumNodes + 1
 
 	histo := make([]int, numTags)
 	for i := range histo {
@@ -203,6 +201,7 @@ func (randomTagsVbmapParams) Generate(rand *rand.Rand, _ int) reflect.Value {
 	}
 
 	params.Tags = tags
+	normalizeParams(&params, false)
 	return reflect.ValueOf(randomTagsVbmapParams(params))
 }
 
@@ -223,7 +222,7 @@ func TestRReplicaBalance(t *testing.T) {
 
 			normalizeParams(&params, false)
 
-			for _, gen := range allGenerators() {
+			for _, gen := range defaultGenerators() {
 				_, _, err :=
 					testBuildR(
 						&params,
@@ -297,10 +296,361 @@ func checkRIProperties(gen RIGenerator, p vbmapParams) (res bool) {
 
 func TestRIProperties(t *testing.T) {
 	qc := newQc(t)
+	qc.addDefaultGenerators()
 	qc.testOn(trivialTagsVbmapParams{})
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkRIProperties)
+}
+
+func doCheckGreedyRIProperties(prevRI RIMap, params VbmapParams) (res bool) {
+
+	defer func() {
+		if !res {
+			panic("Check Failed")
+		}
+	}()
+
+	ri := generateRI(&params, prevRI)
+
+	numNodes := params.NumNodes
+	numSlaves := params.NumSlaves
+	nodeTagMap := params.Tags
+	tagsNodesMap := params.Tags.TagsNodesMap()
+
+	// Check all the active nodes are present in the ri.
+
+	if len(ri) != numNodes {
+		return false
+	}
+
+	for _, active := range params.Nodes() {
+		if _, ok := ri[active]; !ok {
+			return false
+		}
+	}
+
+	// Check none of the slave nodes are in the same tag as the active.
+
+	for active, slaveMap := range ri {
+		activeTag := nodeTagMap[active]
+		for slave, _ := range slaveMap {
+			if activeTag == nodeTagMap[slave] {
+				return false
+			}
+		}
+	}
+
+	// Ensure maximal number of slaves are picked for each node.
+
+	for active, slaveMap := range ri {
+		activeTag := nodeTagMap[active]
+		maxSlaveNodes := Min(numNodes-len(tagsNodesMap[activeTag]), numSlaves)
+		if len(slaveMap) != maxSlaveNodes {
+			return false
+		}
+	}
+
+	// Ensure a slave has been picked from each possible tag.
+
+	maxSlaveTags := params.Tags.TagsCount() - 1
+
+	// If the number of tags are larger than the numSlaves, a slave can not
+	// be picked from each of the tags; avoid the below check.
+
+	if maxSlaveTags <= numSlaves {
+		for _, slaveMap := range ri {
+			tagsSeen := make(map[Tag]bool)
+			for slave, _ := range slaveMap {
+				tagsSeen[nodeTagMap[slave]] = true
+			}
+			if len(tagsSeen) != maxSlaveTags {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func tagsCopy(src TagMap) TagMap {
+	dst := make(TagMap)
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func generateNumReplicasIncParams(params VbmapParams) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	newParams.NumReplicas += 1
+	normalizeParams(&newParams, true)
+	return newParams
+}
+
+func generateNumReplicasDecParams(params VbmapParams) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	if newParams.NumReplicas > 1 {
+		newParams.NumReplicas -= 1
+	}
+	normalizeParams(&newParams, true)
+	return newParams
+}
+
+func generateTagNodesIncParams(params VbmapParams) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	nodeId := Node(newParams.NumNodes)
+
+	for _, tag := range params.Tags.TagsList() {
+		newParams.Tags[nodeId] = tag
+		nodeId++
+	}
+
+	newParams.NumNodes = len(newParams.Tags)
+	normalizeParams(&newParams, true)
+
+	return newParams
+}
+
+func generateTagNodesDecParams(params VbmapParams) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	tagsNodesMap := params.Tags.TagsNodesMap()
+
+	for _, tag := range params.Tags.TagsList() {
+		tagNodes := tagsNodesMap[tag]
+		if len(tagNodes) > 1 {
+			firstNode := tagNodes[0]
+			delete(newParams.Tags, firstNode)
+		}
+	}
+
+	newParams.NumNodes = len(newParams.Tags)
+	normalizeParams(&newParams, true)
+
+	return newParams
+}
+
+func generateTagIncParams(params VbmapParams, numNewNodes int) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	nodeId := newParams.NumNodes
+
+	newTag := newParams.Tags.TagsCount()
+	for n := 0; n < numNewNodes; n++ {
+		newParams.Tags[Node(nodeId)] = Tag(newTag)
+		nodeId++
+	}
+
+	newParams.NumNodes = len(newParams.Tags)
+	normalizeParams(&newParams, true)
+
+	return newParams
+}
+
+func generateTagDecParams(params VbmapParams) VbmapParams {
+	newParams := params
+	newParams.Tags = tagsCopy(params.Tags)
+
+	maxTag := Tag(newParams.Tags.TagsCount() - 1)
+
+	for _, node := range newParams.Tags.TagsNodesMap()[maxTag] {
+		delete(newParams.Tags, node)
+	}
+
+	newParams.NumNodes = len(newParams.Tags)
+	normalizeParams(&newParams, true)
+
+	return newParams
+}
+
+func checkGreedyRIProperties(_ RIGenerator, p vbmapParams) (res bool) {
+	params := p.getParams()
+	normalizeParams(&params, true)
+
+	// Check RI properties for a brand new RI generated without any prevRI.
+
+	if !doCheckGreedyRIProperties(nil, params) {
+		return false
+	}
+
+	prevRI := generateRI(&params, nil)
+
+	// Modify the numReplicas and generateRI.
+
+	if !doCheckGreedyRIProperties(
+		prevRI, generateNumReplicasIncParams(params)) {
+		return false
+	}
+
+	if !doCheckGreedyRIProperties(
+		prevRI, generateNumReplicasDecParams(params)) {
+		return false
+	}
+
+	// Modify the numNodes and the corresponding nodes in each Tag.
+
+	if !doCheckGreedyRIProperties(
+		prevRI, generateTagNodesIncParams(params)) {
+		return false
+	}
+
+	if !doCheckGreedyRIProperties(
+		prevRI, generateTagNodesDecParams(params)) {
+		return false
+	}
+
+	// Add new nodes with a new Tag
+
+	for numNewNodes := 0; numNewNodes < 3; numNewNodes++ {
+		if !doCheckGreedyRIProperties(
+			prevRI, generateTagIncParams(params, numNewNodes)) {
+			return false
+		}
+	}
+
+	// Remove a Tag and all of its nodes.
+
+	if !doCheckGreedyRIProperties(
+		prevRI, generateTagDecParams(params)) {
+		return false
+	}
+
+	return true
+}
+
+func TestGreedyRIProperties(t *testing.T) {
+	qc := newQc(t)
+	qc.testOn(trivialTagsVbmapParams{})
+	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
+	qc.addGreedyGenerator()
+	qc.run(checkGreedyRIProperties)
+}
+
+func doCheckGreedyVbmapProperties(
+	prevVbmap Vbmap, params VbmapParams) (res bool) {
+
+	defer func() {
+		if !res {
+			panic("docheckGreedyVbmapProperties Failed")
+		}
+	}()
+
+	if params.Tags.TagsCount() <= 1 {
+		return true
+	}
+
+	nodesTagMap := params.Tags
+
+	vbmap, err := generateVbmapGreedy(params, prevVbmap)
+
+	if err != nil {
+		return false
+	}
+
+	if len(vbmap) != params.NumVBuckets {
+		return false
+	}
+
+	if len(vbmap[0]) != params.NumReplicas+1 {
+		return false
+	}
+
+	// chain-level checks.
+
+	for _, chain := range vbmap {
+		// Check the active and replicas are all on different nodes for each
+		// chain.
+		if usedSameNodeTwice(chain) {
+			return false
+		}
+
+		// Check active and replicas are in different tags for each chain.
+		activeTag := nodesTagMap[chain[0]]
+		for _, r := range chain[1:] {
+			replicaTag := nodesTagMap[r]
+			if replicaTag == activeTag {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
+	params := p.getParams()
+	normalizeParams(&params, true)
+
+	if !doCheckGreedyVbmapProperties(nil, params) {
+		return false
+	}
+
+	prevVbmap, err := generateVbmapGreedy(params, nil)
+
+	if err != nil {
+		return false
+	}
+
+	// Modify the numReplicas and generateRI.
+
+	if !doCheckGreedyVbmapProperties(
+		prevVbmap, generateNumReplicasIncParams(params)) {
+		return false
+	}
+
+	if !doCheckGreedyVbmapProperties(
+		prevVbmap, generateNumReplicasDecParams(params)) {
+		return false
+	}
+
+	// Modify the numNodes and the corresponding nodes in each Tag.
+
+	if !doCheckGreedyVbmapProperties(
+		prevVbmap, generateTagNodesIncParams(params)) {
+		return false
+	}
+
+	if !doCheckGreedyVbmapProperties(
+		prevVbmap, generateTagNodesDecParams(params)) {
+		return false
+	}
+
+	// Add new nodes with a new Tag
+
+	for numNewNodes := 0; numNewNodes < 3; numNewNodes++ {
+		if !doCheckGreedyVbmapProperties(
+			prevVbmap, generateTagIncParams(params, numNewNodes)) {
+			return false
+		}
+	}
+
+	// Remove a Tag and all of its nodes.
+
+	if !doCheckGreedyVbmapProperties(
+		prevVbmap, generateTagDecParams(params)) {
+		return false
+	}
+
+	return true
+}
+
+func TestGreedyVbmapProperties(t *testing.T) {
+	qc := newQc(t)
+	qc.testOn(trivialTagsVbmapParams{})
+	qc.testOn(equalTagsVbmapParams{})
+	qc.testOn(randomTagsVbmapParams{})
+	qc.addGreedyGenerator()
+	qc.run(checkGreedyVbmapProperties)
 }
 
 func checkRProperties(gen RIGenerator, p vbmapParams) (res bool) {
@@ -395,6 +745,7 @@ func checkRProperties(gen RIGenerator, p vbmapParams) (res bool) {
 
 func TestRProperties(t *testing.T) {
 	qc := newQc(t)
+	qc.addDefaultGenerators()
 	qc.testOn(trivialTagsVbmapParams{})
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
@@ -504,6 +855,7 @@ func checkVbmapProperties(gen RIGenerator, p vbmapParams) (res bool) {
 
 func TestVbmapProperties(t *testing.T) {
 	qc := newQc(t)
+	qc.addDefaultGenerators()
 	qc.testOn(trivialTagsVbmapParams{})
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
@@ -562,6 +914,7 @@ func checkRIPropertiesTagAware(gen RIGenerator, p vbmapParams) (res bool) {
 
 func TestRIPropertiesTagAware(t *testing.T) {
 	qc := newQc(t)
+	qc.addDefaultGenerators()
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkRIPropertiesTagAware)
@@ -625,6 +978,7 @@ func checkVbmapTagAware(gen RIGenerator, p vbmapParams) (res bool) {
 
 func TestVbmapTagAware(t *testing.T) {
 	qc := newQc(t)
+	qc.addDefaultGenerators()
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
 	qc.run(checkVbmapTagAware)
@@ -653,12 +1007,23 @@ func quickCheck(fn interface{}, t *testing.T) error {
 }
 
 type qc struct {
-	t  *testing.T
-	ps []vbmapParams
+	t          *testing.T
+	ps         []vbmapParams
+	generators []RIGenerator
 }
 
 func newQc(t *testing.T) *qc {
-	return &qc{t, nil}
+	return &qc{t, nil, nil}
+}
+
+func (q *qc) addDefaultGenerators() {
+	q.generators = append(q.generators, defaultGenerators()...)
+}
+
+func (q *qc) addGreedyGenerator() {
+	if *testGreedy {
+		q.generators = append(q.generators, makeGreedyRIGenerator())
+	}
 }
 
 func (q *qc) testOn(p vbmapParams) {
@@ -668,7 +1033,7 @@ func (q *qc) testOn(p vbmapParams) {
 func (q qc) run(fn interface{}) {
 	q.t.Parallel()
 
-	for _, gen := range allGenerators() {
+	for _, gen := range q.generators {
 		for _, p := range q.ps {
 			check := makeChecker(gen, p, fn)
 			pName := reflect.TypeOf(p).Name()
