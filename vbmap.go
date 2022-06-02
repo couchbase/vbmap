@@ -617,6 +617,28 @@ func tryBuildRI(
 	return ri, ErrorNoSolution
 }
 
+func PrintVbStats(vbmap Vbmap, params VbmapParams, banner string) {
+	activeVbs := make(map[Node]int)
+	replicaVbs := make(map[Node]int)
+
+	for _, node := range params.Nodes() {
+		activeVbs[node] = 0
+		replicaVbs[node] = 0
+	}
+
+	for _, vbChain := range vbmap {
+		activeVbs[vbChain[0]]++
+		for _, replica := range vbChain[1:] {
+			replicaVbs[replica]++
+		}
+	}
+
+	diag.Printf("Per-node Vb Stats (%s):", banner)
+	diag.Printf("   Active Vbs:   %v", activeVbs)
+	diag.Printf("   Replica Vbs:  %v", replicaVbs)
+	return
+}
+
 // Generate vbucket map given a generator for matrix RI and vbucket map
 // parameters.
 func VbmapGenerate(params VbmapParams, gen RIGenerator,
@@ -643,6 +665,8 @@ func VbmapGenerate(params VbmapParams, gen RIGenerator,
 	vbmapStart := time.Now()
 
 	vbmap = buildVbmap(r)
+
+	PrintVbStats(vbmap, params, "max-flow")
 
 	dt = time.Since(vbmapStart)
 	diag.Printf("Built vbucket map from R in %s (wall clock)", dt)

@@ -24,7 +24,7 @@ type R struct {
 }
 
 func (r R) String() string {
-	return matrixToString(r.Matrix, params)
+	return matrixToString(r.Matrix, r.params)
 }
 
 func newRat(num, denom int) *big.Rat {
