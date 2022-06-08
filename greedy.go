@@ -700,10 +700,14 @@ func generatePrevVbmapParams(vbmap Vbmap) *prevVbmapParams {
 	maxNodeId := Node(-1)
 
 	for vb, chain := range vbmap {
-		active := Node(chain[0])
-		if active > maxNodeId {
-			maxNodeId = active
+		for _, node := range chain {
+			if Node(node) > maxNodeId {
+				maxNodeId = node
+			}
 		}
+
+		active := Node(chain[0])
+
 		// if active is -1 it means the vbucket is not present (data loss) and
 		// we should skip it
 		if active != Node(-1) {
