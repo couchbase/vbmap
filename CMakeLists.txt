@@ -2,4 +2,4 @@ GoModBuild(
   TARGET vbmap
   PACKAGE github.com/couchbase/vbmap
   INSTALL_PATH bin
-  GOVERSION 1.19)
+  GOVERSION SUPPORTED_NEWER)
