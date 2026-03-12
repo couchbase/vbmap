@@ -471,23 +471,6 @@ func generateVbmap(params *VbmapParams, ri RIMap,
 	return vbmap
 }
 
-func doSimpleActivePlacements(
-	activeNumVbsMap map[Node]int, ri RIMap) []ActivePlacement {
-
-	aps := []ActivePlacement{}
-
-	vb := 0
-
-	for active, numVbs := range activeNumVbsMap {
-		for i := 0; i < numVbs; i++ {
-			ap := makeActivePlacement(vb, active, ri)
-			aps = append(aps, ap)
-			vb++
-		}
-	}
-	return aps
-}
-
 func makeActivePlacement(vb int, active Node, ri RIMap) ActivePlacement {
 	ap := ActivePlacement{vb, active, make(map[Node]int)}
 	ap.slavesMap.Copy(ri[active])
