@@ -229,7 +229,7 @@ func TestRReplicaBalance(t *testing.T) {
 						balancedSearchParams,
 						gen)
 				if err != nil {
-					t.Error("Could not find a solution "+
+					t.Errorf("Could not find a solution "+
 						"for %d nodes, %d replicas",
 						nodes, replicas)
 				}
