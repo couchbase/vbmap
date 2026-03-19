@@ -255,16 +255,24 @@ func parseEngineParams(str string) (params map[string]string) {
 	return
 }
 
-func readVbmap(path string) (vbmap Vbmap, err error) {
+func readJSON[T any](path string) (T, error) {
+	var data T
+
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 	defer file.Close()
 
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&vbmap)
+	if err := decoder.Decode(&data); err != nil {
+		return data, err
+	}
+	return data, nil
+}
 
+func readVbmap(path string) (vbmap Vbmap, err error) {
+	vbmap, err = readJSON[Vbmap](path)
 	if err == nil {
 		diag.Printf("Succesfully read current vbucket map:\n[")
 		n := len(vbmap)
