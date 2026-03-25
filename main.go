@@ -52,7 +52,8 @@ var (
 	diagTo       string
 	profTo       string
 
-	currentMapPath string
+	currentMapPath       string
+	currentUploadersPath string
 
 	verbose bool
 )
@@ -219,6 +220,15 @@ func checkInput(useGreedy bool) {
 		}
 	}
 
+	if currentUploadersPath != "" && !useGreedy {
+		fatal("Option --current-uploaders only available with a " +
+			"greedy approach")
+	}
+
+	if currentUploadersPath != "" && currentMapPath == "" {
+		fatal("Option --current-uploaders requires --current-map")
+	}
+
 	normalizeParams(&params, useGreedy)
 }
 
@@ -356,6 +366,9 @@ func main() {
 	flag.StringVar(&currentMapPath, "current-map", "",
 		"a path to current vbucket map")
 
+	flag.StringVar(&currentUploadersPath, "current-uploaders", "",
+		"a path to current uploaders")
+
 	flag.Int64Var(&seed, "seed", time.Now().UTC().UnixNano(), "random seed")
 
 	boolVar(&verbose, "verbose", false, "enable verbose output")
@@ -437,11 +450,23 @@ func main() {
 		}
 	}
 
+	var currentUploaders Uploaders
+	if currentUploadersPath != "" {
+		var err error
+		currentUploaders, err =
+			readJSON[Uploaders](currentUploadersPath)
+		if err != nil {
+			fatal("Could not read current uploaders: %s", err.Error())
+		}
+		diag.Printf("Succesfully read current uploaders:\n%v\n",
+			currentUploaders)
+	}
+
 	var solution Vbmap
 	var err error
 
 	if greedy {
-		solution, err = generateVbmapGreedy(params, currentMap)
+		solution, err = generateVbmapGreedy(params, currentMap, currentUploaders)
 	} else {
 		if searchParams.BalanceReplicas {
 			searchParams.BalanceSlaves = true

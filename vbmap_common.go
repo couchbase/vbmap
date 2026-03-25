@@ -21,6 +21,7 @@ var (
 
 type Node int
 type NodeSlice []Node
+type Uploaders []int
 
 func (s NodeSlice) Len() int           { return len(s) }
 func (s NodeSlice) Less(i, j int) bool { return int(s[i]) < int(s[j]) }

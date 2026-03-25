@@ -815,7 +815,8 @@ func reorderVbmap(
 }
 
 // Generate a VBMap using a greedy assignment approach
-func generateVbmapGreedy(params VbmapParams, prevVbmap Vbmap) (Vbmap, error) {
+func generateVbmapGreedy(params VbmapParams, prevVbmap Vbmap,
+	currentUploaders Uploaders) (Vbmap, error) {
 	if noSolution(&params) {
 		return nil, ErrorNoSolution
 	}

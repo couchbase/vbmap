@@ -551,7 +551,7 @@ func doCheckGreedyVbmapProperties(
 
 	nodesTagMap := params.Tags
 
-	vbmap, err := generateVbmapGreedy(params, prevVbmap)
+	vbmap, err := generateVbmapGreedy(params, prevVbmap, nil)
 
 	if err != nil {
 		return false
@@ -595,7 +595,7 @@ func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
 		return false
 	}
 
-	prevVbmap, err := generateVbmapGreedy(params, nil)
+	prevVbmap, err := generateVbmapGreedy(params, nil, nil)
 
 	if err != nil {
 		return false
