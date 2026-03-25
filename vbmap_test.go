@@ -11,9 +11,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"math/rand"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"testing"
 	"testing/quick"
 )
@@ -22,6 +24,7 @@ var (
 	testMaxFlow     = flag.Bool("maxflow", true, "run maxflow tests")
 	testGlpk        = flag.Bool("glpk", false, "run glpk tests")
 	testGreedy      = flag.Bool("greedy", true, "run greedy tests")
+	testUploaders   = flag.Bool("uploaders", true, "run uploaders tests")
 	testMaxCount    = flag.Int("max-count", 50, "testing/quick MaxCount")
 	testNumVBuckets = flag.Int("num-vbuckets", 1024, "num vbuckets")
 )
@@ -382,6 +385,47 @@ func tagsCopy(src TagMap) TagMap {
 	return dst
 }
 
+// makeUploaders turns each vbucket's active into its uploader.
+func makeUploaders(vbmap Vbmap) Uploaders {
+	uploaders := make(Uploaders, len(vbmap))
+	for vb, chain := range vbmap {
+		if len(chain) == 0 {
+			uploaders[vb] = -1
+			continue
+		}
+		uploaders[vb] = int(chain[0])
+	}
+	return uploaders
+}
+
+func failover(node Node, vbmap Vbmap, uploaders Uploaders) (Vbmap, Uploaders) {
+	newVbmap := make(Vbmap, len(vbmap))
+	for vb, chain := range vbmap {
+		origLen := len(chain)
+		filtered := make([]Node, 0, origLen)
+		for _, n := range chain {
+			if n != node {
+				filtered = append(filtered, n)
+			}
+		}
+		for len(filtered) < origLen {
+			filtered = append(filtered, Node(-1))
+		}
+		newVbmap[vb] = filtered
+	}
+
+	newUploaders := make(Uploaders, len(uploaders))
+	for i, uploader := range uploaders {
+		if Node(uploader) == node {
+			newUploaders[i] = -1
+		} else {
+			newUploaders[i] = uploader
+		}
+	}
+
+	return newVbmap, newUploaders
+}
+
 func generateNumReplicasIncParams(params VbmapParams) VbmapParams {
 	newParams := params
 	newParams.Tags = tagsCopy(params.Tags)
@@ -538,6 +582,7 @@ func TestGreedyRIProperties(t *testing.T) {
 }
 
 func doCheckGreedyVbmapProperties(
+	gen *GreedyRIGenerator,
 	prevVbmap Vbmap, params VbmapParams) (res bool) {
 
 	defer func() {
@@ -552,7 +597,7 @@ func doCheckGreedyVbmapProperties(
 
 	nodesTagMap := params.Tags
 
-	vbmap, err := generateVbmapGreedy(params, prevVbmap, nil)
+	vbmap, err := gen.GenerateGreedy(params, prevVbmap)
 
 	if err != nil {
 		return false
@@ -591,7 +636,7 @@ func doCheckGreedyVbmapProperties(
 	// check that actives are evenly distributed
 	for _, count := range activeCounts {
 		if count > maxActiveOccurrences ||
-			count < maxActiveOccurrences - 1 {
+			count < maxActiveOccurrences-1 {
 			return false
 		}
 	}
@@ -599,15 +644,32 @@ func doCheckGreedyVbmapProperties(
 	return true
 }
 
-func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
+func doGenerateVbmapGreedy(params VbmapParams, prevVbmap Vbmap,
+	currentUploaders Uploaders) (Vbmap, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic in generateVbmapGreedy: %v\n"+
+				"params = %v\nprevVbmap = %v\n"+
+				"uploaders = %v\n", r, params, prevVbmap,
+				currentUploaders)
+			panic(r)
+		}
+	}()
+
+	return generateVbmapGreedy(params, prevVbmap, currentUploaders)
+}
+
+func checkGreedyVbmapProperties(genRI RIGenerator, p vbmapParams) (res bool) {
 	params := p.getParams()
 	normalizeParams(&params, true)
 
-	if !doCheckGreedyVbmapProperties(nil, params) {
+	gen := genRI.(*GreedyRIGenerator)
+
+	if !doCheckGreedyVbmapProperties(gen, nil, params) {
 		return false
 	}
 
-	prevVbmap, err := generateVbmapGreedy(params, nil, nil)
+	prevVbmap, err := doGenerateVbmapGreedy(params, nil, nil)
 
 	if err != nil {
 		return false
@@ -616,24 +678,24 @@ func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
 	// Modify the numReplicas and generateRI.
 
 	if !doCheckGreedyVbmapProperties(
-		prevVbmap, generateNumReplicasIncParams(params)) {
+		gen, prevVbmap, generateNumReplicasIncParams(params)) {
 		return false
 	}
 
 	if !doCheckGreedyVbmapProperties(
-		prevVbmap, generateNumReplicasDecParams(params)) {
+		gen, prevVbmap, generateNumReplicasDecParams(params)) {
 		return false
 	}
 
 	// Modify the numNodes and the corresponding nodes in each Tag.
 
 	if !doCheckGreedyVbmapProperties(
-		prevVbmap, generateTagNodesIncParams(params)) {
+		gen, prevVbmap, generateTagNodesIncParams(params)) {
 		return false
 	}
 
 	if !doCheckGreedyVbmapProperties(
-		prevVbmap, generateTagNodesDecParams(params)) {
+		gen, prevVbmap, generateTagNodesDecParams(params)) {
 		return false
 	}
 
@@ -641,7 +703,8 @@ func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
 
 	for numNewNodes := 0; numNewNodes < 3; numNewNodes++ {
 		if !doCheckGreedyVbmapProperties(
-			prevVbmap, generateTagIncParams(params, numNewNodes)) {
+			gen, prevVbmap,
+			generateTagIncParams(params, numNewNodes)) {
 			return false
 		}
 	}
@@ -649,7 +712,7 @@ func checkGreedyVbmapProperties(_ RIGenerator, p vbmapParams) (res bool) {
 	// Remove a Tag and all of its nodes.
 
 	if !doCheckGreedyVbmapProperties(
-		prevVbmap, generateTagDecParams(params)) {
+		gen, prevVbmap, generateTagDecParams(params)) {
 		return false
 	}
 
@@ -661,8 +724,87 @@ func TestGreedyVbmapProperties(t *testing.T) {
 	qc.testOn(trivialTagsVbmapParams{})
 	qc.testOn(equalTagsVbmapParams{})
 	qc.testOn(randomTagsVbmapParams{})
-	qc.addGreedyGenerator()
+	qc.addGreedyGenerators()
 	qc.run(checkGreedyVbmapProperties)
+}
+
+func activeNodesInVbmap(vbmap Vbmap) []Node {
+	seen := make(map[Node]struct{})
+	for _, chain := range vbmap {
+		if len(chain) == 0 {
+			continue
+		}
+		n := chain[0]
+		if n >= 0 {
+			seen[n] = struct{}{}
+		}
+	}
+	nodes := slices.Collect(maps.Keys(seen))
+	slices.Sort(nodes)
+	return nodes
+}
+
+func TestUploadersNodeRemoval(t *testing.T) {
+	NPrevNodes := 5
+	NNodes := 3
+	params := VbmapParams{
+		Tags:        trivialTags(NPrevNodes),
+		NumNodes:    NPrevNodes,
+		NumSlaves:   10,
+		NumVBuckets: *testNumVBuckets,
+		NumReplicas: 2,
+	}
+
+	prevVbmap, err := doGenerateVbmapGreedy(params, nil, nil)
+	if err != nil {
+		t.Fatalf("initial vbmap generation failed: %v", err)
+	}
+
+	uploaders := makeUploaders(prevVbmap)
+
+	prevVbmap, uploaders = failover(3, prevVbmap, uploaders)
+	prevVbmap, uploaders = failover(4, prevVbmap, uploaders)
+
+	newParams := VbmapParams{
+		Tags:        trivialTags(NNodes),
+		NumNodes:    NNodes,
+		NumSlaves:   10,
+		NumVBuckets: *testNumVBuckets,
+		NumReplicas: 2,
+	}
+
+	vbmap, err := doGenerateVbmapGreedy(newParams, prevVbmap, uploaders)
+	if err != nil {
+		t.Fatalf("mcmf placements failed: %v", err)
+	}
+
+	if len(vbmap) != newParams.NumVBuckets {
+		t.Fatalf("mcmf placements: expected %d vbuckets, got %d",
+			newParams.NumVBuckets, len(vbmap))
+	}
+
+	for vb, chain := range vbmap {
+		if len(chain) != newParams.NumReplicas+1 {
+			t.Fatalf("mcmf placements: vb %d chain len=%d", vb, len(chain))
+		}
+		if usedSameNodeTwice(chain) {
+			t.Fatalf("mcmf placements: vb %d repeats node", vb)
+		}
+		for _, node := range chain {
+			if node < 0 || int(node) >= newParams.NumNodes {
+				t.Fatalf("mcmf placements: vb %d node %d out of range",
+					vb, node)
+			}
+		}
+	}
+
+	fromScratch := getFromScratchUploaders(vbmap, uploaders, prevVbmap)
+	if len(fromScratch) > 0 {
+		fmt.Printf("mcmf. Uploading from scratch (%d): %v\n%v -> %v\n",
+			len(fromScratch), fromScratch,
+			activeNodesInVbmap(prevVbmap),
+			activeNodesInVbmap(vbmap))
+	}
 }
 
 func checkRProperties(gen RIGenerator, p vbmapParams) (res bool) {
@@ -1034,23 +1176,49 @@ func (q *qc) addDefaultGenerators() {
 
 type GreedyRIGenerator struct {
 	DontAcceptRIGeneratorParams
+	withUploaders bool
 }
 
-func makeGreedyRIGenerator() *GreedyRIGenerator {
-	return &GreedyRIGenerator{}
+func makeGreedyRIGenerator(withUploaders bool) *GreedyRIGenerator {
+	return &GreedyRIGenerator{withUploaders: withUploaders}
 }
 
-func (GreedyRIGenerator) String() string {
-	return "greedy"
+func (g GreedyRIGenerator) String() string {
+	if g.withUploaders {
+		return "greedy_with_uploaders"
+	} else {
+		return "greedy"
+	}
 }
 
 func (GreedyRIGenerator) Generate(_ VbmapParams, _ SearchParams) (RI, error) {
 	return RI{}, nil
 }
 
+func (g GreedyRIGenerator) GenerateGreedy(
+	params VbmapParams, prevVbmap Vbmap) (Vbmap, error) {
+
+	if !g.withUploaders || prevVbmap == nil {
+		return doGenerateVbmapGreedy(params, prevVbmap, nil)
+	} else {
+		uploaders := makeUploaders(prevVbmap)
+		return doGenerateVbmapGreedy(params, prevVbmap, uploaders)
+	}
+}
+
 func (q *qc) addGreedyGenerator() {
 	if *testGreedy {
-		q.generators = append(q.generators, makeGreedyRIGenerator())
+		q.generators = append(q.generators, makeGreedyRIGenerator(false))
+	}
+}
+
+func (q *qc) addGreedyGenerators() {
+	if *testGreedy {
+		q.generators = append(q.generators, makeGreedyRIGenerator(false))
+		if *testUploaders {
+			q.generators = append(q.generators,
+				makeGreedyRIGenerator(true))
+		}
 	}
 }
 

@@ -427,7 +427,8 @@ func shuffleVbmap(vbmap [][]Node) ([][]Node, map[int]int) {
 }
 
 func generateVbmap(params *VbmapParams, ri RIMap,
-	prevParams *prevVbmapParams) Vbmap {
+	prevParams *prevVbmapParams,
+	currentUploaders Uploaders) (Vbmap, error) {
 
 	activeVbs := SpreadSum(params.NumVBuckets, params.NumNodes)
 	nodes := params.Nodes()
@@ -443,7 +444,11 @@ func generateVbmap(params *VbmapParams, ri RIMap,
 		activeNumVbsMap[nodes[i]] = numVbs
 	}
 
-	vbmap := doGenerateVbmap(params, ri, activeNumVbsMap, prevParams)
+	vbmap, err := doGenerateVbmap(params, ri,
+		activeNumVbsMap, prevParams, currentUploaders)
+	if err != nil {
+		return nil, err
+	}
 
 	for vb, chain := range vbmap {
 		if usedSameNodeTwice(chain) {
@@ -452,7 +457,7 @@ func generateVbmap(params *VbmapParams, ri RIMap,
 		}
 	}
 
-	return vbmap
+	return vbmap, nil
 }
 
 func makeActivePlacement(vb int, active Node, ri RIMap) ActivePlacement {
@@ -591,13 +596,27 @@ func updateVbmapReplicaChain(vbmap Vbmap, r int, params *VbmapParams,
 
 func doGenerateVbmap(
 	params *VbmapParams, ri RIMap, activeNumVbsMap map[Node]int,
-	prevParams *prevVbmapParams) Vbmap {
+	prevParams *prevVbmapParams,
+	currentUploaders Uploaders) (Vbmap, error) {
 
 	vbmap := makeVbmap(*params)
 	replicaCosts := makeReplicaCosts(params)
 	slaveCosts := makeSlaveCosts(params)
 
-	aps := getActivePlacements(ri, activeNumVbsMap, prevParams, params)
+	var aps []ActivePlacement
+
+	if currentUploaders != nil {
+		var err error
+		aps, err = getActivePlacementsWithUploaders(
+			ri, activeNumVbsMap, prevParams,
+			params, currentUploaders)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		aps = getActivePlacements(ri, activeNumVbsMap,
+			prevParams, params)
+	}
 
 	// populate the vbmap based on the active placement chosen.
 	for _, ap := range aps {
@@ -624,7 +643,7 @@ func doGenerateVbmap(
 		numReplicasPicked += 1
 	}
 
-	return vbmap
+	return vbmap, nil
 }
 
 func makeR(params *VbmapParams, vbmap Vbmap) (r R) {
@@ -816,6 +835,9 @@ func generateVbmapGreedy(params VbmapParams, prevVbmap Vbmap,
 
 	prevVbmapShuffled, shuffleOrder := shuffleVbmap(prevVbmap)
 
+	shuffledUploaders := shuffleUploaders(currentUploaders,
+		shuffleOrder)
+
 	// Initialize the structures from the previous vbucket map including:
 	// * number of nodes
 	// * RI matrix - the connectivity matrix indicating which
@@ -838,7 +860,11 @@ func generateVbmapGreedy(params VbmapParams, prevVbmap Vbmap,
 	// Generate the new balanced VB map using a greedy assignment
 	// approach and attempting to minimize the difference between the new
 	// VB map and the previous one, if provided.
-	vbmapShuffled := generateVbmap(&params, riMap, prevVbmapParams)
+	vbmapShuffled, err := generateVbmap(&params, riMap,
+		prevVbmapParams, shuffledUploaders)
+	if err != nil {
+		return nil, err
+	}
 
 	// Unshuffle the vbmap based on the previous vbucket to chains mapping
 	// derived from prevVbmap.
