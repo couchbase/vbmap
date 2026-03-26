@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	testMaxFlow  = flag.Bool("maxflow", true, "run maxflow tests")
-	testGlpk     = flag.Bool("glpk", false, "run glpk tests")
-	testGreedy   = flag.Bool("greedy", true, "run greedy tests")
-	testMaxCount = flag.Int("max-count", 50, "testing/quick MaxCount")
+	testMaxFlow     = flag.Bool("maxflow", true, "run maxflow tests")
+	testGlpk        = flag.Bool("glpk", false, "run glpk tests")
+	testGreedy      = flag.Bool("greedy", true, "run greedy tests")
+	testMaxCount    = flag.Int("max-count", 50, "testing/quick MaxCount")
+	testNumVBuckets = flag.Int("num-vbuckets", 1024, "num vbuckets")
 )
 
 var (
@@ -106,7 +107,7 @@ func genVbmapParams(rand *rand.Rand) VbmapParams {
 	params := VbmapParams{
 		NumNodes:    nodes,
 		NumSlaves:   10,
-		NumVBuckets: 1024,
+		NumVBuckets: *testNumVBuckets,
 		NumReplicas: replicas,
 		Tags:        trivialTags(nodes),
 	}
@@ -216,7 +217,7 @@ func TestRReplicaBalance(t *testing.T) {
 				Tags:        tags,
 				NumNodes:    nodes,
 				NumSlaves:   10,
-				NumVBuckets: 1024,
+				NumVBuckets: *testNumVBuckets,
 				NumReplicas: replicas,
 			}
 
