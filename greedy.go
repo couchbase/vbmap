@@ -44,22 +44,6 @@ type VbCtx struct {
 	chain []Node
 }
 
-type GreedyRIGenerator struct {
-	DontAcceptRIGeneratorParams
-}
-
-func makeGreedyRIGenerator() *GreedyRIGenerator {
-	return &GreedyRIGenerator{}
-}
-
-func (GreedyRIGenerator) String() string {
-	return "greedy"
-}
-
-func (GreedyRIGenerator) Generate(_ VbmapParams, _ SearchParams) (RI, error) {
-	return RI{}, nil
-}
-
 func (ri GreedyRI) String() string {
 
 	nodesIdx := make(map[Node]int)

@@ -1020,6 +1020,22 @@ func (q *qc) addDefaultGenerators() {
 	q.generators = append(q.generators, defaultGenerators()...)
 }
 
+type GreedyRIGenerator struct {
+	DontAcceptRIGeneratorParams
+}
+
+func makeGreedyRIGenerator() *GreedyRIGenerator {
+	return &GreedyRIGenerator{}
+}
+
+func (GreedyRIGenerator) String() string {
+	return "greedy"
+}
+
+func (GreedyRIGenerator) Generate(_ VbmapParams, _ SearchParams) (RI, error) {
+	return RI{}, nil
+}
+
 func (q *qc) addGreedyGenerator() {
 	if *testGreedy {
 		q.generators = append(q.generators, makeGreedyRIGenerator())
