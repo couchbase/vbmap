@@ -6,6 +6,18 @@
 // in that file, in accordance with the Business Source License, use of this
 // software will be governed by the Apache License, Version 2.0, included in
 // the file licenses/APL2.txt.
+
+// This file implements a Maximum Flow solver with support for edge lower
+// bounds (demands) using Dinic's algorithm (blocking flow). The algorithm
+// runs in O(V^2 * E) time.
+//
+// Demand (lower bound) handling uses the standard reduction: for each edge
+// with demand d, auxiliary edges are created from a supplySource to the
+// edge's destination and from the edge's source to a demandSink, each with
+// capacity d. An infinite-capacity back-edge from Sink to Source is added.
+// FindFeasibleFlow first saturates the auxiliary network
+// (supplySource -> demandSink) to satisfy all demands, then MaximizeFlow
+// pushes additional flow through the original Source -> Sink network.
 package main
 
 import (
@@ -57,6 +69,9 @@ const (
 	Source SimpleVertex = "source"
 	Sink   SimpleVertex = "sink"
 
+	// supplySource and demandSink are auxiliary vertices used by the
+	// demand/lower-bound reduction. They form a separate sub-network
+	// whose max flow must equal the total demand for a feasible solution.
 	supplySource SimpleVertex = "supply"
 	demandSink   SimpleVertex = "demand"
 )
@@ -64,9 +79,9 @@ const (
 type edgeType int
 
 const (
-	edgeNormal  edgeType = iota
-	edgeReverse edgeType = iota
-	edgeDemand  edgeType = iota
+	edgeNormal  edgeType = iota // forward edge in the original network
+	edgeReverse edgeType = iota // residual back-edge for flow cancellation
+	edgeDemand  edgeType = iota // auxiliary edge for demand/lower-bound reduction
 )
 
 type GraphEdge struct {
@@ -153,6 +168,8 @@ func (edge *GraphEdge) IncreaseCapacity(by int) {
 	edge.SetCapacity(edge.Capacity() + by)
 }
 
+// augPath represents an augmenting path in the residual graph, used by
+// Dinic's DFS phase to find blocking flows along the layered graph.
 type augPath []*GraphEdge
 
 func (path *augPath) addEdge(edge *GraphEdge) {
@@ -195,6 +212,10 @@ func (path *augPath) truncate(i int) {
 	*path = (*path)[0:i]
 }
 
+// graphVertexData stores adjacency information for a vertex. The firstEdge
+// index implements Dinic's "current arc" optimization: edges already known
+// to be saturated or unable to lead to the sink in the current BFS phase
+// are skipped by advancing firstEdge, avoiding redundant work during DFS.
 type graphVertexData struct {
 	allEdges  []*GraphEdge
 	firstEdge int
@@ -310,6 +331,10 @@ func NewGraph(name string) (g *Graph) {
 	g.vertices = make(map[GraphVertex]*graphVertexData)
 	g.distances = make(map[GraphVertex]int)
 
+	// Infinite-capacity back-edge from Sink to Source. Required by the
+	// demand reduction so that flow pushed through the auxiliary network
+	// (supplySource -> demandSink) can circulate back to the original
+	// source, forming valid flow conservation.
 	g.addEdge(Sink, Source, math.MaxInt, 0, edgeDemand)
 
 	return
@@ -317,6 +342,10 @@ func NewGraph(name string) (g *Graph) {
 
 type edgePredicate func(*GraphEdge) bool
 
+// bfsGeneric performs a BFS from source, only traversing edges that satisfy
+// pred. It populates g.distances with the shortest hop-count from source to
+// each reachable vertex (-1 for unreachable). Returns the maximum distance
+// encountered. This builds the layered graph used by Dinic's algorithm.
 func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
 	queue := []GraphVertex{source}
 	seen := make(map[GraphVertex]bool)
@@ -354,6 +383,9 @@ func (g *Graph) bfsGeneric(source GraphVertex, pred edgePredicate) int {
 	return d
 }
 
+// bfsUnsaturated builds a layered graph of unsaturated edges (residual > 0)
+// via BFS from source. Returns true if sink is reachable, meaning another
+// blocking flow iteration is possible (Dinic's BFS phase).
 func (g *Graph) bfsUnsaturated(source, sink GraphVertex) bool {
 	_ = g.bfsGeneric(source, func(edge *GraphEdge) bool {
 		return !edge.IsSaturated()
@@ -368,6 +400,10 @@ func (g *Graph) bfsNetwork(source GraphVertex) int {
 	})
 }
 
+// dfsPath performs a DFS along the layered graph (edges where dst distance
+// == src distance + 1) to find an augmenting path from 'from' to 'to'.
+// Uses the current-arc optimization via forgetFirstEdge to skip exhausted
+// edges. This is the DFS phase of Dinic's blocking flow algorithm.
 func (g *Graph) dfsPath(from, to GraphVertex, path *augPath) bool {
 	if from == to {
 		return true
@@ -400,6 +436,11 @@ func (g *Graph) dfsPath(from, to GraphVertex, path *augPath) bool {
 	return false
 }
 
+// augmentFlow performs one iteration of Dinic's algorithm: BFS to build
+// the layered graph, then repeatedly find blocking flows via DFS. After
+// pushing flow along a path, it rewinds to the first saturated edge and
+// continues searching from there. Returns false when no augmenting path
+// exists (sink is unreachable from source in the residual graph).
 func (g *Graph) augmentFlow(source, sink GraphVertex) bool {
 	for _, vertexData := range g.vertices {
 		vertexData.reset()
@@ -487,6 +528,14 @@ func (g *Graph) addDemandEdge(src, dst GraphVertex, demand int) *GraphEdge {
 	return edge
 }
 
+// AddEdge adds a directed edge from src to dst with the given capacity and
+// demand (lower bound). It creates the corresponding reverse edge for the
+// residual graph. If demand > 0, auxiliary demand edges are created:
+//   - src -> demandSink with capacity = demand
+//   - supplySource -> dst with capacity = demand
+//
+// These auxiliary edges allow FindFeasibleFlow to verify and establish a
+// flow that satisfies all lower bounds before maximizing total flow.
 func (g *Graph) AddEdge(src, dst GraphVertex, capacity, demand int) {
 	g.checkNoEdge(src, dst)
 
@@ -525,6 +574,10 @@ func (g *Graph) edges() (result []*GraphEdge) {
 	return
 }
 
+// hasFeasibleFlow checks whether all demand constraints are satisfied by
+// inspecting the auxiliary supply edges. If every supplySource edge is
+// fully saturated (residual == 0), the demands are met. The violation
+// value is the total unsatisfied demand.
 func (g *Graph) hasFeasibleFlow() (result bool, violation int) {
 	_, haveDemands := g.vertices[supplySource]
 	if !haveDemands {
@@ -538,6 +591,10 @@ func (g *Graph) hasFeasibleFlow() (result bool, violation int) {
 	return violation == 0, violation
 }
 
+// FindFeasibleFlow attempts to find a flow that satisfies all edge demands
+// by maximizing flow through the auxiliary supplySource -> demandSink
+// network. Returns (true, 0) if all demands are met, or (false, violation)
+// where violation is the total unsatisfied demand.
 func (g *Graph) FindFeasibleFlow() (bool, int) {
 	if feasible, _ := g.hasFeasibleFlow(); feasible {
 		return true, 0
@@ -547,6 +604,9 @@ func (g *Graph) FindFeasibleFlow() (bool, int) {
 	return g.hasFeasibleFlow()
 }
 
+// MaximizeFlow first establishes a feasible flow satisfying all demands,
+// then maximizes the total flow from Source to Sink. Returns false if no
+// feasible flow exists (demands cannot be satisfied).
 func (g *Graph) MaximizeFlow() bool {
 	if feasible, _ := g.FindFeasibleFlow(); !feasible {
 		return false
@@ -616,6 +676,10 @@ func (g *Graph) Vertices() (vertices []GraphVertex) {
 	return
 }
 
+// Dot exports the graph to a Graphviz DOT file for visualization.
+// Edges are colored green (unsaturated) or red (saturated), and demand
+// violations are highlighted with red labels. When verbose is true,
+// reverse and demand edges are included in the output.
 func (g *Graph) Dot(path string, verbose bool) (err error) {
 	buffer := &bytes.Buffer{}
 
