@@ -566,9 +566,12 @@ func doCheckGreedyVbmapProperties(
 		return false
 	}
 
-	// chain-level checks.
+	maxActiveOccurrences := params.NumVBuckets/params.NumNodes + 1
+	activeCounts := make(map[Node]int)
 
 	for _, chain := range vbmap {
+		activeCounts[chain[0]]++
+
 		// Check the active and replicas are all on different nodes for each
 		// chain.
 		if usedSameNodeTwice(chain) {
@@ -582,6 +585,14 @@ func doCheckGreedyVbmapProperties(
 			if replicaTag == activeTag {
 				return false
 			}
+		}
+	}
+
+	// check that actives are evenly distributed
+	for _, count := range activeCounts {
+		if count > maxActiveOccurrences ||
+			count < maxActiveOccurrences - 1 {
+			return false
 		}
 	}
 
